@@ -28,3 +28,20 @@ def test_client_rejects_unapproved_paths_and_bounds_response():
         client.collect({"issues": "/repos/acme/demo/issues?state=all"})
     payload = ReadOnlyGitHubClient(lambda *_: TransportResponse(200, b"[123]") , max_response_bytes=2).collect({"issues": "/repos/acme/demo/issues"})
     assert payload["collection"]["issues"]["reason"] == "response_too_large"
+
+
+def test_client_validates_bounds_before_any_fetch():
+    calls = []
+    with pytest.raises(GitHubClientError, match="timeout"):
+        ReadOnlyGitHubClient(lambda *_: calls.append(1), timeout_seconds=float("inf"))
+    with pytest.raises(GitHubClientError, match="max_pages"):
+        ReadOnlyGitHubClient(lambda *_: calls.append(1), max_pages=51)
+    with pytest.raises(GitHubClientError, match="unsupported metadata path"):
+        ReadOnlyGitHubClient(lambda *_: calls.append(1)).collect({"issues": "/repos/acme/../issues"})
+    assert calls == []
+
+
+def test_client_rejects_non_object_records():
+    payload = ReadOnlyGitHubClient(lambda *_: TransportResponse(200, b"[1]")).collect({"issues": "/repos/acme/demo/issues"})
+    assert payload["permissions"]["issues"] is False
+    assert payload["collection"]["issues"]["reason"] == "invalid_record"

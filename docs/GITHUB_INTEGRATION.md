@@ -13,6 +13,11 @@ Both workflows use contents: read, disable checkout credential persistence, cap 
 
 The current `maintainer_zero.github_metadata` module validates offline snapshots produced by a separately reviewed client. The optional `github_http` transport is an explicit, GET-only stdlib boundary; it is never enabled by default and does not hide rate-limit waits. It preserves missing permissions as `unknown`; callers remain responsible for least-privilege credentials and policy:
 
+For a real repository, `maintainer-zero collect-github OWNER/REPOSITORY --allow-network`
+connects that boundary to a local snapshot. Network access is opt-in, and reading
+`GITHUB_TOKEN` requires the additional `--allow-environment-token` flag. The command never
+performs GitHub writes; review the resulting JSON before passing it to `simulate`.
+
 | Capability | Required permission | Write access |
 | --- | --- | --- |
 | Issues / pull requests / reviews | contents: read, issues: read, pull-requests: read | None |

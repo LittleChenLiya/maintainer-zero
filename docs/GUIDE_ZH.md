@@ -42,6 +42,15 @@ maintainer-zero demo --format json --output .continuity/demo.json --fail-on-regr
 
 可以把已审阅的只读快照传给 `--github-metadata`。当前实现不自动读取 token，不默认联网，不修改 Issue、PR、权限或仓库文件。标准库 GET transport 需要调用方显式 opt-in，并限制 HTTPS、GET、白名单路径、超时和响应大小。
 
+如需从真实仓库生成快照，必须显式允许网络：
+
+```powershell
+maintainer-zero collect-github octo-org/example --allow-network --output github-metadata.json
+maintainer-zero simulate . --github-metadata github-metadata.json --output .continuity
+```
+
+只有额外传入 `--allow-environment-token` 才会读取 `GITHUB_TOKEN`；命令只执行 GET，不执行 GitHub 写操作。
+
 ## 隐私与安全边界
 
 - 默认数据留在本地；可选择匿名化贡献者和 CODEOWNERS 身份。

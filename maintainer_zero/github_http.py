@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from .github_client import TransportResponse
+from .github_client import GitHubClientError, TransportResponse, validate_github_path
 
 DEFAULT_API_BASE = "https://api.github.com"
 DEFAULT_USER_AGENT = "maintainer-zero-read-only/0.1"
 DEFAULT_MAX_RESPONSE_BYTES = 1_000_000
-_PATH_RE = re.compile(r"^/repos/[^/?#]+/[^/?#]+/(?:issues|pulls|releases|pulls/[1-9][0-9]*/reviews)$")
+class _RejectRedirect(HTTPRedirectHandler):
+    def redirect_request(self, request, *args, **kwargs):
+        return None
+
+
+_NO_REDIRECT_OPENER = build_opener(_RejectRedirect)
 
 
 class GitHubHTTPError(ValueError):
@@ -44,7 +48,7 @@ class GitHubHTTPTransport:
         token: str | None = None,
         *,
         config: HTTPTransportConfig = HTTPTransportConfig(),
-        opener: Callable[..., Any] = urlopen,
+        opener: Callable[..., Any] | None = None,
     ) -> None:
         if not isinstance(config.api_base, str) or not config.api_base.startswith("https://") or config.api_base.endswith("/"):
             raise GitHubHTTPError("api_base must be an https URL without a trailing slash")
@@ -52,11 +56,11 @@ class GitHubHTTPTransport:
             raise GitHubHTTPError("user_agent must be a non-empty single-line string")
         if isinstance(config.max_response_bytes, bool) or not isinstance(config.max_response_bytes, int) or config.max_response_bytes < 1:
             raise GitHubHTTPError("max_response_bytes must be positive")
-        if not callable(opener):
+        if opener is not None and not callable(opener):
             raise GitHubHTTPError("opener must be callable")
         self.token = _validate_token(token)
         self.config = config
-        self.opener = opener
+        self.opener = opener or _NO_REDIRECT_OPENER.open
 
     @classmethod
     def from_environment(cls, *, allow_environment: bool = False, **kwargs: Any) -> "GitHubHTTPTransport":
@@ -68,8 +72,10 @@ class GitHubHTTPTransport:
         return cls(os.environ.get("GITHUB_TOKEN"), **kwargs)
 
     def __call__(self, path: str, params: Mapping[str, str], timeout: float) -> TransportResponse:
-        if not isinstance(path, str) or not _PATH_RE.fullmatch(path):
-            raise GitHubHTTPError("HTTP transport received a non-whitelisted path")
+        try:
+            validate_github_path(path)
+        except GitHubClientError as exc:
+            raise GitHubHTTPError("HTTP transport received a non-whitelisted path") from exc
         if not isinstance(params, Mapping) or any(not isinstance(key, str) or not isinstance(value, str) for key, value in params.items()):
             raise GitHubHTTPError("HTTP transport parameters must be string pairs")
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:

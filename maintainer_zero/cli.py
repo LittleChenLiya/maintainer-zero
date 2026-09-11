@@ -10,6 +10,9 @@ from .report import write_report
 from .recovery import write_recovery_artifacts
 from .scenarios import SCENARIOS
 from .github_metadata import MetadataError, load_metadata, summarize_metadata
+from .github_client import GitHubClientError
+from .github_collect import GitHubRepositoryError, collect_repository_metadata
+from .github_http import GitHubHTTPError, GitHubHTTPTransport
 from .scenario_registry import ScenarioSpecError, load_scenario
 from .history import HistoryError, append_history
 from .demos import DemoError, load_demo_suite, run_demo_suite
@@ -21,6 +24,14 @@ def _build_parser() -> argparse.ArgumentParser:
     init.add_argument("path", nargs="?", default=".")
     validate = sub.add_parser("validate-scenario", help="validate a declarative scenario document without executing it")
     validate.add_argument("path")
+    collect = sub.add_parser("collect-github", help="explicitly collect bounded, read-only GitHub metadata")
+    collect.add_argument("repository", metavar="OWNER/REPOSITORY")
+    collect.add_argument("--output", default="github-metadata.json", metavar="PATH")
+    collect.add_argument("--allow-network", action="store_true", help="explicitly permit HTTPS GET requests")
+    collect.add_argument("--allow-environment-token", action="store_true", help="explicitly allow GITHUB_TOKEN for the read-only request")
+    collect.add_argument("--timeout", type=float, default=5.0, metavar="SECONDS")
+    collect.add_argument("--max-pages", type=int, default=5, metavar="COUNT")
+    collect.add_argument("--page-size", type=int, default=100, metavar="COUNT")
     demo = sub.add_parser("demo", aliases=["demos"], help="run a bounded, data-only before/after demo suite")
     demo.add_argument("path", nargs="?", default=None, help="optional data-only demo suite; default uses the packaged suite")
     demo.add_argument("--format", choices=("text", "json"), default="text", dest="demo_format")
@@ -104,6 +115,28 @@ def main(argv: list[str] | None = None) -> int:
         if not config.exists():
             config.write_text(json.dumps({"scenarios": list(SCENARIOS), "days": 90, "privacy": {"anonymize_people": True, "upload_repository_content": False}}, indent=2), encoding="utf-8")
         print(f"Created {config}")
+        return 0
+    if args.command == "collect-github":
+        if not args.allow_network:
+            print("error: network collection requires explicit --allow-network")
+            return 2
+        try:
+            transport = GitHubHTTPTransport.from_environment(allow_environment=args.allow_environment_token)
+            payload = collect_repository_metadata(
+                args.repository,
+                transport,
+                timeout_seconds=args.timeout,
+                max_pages=args.max_pages,
+                page_size=args.page_size,
+            )
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        except (OSError, ValueError, GitHubRepositoryError, GitHubClientError, GitHubHTTPError) as exc:
+            print(f"error: {exc}")
+            return 2
+        available = sum(1 for value in payload["permissions"].values() if value)
+        print(f"Collected read-only GitHub metadata for {args.repository}: {available}/{len(payload['permissions'])} resources available -> {output_path.resolve()}")
         return 0
     if args.command == "validate-scenario":
         try:

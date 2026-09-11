@@ -25,7 +25,21 @@ unknown 状态，不复制原始记录。该参数不会触发网络请求。
 `unknown`。这表示“当前不可观测”，不是“没有问题”。载荷数组有 5000 项上限，
 未来网络适配器仍必须自行实现超时、分页和令牌隔离。
 
-该层是 M3 的边界契约，不代表已经完成 GitHub API 客户端。
+该层是 M3 的边界契约；`collect-github` 只把这个边界接到显式授权的只读 HTTPS GET，
+不提供 GitHub 写客户端。
+
+## 显式 CLI 采集
+
+可以用 `collect-github` 生成本地快照，但网络默认关闭：
+
+```powershell
+maintainer-zero collect-github octo-org/example --allow-network --output github-metadata.json
+```
+
+该命令只请求 issues、pull requests 和 releases 的 HTTPS GET 接口；reviews 在没有
+具体 PR 编号时保持 unknown。只有同时传入 `--allow-environment-token` 才会读取
+`GITHUB_TOKEN`，命令没有 token 参数，也不会把 token 写入输出。失败的权限、限流、
+超时或传输错误会保留为不可用/unknown，而不是被解释为安全。
 
 ## 注入式只读客户端
 

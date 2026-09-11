@@ -8,11 +8,13 @@
 
 Maintainer-Zero turns that question into a repeatable, explainable drill. It reads a local Git repository and simulates three incidents: a core maintainer becoming unavailable, a package dependency being yanked, and CI/release infrastructure going offline. It produces a score, assumptions, an incident timeline, and concrete recovery actions.
 
-This is an early MVP. Results are heuristics, not a security certification. It does not upload repository content or call GitHub APIs.
+This is an early MVP. Results are heuristics, not a security certification. It is offline by default;
+the optional `collect-github` command can make explicitly authorized, read-only HTTPS GET requests
+and writes only a local metadata snapshot.
 
-The first M3 metadata boundary is offline-only: `maintainer_zero.github_metadata` validates
-an already-reviewed JSON snapshot and preserves missing permissions as `unknown`. It does
-not fetch GitHub, read tokens, or write external systems. See [GitHub metadata](docs/GITHUB_METADATA.md).
+The M3 metadata boundary validates reviewed snapshots and preserves missing permissions as
+`unknown`. Network collection requires both `--allow-network` and, for environment credentials,
+`--allow-environment-token`; it never writes to GitHub. See [GitHub metadata](docs/GITHUB_METADATA.md).
 
 ## Quick start
 
@@ -30,6 +32,8 @@ maintainer-zero simulate . --baseline .continuity/continuity.json
 maintainer-zero simulate . --baseline old.json --fail-on-score-decrease --fail-on-new-high-risk
 # Optionally attach a reviewed, read-only metadata snapshot (no network access)
 maintainer-zero simulate . --github-metadata github-metadata.json
+# Explicitly collect bounded read-only metadata (network is otherwise disabled)
+maintainer-zero collect-github OWNER/REPOSITORY --allow-network --output github-metadata.json
 # Keep a local, same-repository score history (no raw repository records)
 maintainer-zero simulate . --history .continuity/history.json
 # Validate a declarative community scenario without executing code

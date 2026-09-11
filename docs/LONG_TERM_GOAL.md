@@ -41,7 +41,7 @@
 
 - [x] 建立注入式只读元数据客户端边界，支持白名单路径、分页、超时参数、大小上限和权限/传输降级；CLI 通过显式 `collect-github` 接入；reviews 仅在显式指定单个 PR 时采集。
 - [x] 离线快照保留观测事实与 unknown 状态，并可通过 CLI 注入报告；标准库 HTTP GET transport 已完成，支持显式仓库描述采集并将分页截断标记为 `partial`，速率等待和缓存仍由调用方负责。
-- [x] 当前 CI/演练工作流使用最小 `contents: read` 权限，不使用 `pull_request_target` 或外部写权限；可复用 Action 仍待发布。
+- [x] 当前 CI/演练工作流使用最小 `contents: read` 权限，不使用 `pull_request_target` 或外部写权限；根目录提供可审阅的本地 composite Action 契约，Marketplace 发布仍待完成。
 - [x] PR 评论默认只生成本地草稿；显式注入 publisher 后使用稳定幂等键，真实 GitHub 写入仍由集成方负责。
 - [x] 保留本地报告历史与同仓库趋势，不进行跨项目误导性排名。
 

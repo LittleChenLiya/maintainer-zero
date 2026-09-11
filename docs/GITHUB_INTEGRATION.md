@@ -33,6 +33,25 @@ The adapter should accept GITHUB_TOKEN only through explicit opt-in, redact repo
 只有调用方显式传入 `enabled=True` 以及自有 publisher，才会把正文交给外部适配器；
 项目本身不联网、不读取 token，也不提供 GitHub 写客户端。详见 [PR 评论边界](PR_COMMENTS.md)。
 
+## Reusable composite Action (local contract)
+
+仓库可以在审阅后引用根目录的 `action.yml` 作为 composite Action。它只安装当前 checkout 中的包并运行本地 `simulate`；输入通过环境变量转成参数列表，不拼接 shell 命令。Action 不读取 token、不启用网络、不写 GitHub，输出 `report-directory` 和 `report-json` 路径。调用方仍负责 checkout、Python 环境和最小权限：
+
+```yaml
+permissions:
+  contents: read
+steps:
+  - uses: actions/checkout@v4
+    with:
+      persist-credentials: false
+  - uses: ./
+    with:
+      scenario: all
+      fail-under: '70'
+```
+
+当前仓库尚未发布到 Marketplace；本地 Action 契约测试验证输入边界，但不等同于真实远程 runner 结果。
+
 ## Setup for a repository
 
 The repository now includes a reusable composite Action at its root. After a reviewed release is tagged, a consuming repository can call it from a pinned ref after checkout:

@@ -50,9 +50,11 @@ def test_reusable_action_is_composite_and_keeps_inputs_bounded():
     assert "--no-build-isolation" in action
     for input_name in ("scenario", "days", "output", "fail-under", "baseline"):
         assert f"  {input_name}:" in action
-    assert "MZ_WORKSPACE: ${{ github.workspace }}" in action
-    assert "python -m maintainer_zero simulate" in action
-    assert "set -euo pipefail" in action
+    assert "MZ_INPUT_PATH: ${{ github.workspace }}" in action
+    assert "MZ_INPUT_METADATA: ${{ inputs.github-metadata }}" in action
+    assert 'python "$MZ_ACTION_PATH/tools/action_entrypoint.py"' in action
+    assert "GITHUB_TOKEN" not in action
+    assert "pull_request_target" not in action
 
 
 def test_continuity_workflow_consumes_the_checked_in_action():

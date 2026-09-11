@@ -9,6 +9,7 @@ from maintainer_zero.github_collect import (
     validate_repository_slug,
 )
 from maintainer_zero.github_client import TransportResponse
+from maintainer_zero.github_client import DEFAULT_MAX_RESPONSE_BYTES
 from maintainer_zero.cli import main
 
 
@@ -121,3 +122,42 @@ def test_cli_rejects_snapshot_cache_path_collision(tmp_path, monkeypatch):
     monkeypatch.setattr("maintainer_zero.cli.GitHubHTTPTransport", FakeTransport)
     output = tmp_path / "same.json"
     assert main(["collect-github", "acme/demo", "--allow-network", "--output", str(output), "--cache-output", str(output)]) == 2
+
+
+def test_cli_propagates_tighter_response_bound_to_transport_and_client(tmp_path, monkeypatch):
+    seen = {}
+
+    class FakeTransport:
+        @classmethod
+        def from_environment(cls, *, allow_environment=False, **kwargs):
+            seen["allow_environment"] = allow_environment
+            seen["config"] = kwargs.get("config")
+            return cls()
+
+        def __call__(self, path, params, timeout):
+            return TransportResponse(200, b"[]", {})
+
+    monkeypatch.setattr("maintainer_zero.cli.GitHubHTTPTransport", FakeTransport)
+    output = tmp_path / "bounded.json"
+    assert main([
+        "collect-github", "acme/demo", "--allow-network",
+        "--max-response-bytes", "4096", "--output", str(output),
+    ]) == 0
+    assert seen["config"].max_response_bytes == 4096
+
+
+@pytest.mark.parametrize("value", ["0", "-1", str(DEFAULT_MAX_RESPONSE_BYTES + 1)])
+def test_cli_rejects_invalid_response_bound(tmp_path, monkeypatch, value):
+    class FakeTransport:
+        @classmethod
+        def from_environment(cls, *, allow_environment=False, **kwargs):
+            return cls()
+
+        def __call__(self, path, params, timeout):
+            return TransportResponse(200, b"[]", {})
+
+    monkeypatch.setattr("maintainer_zero.cli.GitHubHTTPTransport", FakeTransport)
+    assert main([
+        "collect-github", "acme/demo", "--allow-network",
+        "--max-response-bytes", value, "--output", str(tmp_path / "invalid.json"),
+    ]) == 2

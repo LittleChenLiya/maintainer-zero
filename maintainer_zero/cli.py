@@ -14,9 +14,9 @@ from .recovery import write_recovery_artifacts
 from .scenarios import SCENARIOS
 from .github_metadata import MetadataError, load_metadata, summarize_metadata
 from .github_cache import MetadataCacheError, cache_status, load_metadata_cache, save_metadata_cache
-from .github_client import GitHubClientError
+from .github_client import DEFAULT_MAX_RESPONSE_BYTES, GitHubClientError
 from .github_collect import GitHubRepositoryError, collect_repository_metadata
-from .github_http import GitHubHTTPError, GitHubHTTPTransport
+from .github_http import GitHubHTTPError, GitHubHTTPTransport, HTTPTransportConfig
 from .scenario_registry import ScenarioSpecError, load_scenario
 from .history import HistoryError, append_history
 from .demos import DemoError, load_demo_suite, run_demo_suite
@@ -53,6 +53,13 @@ def _build_parser() -> argparse.ArgumentParser:
     collect.add_argument("--timeout", type=float, default=5.0, metavar="SECONDS")
     collect.add_argument("--max-pages", type=int, default=5, metavar="COUNT")
     collect.add_argument("--page-size", type=int, default=100, metavar="COUNT")
+    collect.add_argument(
+        "--max-response-bytes",
+        type=int,
+        default=DEFAULT_MAX_RESPONSE_BYTES,
+        metavar="BYTES",
+        help=f"maximum response body size (1-{DEFAULT_MAX_RESPONSE_BYTES}; may only reduce the default)",
+    )
     collect.add_argument("--reviews-pr", type=int, default=None, metavar="NUMBER", help="explicitly collect reviews for one pull request")
     collect.add_argument("--include-repository", action="store_true", help="collect bounded repository visibility and branch metadata")
     collect.add_argument("--cache-output", default=None, metavar="PATH", help="also write a bounded local metadata cache envelope")
@@ -193,13 +200,23 @@ def main(argv: list[str] | None = None) -> int:
             print("error: network collection requires explicit --allow-network")
             return 2
         try:
-            transport = GitHubHTTPTransport.from_environment(allow_environment=args.allow_environment_token)
+            # Keep the default call shape compatible with injected test/integration
+            # transports while propagating an explicitly tighter bound to the
+            # stdlib transport itself.
+            if args.max_response_bytes == DEFAULT_MAX_RESPONSE_BYTES:
+                transport = GitHubHTTPTransport.from_environment(allow_environment=args.allow_environment_token)
+            else:
+                transport = GitHubHTTPTransport.from_environment(
+                    allow_environment=args.allow_environment_token,
+                    config=HTTPTransportConfig(max_response_bytes=args.max_response_bytes),
+                )
             payload = collect_repository_metadata(
                 args.repository,
                 transport,
                 timeout_seconds=args.timeout,
                 max_pages=args.max_pages,
                 page_size=args.page_size,
+                max_response_bytes=args.max_response_bytes,
                 reviews_pr=args.reviews_pr,
                 include_repository=args.include_repository,
             )

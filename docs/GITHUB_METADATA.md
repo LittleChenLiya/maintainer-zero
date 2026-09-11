@@ -90,6 +90,10 @@ repository descriptor 只有传入 `--include-repository` 才会请求。reviews
 自动等待、重试或把任意响应头复制到快照，无法解析或超出范围的值会被丢弃。
 这些字段会随 `collection` 状态进入机器可读演练报告；Markdown 报告仍只展示未知和部分采集提示。
 
+响应体上限默认是 1,000,000 字节。需要更严格的网络边界时，可以显式传入
+--max-response-bytes N（范围为 1 到 1,000,000）；该值同时约束 HTTP transport
+和注入式客户端，不能通过 CLI 放宽全局上限。无此参数时保持默认上限。
+
 ## 注入式只读客户端
 
 `maintainer_zero.github_client.ReadOnlyGitHubClient` 提供了一个不绑定 HTTP 库的

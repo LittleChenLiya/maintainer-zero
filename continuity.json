@@ -8,6 +8,7 @@
   "fail_under": null,
   "privacy": {
     "anonymize_people": true,
+    "anonymize_repository": true,
     "upload_repository_content": false
   }
 }

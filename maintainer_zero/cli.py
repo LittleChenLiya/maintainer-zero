@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from .analyzer import snapshot_repository
@@ -82,7 +83,7 @@ def _load_config(path: Path) -> dict:
     privacy = data.get("privacy", {})
     if not isinstance(privacy, dict):
         raise ValueError("continuity.json privacy must be an object")
-    for key in ("anonymize_people", "upload_repository_content"):
+    for key in ("anonymize_people", "anonymize_repository", "upload_repository_content"):
         if key in privacy and not isinstance(privacy[key], bool):
             raise ValueError(f"continuity.json privacy.{key} must be boolean")
     if privacy.get("upload_repository_content") is True:
@@ -90,20 +91,43 @@ def _load_config(path: Path) -> dict:
     return data
 
 
-def _anonymize_snapshot(repo: RepoSnapshot) -> RepoSnapshot:
-    """Return a stable, local-only identity mapping for report output."""
-    names = sorted(repo.contributors)
-    mapping = {name: f"contributor-{index}" for index, name in enumerate(names, 1)}
-    owners = sorted({owner for entries in repo.codeowners.values() for owner in entries})
-    owner_mapping = {owner: f"@owner-{index}" for index, owner in enumerate(owners, 1)}
+def _anonymize_snapshot(
+    repo: RepoSnapshot,
+    *,
+    anonymize_people: bool = True,
+    anonymize_repository: bool = False,
+) -> RepoSnapshot:
+    """Return a stable, local-only identity mapping for report output.
+
+    Repository identity redaction deliberately does not expose the source path or
+    basename.  A short digest keeps repeated local runs joinable without making
+    a private repository name or workstation path part of a shareable report.
+    """
+    if anonymize_people:
+        names = sorted(repo.contributors)
+        mapping = {name: f"contributor-{index}" for index, name in enumerate(names, 1)}
+        owners = sorted({owner for entries in repo.codeowners.values() for owner in entries})
+        owner_mapping = {owner: f"@owner-{index}" for index, owner in enumerate(owners, 1)}
+        contributors = {mapping[name]: count for name, count in repo.contributors.items()}
+        codeowners = {pattern: [owner_mapping.get(owner, owner) for owner in entries] for pattern, entries in repo.codeowners.items()}
+    else:
+        contributors = dict(repo.contributors)
+        codeowners = {pattern: list(entries) for pattern, entries in repo.codeowners.items()}
+    if anonymize_repository:
+        identity = hashlib.sha256(f"{repo.name}\0{repo.path}".encode("utf-8", "replace")).hexdigest()[:12]
+        name = f"repository-{identity}"
+        path = "<local-repository>"
+    else:
+        name = repo.name
+        path = repo.path
     return RepoSnapshot(
-        path=repo.path,
-        name=repo.name,
+        path=path,
+        name=name,
         commits=repo.commits,
-        contributors={mapping[name]: count for name, count in repo.contributors.items()},
+        contributors=contributors,
         dependencies=repo.dependencies,
         workflows=repo.workflows,
-        codeowners={pattern: [owner_mapping.get(owner, owner) for owner in entries] for pattern, entries in repo.codeowners.items()},
+        codeowners=codeowners,
         release_files=repo.release_files,
     )
 
@@ -114,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
         path.mkdir(parents=True, exist_ok=True)
         config = path / "continuity.json"
         if not config.exists():
-            config.write_text(json.dumps({"scenarios": list(SCENARIOS), "days": 90, "privacy": {"anonymize_people": True, "upload_repository_content": False}}, indent=2), encoding="utf-8")
+            config.write_text(json.dumps({"scenarios": list(SCENARIOS), "days": 90, "privacy": {"anonymize_people": True, "anonymize_repository": True, "upload_repository_content": False}}, indent=2), encoding="utf-8")
         print(f"Created {config}")
         return 0
     if args.command == "collect-github":
@@ -201,8 +225,13 @@ def main(argv: list[str] | None = None) -> int:
         fail_under = args.fail_under if args.fail_under is not None else config.get("fail_under")
         if fail_under is not None and not 0 <= fail_under <= 100:
             raise ValueError("fail-under must be an integer from 0 to 100")
-        if config.get("privacy", {}).get("anonymize_people", False):
-            repo = _anonymize_snapshot(repo)
+        privacy = config.get("privacy", {})
+        if privacy.get("anonymize_people", False) or privacy.get("anonymize_repository", False):
+            repo = _anonymize_snapshot(
+                repo,
+                anonymize_people=privacy.get("anonymize_people", False),
+                anonymize_repository=privacy.get("anonymize_repository", False),
+            )
         metadata_summary = None
         if args.github_metadata:
             metadata_summary = summarize_metadata(load_metadata(args.github_metadata))

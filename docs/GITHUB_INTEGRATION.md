@@ -1,6 +1,6 @@
 # GitHub integration
 
-Maintainer-Zero is local-first. The analyzer does not call a GitHub API or upload source files. The shipped workflow runs on a GitHub-hosted runner and explicitly publishes the generated report to a job summary and artifact. Reports currently contain Git author names and the repository path; review this metadata before sharing it.
+Maintainer-Zero is local-first. The analyzer does not call a GitHub API or upload source files. The shipped workflow runs on a GitHub-hosted runner and explicitly publishes the generated report to a job summary and artifact. Set `privacy.anonymize_people` and `privacy.anonymize_repository` to `true` before sharing reports outside the repository; the starter config enables both.
 
 ## Included workflows
 
@@ -24,7 +24,7 @@ performs GitHub writes; review the resulting JSON before passing it to `simulate
 | Release and tag metadata | contents: read | None |
 | PR comment (opt-in) | pull-requests: write | Comment only |
 
-The adapter should accept GITHUB_TOKEN only through explicit opt-in, redact repository names and people in exported reports when configured, and fail closed when a permission is missing. It must never print tokens or upload raw prompts, repository files, or unredacted report payloads.
+The adapter should accept GITHUB_TOKEN only through explicit opt-in, redact repository names and people in exported reports when configured, and fail closed when a permission is missing. `anonymize_repository` replaces the basename and absolute path with a stable short digest and `<local-repository>`; it does not send the original identity anywhere. It must never print tokens or upload raw prompts, repository files, or unredacted report payloads.
 
 ## PR 评论草稿边界
 

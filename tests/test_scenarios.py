@@ -48,6 +48,24 @@ def test_config_is_validated_and_people_can_be_anonymized(tmp_path):
     assert anonymized.contributors == {"contributor-2": 2, "contributor-1": 1}
 
 
+def test_repository_anonymization_redacts_path_and_is_stable():
+    original = repo(path="C:/private/acme-secret", name="acme-secret")
+    first = _anonymize_snapshot(original, anonymize_people=False, anonymize_repository=True)
+    second = _anonymize_snapshot(original, anonymize_people=False, anonymize_repository=True)
+    assert first == second
+    assert first.path == "<local-repository>"
+    assert first.name.startswith("repository-")
+    assert "acme-secret" not in first.name
+    assert "C:/private" not in first.path
+
+
+def test_config_accepts_repository_anonymization(tmp_path):
+    (tmp_path / "continuity.json").write_text(
+        '{"privacy": {"anonymize_repository": true}}', encoding="utf-8"
+    )
+    assert _load_config(tmp_path)["privacy"]["anonymize_repository"] is True
+
+
 def test_config_rejects_unsupported_uploads(tmp_path):
     (tmp_path / "continuity.json").write_text(
         '{"privacy": {"upload_repository_content": true}}', encoding="utf-8"

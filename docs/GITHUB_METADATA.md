@@ -3,6 +3,8 @@
 `maintainer_zero.github_metadata` 是一个离线校验层。它不发起网络请求，不读取
 `GITHUB_TOKEN`，也不创建 Issue、评论或修改权限。经过用户审阅的只读客户端可以把
 GitHub API 响应整理成 JSON，再交给 `load_metadata()` / `summarize_metadata()`。
+CLI 可以通过 `simulate --github-metadata PATH` 读取这个快照；报告只保存摘要和
+unknown 状态，不复制原始记录。该参数不会触发网络请求。
 
 最小载荷：
 

@@ -26,6 +26,8 @@ maintainer-zero simulate . --scenario all --output .continuity
 maintainer-zero simulate . --scenario all --fail-under 70
 # Compare with a previous report; regression returns exit code 1
 maintainer-zero simulate . --baseline .continuity/continuity.json
+# Optionally attach a reviewed, read-only metadata snapshot (no network access)
+maintainer-zero simulate . --github-metadata github-metadata.json
 ```
 
 Open `.continuity/report.md` or `.continuity/report.html`. To create a starter config in another repository:

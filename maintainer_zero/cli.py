@@ -9,6 +9,7 @@ from .models import RepoSnapshot
 from .report import write_report
 from .recovery import write_recovery_artifacts
 from .scenarios import SCENARIOS
+from .github_metadata import MetadataError, load_metadata, summarize_metadata
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="maintainer-zero", description="Chaos engineering drills for open-source continuity")
@@ -27,6 +28,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--fail-under", type=int, default=None, metavar="SCORE", help="exit 1 when any drill score is below SCORE (0-100)")
     run.add_argument("--baseline", default=None, metavar="JSON", help="compare with a prior continuity.json report")
+    run.add_argument("--github-metadata", default=None, metavar="JSON", help="use a reviewed, read-only GitHub metadata snapshot")
     return parser
 
 
@@ -110,11 +112,14 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("fail-under must be an integer from 0 to 100")
         if config.get("privacy", {}).get("anonymize_people", False):
             repo = _anonymize_snapshot(repo)
+        metadata_summary = None
+        if args.github_metadata:
+            metadata_summary = summarize_metadata(load_metadata(args.github_metadata))
         results = [SCENARIOS[name](repo, days) for name in names]
-        write_report(Path(args.output), repo, results)
+        write_report(Path(args.output), repo, results, metadata_summary)
         recovery_output = Path(args.recovery_output) if args.recovery_output else Path(args.output) / "recovery"
         write_recovery_artifacts(recovery_output, repo, results)
-    except ValueError as exc:
+    except (ValueError, MetadataError) as exc:
         print(f"error: {exc}")
         return 2
     print(f"Analyzed {repo.name}: {len(results)} drills written to {Path(args.output).resolve()}")

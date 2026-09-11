@@ -1,3 +1,7 @@
+import pytest
+
+from maintainer_zero.analyzer import snapshot_repository
+from maintainer_zero.cli import _anonymize_snapshot, _build_parser, _load_config, main
 from maintainer_zero.models import RepoSnapshot
 from maintainer_zero.scenarios import ci_outage, dependency_yanked, maintainer_zero
 
@@ -23,3 +27,71 @@ def test_ci_drill_detects_release_path():
     result = ci_outage(repo())
     assert result.metrics["release_path_detected"] is True
     assert result.findings[0].severity == "high"
+
+
+def test_snapshot_rejects_non_git_directory(tmp_path):
+    with pytest.raises(ValueError, match="Not a Git repository"):
+        snapshot_repository(tmp_path)
+
+
+def test_config_is_validated_and_people_can_be_anonymized(tmp_path):
+    (tmp_path / "continuity.json").write_text(
+        '{"scenarios": ["ci-outage"], "days": 7, '
+        '"privacy": {"anonymize_people": true, "upload_repository_content": false}}',
+        encoding="utf-8",
+    )
+    config = _load_config(tmp_path)
+    assert config["scenarios"] == ["ci-outage"]
+    assert config["days"] == 7
+    anonymized = _anonymize_snapshot(repo(contributors={"Zed": 2, "Amy": 1}))
+    assert anonymized.contributors == {"contributor-2": 2, "contributor-1": 1}
+
+
+def test_config_rejects_unsupported_uploads(tmp_path):
+    (tmp_path / "continuity.json").write_text(
+        '{"privacy": {"upload_repository_content": true}}', encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="uploads are not supported"):
+        _load_config(tmp_path)
+
+
+@pytest.mark.parametrize("value", ['{"scenarios": null}', '{"scenarios": [{}]}', '{"days": null}'])
+def test_config_rejects_null_and_non_string_values(tmp_path, value):
+    (tmp_path / "continuity.json").write_text(value, encoding="utf-8")
+    with pytest.raises(ValueError):
+        _load_config(tmp_path)
+
+
+@pytest.mark.parametrize("scenario", [maintainer_zero, dependency_yanked, ci_outage])
+def test_scenarios_reject_negative_days(scenario):
+    with pytest.raises(ValueError, match="days must be a non-negative integer"):
+        scenario(repo(), -1)
+
+
+def test_timeline_respects_short_drill_window():
+    result = ci_outage(repo(), 1)
+    assert [item["day"] for item in result.timeline] == [0, 1]
+
+
+def test_dependency_drill_marks_empty_manifest_not_applicable():
+    result = dependency_yanked(repo(dependencies=[]))
+    assert result.metrics["applicable"] is False
+    assert result.findings[0].severity == "info"
+    assert result.timeline == [{"day": 0, "event": "场景跳过", "impact": "当前采集范围没有可模拟的依赖"}]
+
+
+def test_maintainer_drill_exposes_deterministic_queue_metrics():
+    result = maintainer_zero(repo(), 3)
+    assert result.metrics["simulated_peak_backlog"] > 0
+    assert result.metrics["simulated_ending_backlog"] > 0
+    assert 0 <= result.metrics["simulated_service_level"] <= 1
+    assert [item["day"] for item in result.timeline] == [0, 3]
+
+
+def test_fail_under_is_parsed_and_invalid_config_rejected(tmp_path):
+    parser = _build_parser()
+    args = parser.parse_args(["simulate", ".", "--fail-under", "70"])
+    assert args.fail_under == 70
+    (tmp_path / "continuity.json").write_text('{"fail_under": 101}', encoding="utf-8")
+    with pytest.raises(ValueError, match="fail_under"):
+        _load_config(tmp_path)

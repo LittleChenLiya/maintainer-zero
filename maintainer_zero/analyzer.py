@@ -47,6 +47,23 @@ def snapshot_repository(repo_path: str | Path) -> RepoSnapshot:
     path = Path(repo_path).resolve()
     if not path.is_dir():
         raise ValueError(f"Repository does not exist: {path}")
+    # An empty Git response is not evidence of an empty repository.  Refuse
+    # to analyze non-Git directories so callers cannot mistake missing git,
+    # a broken worktree, or a command failure for a healthy zero-contributor
+    # snapshot.
+    try:
+        probe = subprocess.run(
+            ["git", "-C", str(path), "rev-parse", "--is-inside-work-tree"],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        raise ValueError(f"Not a Git repository: {path}") from exc
+    if probe.stdout.strip().lower() != "true":
+        raise ValueError(f"Not a Git repository: {path}")
     raw = _run_git(path, "log", "--all", "--format=%an%x1f", "--name-only")
     contributors: Counter[str] = Counter()
     commits = 0

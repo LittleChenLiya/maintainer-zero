@@ -5,6 +5,7 @@
     "ci-outage"
   ],
   "days": 90,
+  "fail_under": null,
   "privacy": {
     "anonymize_people": true,
     "upload_repository_content": false

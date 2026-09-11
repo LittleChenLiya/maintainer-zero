@@ -18,6 +18,8 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -e .
 maintainer-zero simulate . --scenario all --output .continuity
+# CI gate: fail if any scenario scores below 70
+maintainer-zero simulate . --scenario all --fail-under 70
 ```
 
 Open `.continuity/report.md` or `.continuity/report.html`. To create a starter config in another repository:
@@ -50,9 +52,12 @@ This repository includes a self-analysis workflow in `.github/workflows/continui
 
 ## Roadmap
 
+See [the long-term execution plan](docs/LONG_TERM_GOAL.md) for milestones and acceptance criteria.
+
 - GitHub API adapter for Issues, reviews, permissions, and release metadata
 - CODEOWNERS and recovery-plan patch suggestions
 - monthly scheduled drills and score history
+- PR score regression gate with `--fail-under`
 - scenario registry (`npm-token-expired`, `pypi-owner-unavailable`, `security-flood`)
 - privacy-preserving public benchmark
 

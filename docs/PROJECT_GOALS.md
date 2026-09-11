@@ -1,5 +1,7 @@
 # Maintainer-Zero 项目目标
 
+长期执行计划、里程碑和当前进度见 [LONG_TERM_GOAL.md](LONG_TERM_GOAL.md)。
+
 ## 北极星目标
 
 让任何 GitHub 开源仓库都能在 5 分钟内回答：
@@ -26,6 +28,8 @@
 
 ## v0.2 目标
 
+- [x] 可选 `--fail-under` 连续性评分门禁，可用于 CI / PR
+- [x] 维护者离开场景接入确定性积压模拟器
 - 可选 GitHub API 适配器：Issues、PR review、权限和 release 元数据
 - 从报告生成 CODEOWNERS / Issue / Runbook 草稿
 - 维护者匿名化和组织级角色映射

@@ -9,9 +9,9 @@ Maintainer-Zero is local-first. The analyzer does not call a GitHub API or uploa
 
 Both workflows use contents: read, disable checkout credential persistence, cap execution time, and cancel superseded runs.
 
-## Optional API adapter (v0.2)
+## Optional API adapter (v0.2 boundary)
 
-The planned adapter may read issue, review, permission, and release metadata to improve estimates. It must remain opt-in and follow least privilege:
+The current `maintainer_zero.github_metadata` module validates offline snapshots produced by a separately reviewed client. It does not fetch GitHub or read tokens. It preserves missing permissions as `unknown`; a network client remains future work and must follow least privilege:
 
 | Capability | Required permission | Write access |
 | --- | --- | --- |

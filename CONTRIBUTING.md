@@ -6,3 +6,12 @@
 4. Run `python -m pytest -q` before opening a pull request.
 
 New scenarios should document: trigger, assumptions, inputs, score formula, limitations, and a recovery action. Never include real secrets or unredacted private repository data in fixtures.
+
+Declarative community scenarios use the versioned JSON format checked by
+`maintainer_zero.scenario_registry`. They may describe assumptions, ordered events,
+findings, and a score formula, but must not contain executable fields such as
+`command`, `module`, `script`, `shell`, or `exec`. Validate a scenario before review:
+
+```powershell
+python -c "from maintainer_zero.scenario_registry import load_scenario; load_scenario('examples/scenarios/dependency-yanked.json')"
+```

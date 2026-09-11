@@ -35,7 +35,7 @@ fixture 读取、输出 3 个结果且通过回归门禁。输出目录是临时
 在声明 Action 可发布前，还应检查：
 
 - `action.yml` 能被静态解析，`using: composite`、输入/输出名称、Unix `bash` 与 Windows `pwsh` 两条路径保持一致。
-- `tools/action_entrypoint.py` 将路径、基线和元数据作为独立 argv 值传递；路径包含空格、`$`、分号或反斜杠时不产生 shell 插值。
+- `tools/action_entrypoint.py` 将路径、基线和元数据作为独立 argv 值传递，并把 `path`、`output`、`baseline`、`github-metadata` 都限制在 GitHub workspace 内；路径包含空格、`$`、分号或反斜杠时不产生 shell 插值。
 - Unix 与 Windows 适配器都只运行本地 CLI，不读取 `GITHUB_TOKEN`、不启用网络、不执行 GitHub 写入；默认只写配置的报告目录。
 - 成功运行才写入 `GITHUB_OUTPUT`；`report-directory` 与 `report-json` 必须指向同一输出目录下的绝对路径。
 - 本地契约测试覆盖成功产物、`--fail-under`/基线门禁失败、过期元数据默认拒绝及显式允许、以及含空格路径。真实 GitHub-hosted runner（Ubuntu/Windows 和 Python 矩阵）仍需在 CI 中验证，不能用本地测试替代。

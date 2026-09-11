@@ -65,3 +65,18 @@ def test_action_adapter_keeps_repository_and_output_below_workspace(tmp_path):
             "MZ_INPUT_WORKSPACE": str(workspace),
             "MZ_INPUT_PATH": str(workspace.parent / "outside"),
         })
+
+def test_action_adapter_bounds_baseline_and_metadata_to_workspace(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    argv = build_argv({
+        "MZ_INPUT_WORKSPACE": str(workspace),
+        "MZ_INPUT_PATH": str(workspace),
+        "MZ_INPUT_OUTPUT": str(workspace / "reports"),
+        "MZ_INPUT_BASELINE": "reports/old.json",
+        "MZ_INPUT_METADATA": str(workspace / "metadata.json"),
+    })
+    assert argv[-4:] == ["--baseline", "reports/old.json", "--github-metadata", str(workspace / "metadata.json")]
+    for key in ("MZ_INPUT_BASELINE", "MZ_INPUT_METADATA"):
+        with pytest.raises(ValueError, match="inside the GitHub workspace"):
+            build_argv({"MZ_INPUT_WORKSPACE": str(workspace), "MZ_INPUT_PATH": str(workspace), "MZ_INPUT_OUTPUT": str(workspace / "reports"), key: str(workspace.parent / "outside.json")})

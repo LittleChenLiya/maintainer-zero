@@ -22,12 +22,15 @@ def _validate_environment(env: dict[str, str]) -> None:
     if not workspace:
         return
     workspace_path = Path(workspace).resolve()
-    for key in ("MZ_INPUT_PATH", "MZ_INPUT_OUTPUT"):
+    for key in _PATH_INPUTS:
         value = env.get(key, "")
         if not value:
             continue
+        candidate = Path(value)
+        if not candidate.is_absolute():
+            candidate = workspace_path / candidate
         try:
-            Path(value).resolve().relative_to(workspace_path)
+            candidate.resolve().relative_to(workspace_path)
         except ValueError as exc:
             raise ValueError(f"{key} must remain inside the GitHub workspace") from exc
 

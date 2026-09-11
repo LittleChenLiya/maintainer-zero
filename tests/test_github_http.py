@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from maintainer_zero.github_http import GitHubHTTPError, GitHubHTTPTransport
+from maintainer_zero.github_http import GitHubHTTPError, GitHubHTTPTransport, HTTPTransportConfig
 
 
 class FakeResponse:
@@ -39,6 +39,11 @@ def test_transport_rejects_unapproved_paths_and_unsafe_config():
         GitHubHTTPTransport(token="bad\nsecret")
     with pytest.raises(GitHubHTTPError, match="non-whitelisted"):
         GitHubHTTPTransport()("/repos/../secret/issues", {}, 1)
+    for base in ("https://user:pass@api.github.com", "https://api.github.com?token=leak", "https://[bad"):
+        with pytest.raises(GitHubHTTPError, match="https"):
+            GitHubHTTPTransport(config=HTTPTransportConfig(api_base=base))
+    with pytest.raises(GitHubHTTPError, match="max_response_bytes"):
+        GitHubHTTPTransport(config=HTTPTransportConfig(max_response_bytes=1_000_001))
 
 
 def test_environment_token_requires_explicit_opt_in(monkeypatch):
@@ -47,3 +52,9 @@ def test_environment_token_requires_explicit_opt_in(monkeypatch):
     assert without_opt_in.token is None
     with_opt_in = GitHubHTTPTransport.from_environment(allow_environment=True)
     assert with_opt_in.token == "secret"
+
+
+def test_transport_rejects_unbounded_timeout():
+    transport = GitHubHTTPTransport()
+    with pytest.raises(GitHubHTTPError, match="timeout"):
+        transport("/repos/acme/demo/issues", {}, 61)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .github_client import GitHubClientError, TransportResponse, validate_github_path
@@ -13,6 +13,7 @@ from .github_client import GitHubClientError, TransportResponse, validate_github
 DEFAULT_API_BASE = "https://api.github.com"
 DEFAULT_USER_AGENT = "maintainer-zero-read-only/0.1"
 DEFAULT_MAX_RESPONSE_BYTES = 1_000_000
+DEFAULT_MAX_TIMEOUT_SECONDS = 60.0
 class _RejectRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, *args, **kwargs):
         return None
@@ -50,12 +51,28 @@ class GitHubHTTPTransport:
         config: HTTPTransportConfig = HTTPTransportConfig(),
         opener: Callable[..., Any] | None = None,
     ) -> None:
-        if not isinstance(config.api_base, str) or not config.api_base.startswith("https://") or config.api_base.endswith("/"):
+        try:
+            parsed_base = urlsplit(config.api_base) if isinstance(config.api_base, str) else None
+            hostname = parsed_base.hostname if parsed_base is not None else None
+        except ValueError:
+            parsed_base, hostname = None, None
+        if (
+            parsed_base is None
+            or parsed_base.scheme != "https"
+            or not hostname
+            or parsed_base.username is not None
+            or parsed_base.password is not None
+            or parsed_base.query
+            or parsed_base.fragment
+            or config.api_base.endswith("/")
+        ):
             raise GitHubHTTPError("api_base must be an https URL without a trailing slash")
         if not isinstance(config.user_agent, str) or not config.user_agent.strip() or "\r" in config.user_agent or "\n" in config.user_agent:
             raise GitHubHTTPError("user_agent must be a non-empty single-line string")
-        if isinstance(config.max_response_bytes, bool) or not isinstance(config.max_response_bytes, int) or config.max_response_bytes < 1:
-            raise GitHubHTTPError("max_response_bytes must be positive")
+        if (isinstance(config.max_response_bytes, bool)
+                or not isinstance(config.max_response_bytes, int)
+                or not 1 <= config.max_response_bytes <= DEFAULT_MAX_RESPONSE_BYTES):
+            raise GitHubHTTPError("max_response_bytes must be an integer from 1 to 1000000")
         if opener is not None and not callable(opener):
             raise GitHubHTTPError("opener must be callable")
         self.token = _validate_token(token)
@@ -78,8 +95,9 @@ class GitHubHTTPTransport:
             raise GitHubHTTPError("HTTP transport received a non-whitelisted path") from exc
         if not isinstance(params, Mapping) or any(not isinstance(key, str) or not isinstance(value, str) for key, value in params.items()):
             raise GitHubHTTPError("HTTP transport parameters must be string pairs")
-        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
-            raise GitHubHTTPError("HTTP transport timeout must be positive")
+        if (isinstance(timeout, bool) or not isinstance(timeout, (int, float))
+                or not 0 < timeout <= DEFAULT_MAX_TIMEOUT_SECONDS):
+            raise GitHubHTTPError("HTTP transport timeout must be finite and in (0, 60] seconds")
         query = urlencode(sorted(params.items()))
         request = Request(
             f"{self.config.api_base}{path}{'?' + query if query else ''}",

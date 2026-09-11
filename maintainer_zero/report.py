@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import re
+import tempfile
 from pathlib import Path
 from .models import DrillResult, RepoSnapshot
 
@@ -40,6 +42,23 @@ def _display(value: object) -> str:
 def _markdown_text(value: object) -> str:
     return _safe_text(value).replace("<", "&lt;").replace(">", "&gt;")
 
+def _atomic_write_text(path: str | Path, content: str) -> None:
+    """Atomically replace one report artifact in its output directory."""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="", dir=target.parent, prefix=f".{target.name}.", suffix=".tmp", delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+        temporary = None
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
 
 def _metadata_section(metadata_summary: dict | None) -> list[str]:
     if metadata_summary is None:
@@ -74,8 +93,8 @@ def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], meta
     payload = _safe_value({"schema_version": 1, "rule_version": "0.2", "repository": repo.to_dict(), "results": [r.to_dict() for r in results]})
     if metadata_summary is not None:
         payload["github_metadata"] = _safe_value(metadata_summary)
-    (out / "continuity.json").write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    _atomic_write_text(out / "continuity.json", json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
     markdown = render_markdown(repo, results, metadata_summary)
-    (out / "report.md").write_text(markdown, encoding="utf-8")
+    _atomic_write_text(out / "report.md", markdown)
     body = html.escape(markdown).replace("\n", "<br>")
-    (out / "report.html").write_text(f"<!doctype html><meta charset='utf-8'><title>Continuity Report</title><style>body{{font:16px system-ui;max-width:1000px;margin:40px auto;line-height:1.5}}</style><pre>{body}</pre>", encoding="utf-8")
+    _atomic_write_text(out / "report.html", f"<!doctype html><meta charset='utf-8'><title>Continuity Report</title><style>body{{font:16px system-ui;max-width:1000px;margin:40px auto;line-height:1.5}}</style><pre>{body}</pre>")

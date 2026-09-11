@@ -56,7 +56,7 @@ maintainer-zero demo
 maintainer-zero demo --format json --output .continuity/demo.json
 ```
 
-Open `.continuity/report.md` or `.continuity/report.html`. To create a starter config in another repository:
+Open `.continuity/report.md` or `.continuity/report.html`. To create a starter config in another repository. Report JSON, Markdown, and HTML files are written with same-directory temporary files and atomic replacement; an interrupted write does not intentionally truncate an existing artifact:
 
 ```bash
 maintainer-zero init /path/to/repository

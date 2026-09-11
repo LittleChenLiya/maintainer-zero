@@ -1,0 +1,4 @@
+# Replace @OWNER with the GitHub handle(s) responsible for this repository.
+* @OWNER
+.github/ @OWNER
+SECURITY.md @OWNER

@@ -1,0 +1,43 @@
+name: OSS continuity drill
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 8 1 * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: continuity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run local continuity drills
+        run: python -m maintainer_zero simulate . --scenario all --output .continuity
+      - name: Publish job summary
+        shell: bash
+        run: cat .continuity/report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: continuity-report
+          path: |
+            .continuity/continuity.json
+            .continuity/report.md
+            .continuity/report.html
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14

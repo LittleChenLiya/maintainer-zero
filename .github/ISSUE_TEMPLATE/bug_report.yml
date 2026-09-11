@@ -1,0 +1,35 @@
+name: Bug report
+description: Report an incorrect analysis, crash, or integration failure.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include tokens, secrets, private repository content, or unredacted personal data.
+  - type: input
+    id: version
+    attributes:
+      label: Version and environment
+      description: Include Maintainer-Zero version, Python version, and operating system.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the command and a small sanitized fixture or public repository.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the error or relevant sanitized report excerpt.
+    validations:
+      required: true
+

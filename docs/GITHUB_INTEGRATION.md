@@ -21,6 +21,12 @@ The current `maintainer_zero.github_metadata` module validates offline snapshots
 
 The adapter should accept GITHUB_TOKEN from the workflow environment, redact repository names and people in exported reports when configured, and fail closed when a permission is missing. It must never print tokens or upload raw prompts, repository files, or unredacted report payloads.
 
+## PR 评论草稿边界
+
+`maintainer_zero.pr_comment` 只生成本地评论草稿和稳定幂等键，默认拒绝发布。
+只有调用方显式传入 `enabled=True` 以及自有 publisher，才会把正文交给外部适配器；
+项目本身不联网、不读取 token，也不提供 GitHub 写客户端。详见 [PR 评论边界](PR_COMMENTS.md)。
+
 ## Setup for a repository
 
 The supplied continuity.yml is a self-analysis workflow for this project, not yet a reusable Marketplace Action. Copying it alone into an unrelated repository will not install Maintainer-Zero. Until a reusable Action is published, install the tool from a reviewed local checkout and run it against the target repository. Keep tooling separate from untrusted pull-request code and do not use pull_request_target to execute it.

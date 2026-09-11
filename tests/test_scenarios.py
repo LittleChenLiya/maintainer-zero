@@ -96,3 +96,10 @@ def test_fail_under_is_parsed_and_invalid_config_rejected(tmp_path):
     (tmp_path / "continuity.json").write_text('{"fail_under": 101}', encoding="utf-8")
     with pytest.raises(ValueError, match="fail_under"):
         _load_config(tmp_path)
+
+
+def test_baseline_gate_policies_are_explicit():
+    parser = _build_parser()
+    args = parser.parse_args(["simulate", ".", "--baseline", "old.json", "--fail-on-new-high-risk"])
+    assert args.fail_on_score_decrease is False
+    assert args.fail_on_new_high_risk is True

@@ -24,8 +24,10 @@ pip install -e .
 maintainer-zero simulate . --scenario all --output .continuity
 # CI gate: fail if any scenario scores below 70
 maintainer-zero simulate . --scenario all --fail-under 70
-# Compare with a previous report; regression returns exit code 1
+# Compare with a previous report; score regression returns exit code 1 by default
 maintainer-zero simulate . --baseline .continuity/continuity.json
+# Select explicit baseline gate policies in CI
+maintainer-zero simulate . --baseline old.json --fail-on-score-decrease --fail-on-new-high-risk
 # Optionally attach a reviewed, read-only metadata snapshot (no network access)
 maintainer-zero simulate . --github-metadata github-metadata.json
 ```

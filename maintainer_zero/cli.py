@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 from .analyzer import snapshot_repository
-from .baseline import BaselineError, compare_reports, load_report
+from .baseline import BaselineError, compare_reports, gate_failed, load_report
 from .models import RepoSnapshot
 from .report import write_report
 from .recovery import write_recovery_artifacts
@@ -28,6 +28,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--fail-under", type=int, default=None, metavar="SCORE", help="exit 1 when any drill score is below SCORE (0-100)")
     run.add_argument("--baseline", default=None, metavar="JSON", help="compare with a prior continuity.json report")
+    run.add_argument("--fail-on-score-decrease", action="store_true", help="fail baseline gate when a scenario score decreases")
+    run.add_argument("--fail-on-new-high-risk", action="store_true", help="fail baseline gate when a new high-severity finding appears")
     run.add_argument("--github-metadata", default=None, metavar="JSON", help="use a reviewed, read-only GitHub metadata snapshot")
     return parser
 
@@ -135,7 +137,14 @@ def main(argv: list[str] | None = None) -> int:
         comparison_path = Path(args.output) / "baseline-comparison.json"
         comparison_path.write_text(json.dumps(comparison, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         print(f"Baseline comparison: {comparison['status']} ({comparison_path})")
-        if comparison["status"] == "regressed":
+        # Preserve the historical default (any regression fails) while
+        # allowing repositories to opt into explicit gate policies.
+        if args.fail_on_score_decrease or args.fail_on_new_high_risk:
+            failed = gate_failed(comparison, fail_on_score_decrease=args.fail_on_score_decrease, fail_on_new_high_risk=args.fail_on_new_high_risk)
+        else:
+            failed = comparison["status"] == "regressed"
+        if failed:
+            print("Baseline gate failed: selected regression policy matched")
             return 1
     if fail_under is not None:
         failing = [result for result in results if result.score < fail_under]

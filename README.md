@@ -43,6 +43,9 @@ maintainer-zero init /path/to/repository
 maintainer-zero simulate /path/to/repository --scenario maintainer-zero --days 90
 ```
 
+Three offline before/after demos are available in [examples/demos](examples/demos/continuity-demos.json);
+they use data-only snapshots and never execute fixture paths or commands. See [demo guide](docs/DEMOS.md).
+
 Each simulation also creates reviewable recovery drafts under `.continuity/recovery/`:
 `runbook.md`, `CODEOWNERS.draft`, and `issue-drafts.md`. They are suggestions only;
 the CLI never edits the analyzed repository, changes permissions, or submits GitHub

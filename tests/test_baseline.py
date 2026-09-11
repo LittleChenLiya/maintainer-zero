@@ -62,6 +62,18 @@ def test_legacy_finding_fallback_is_stable():
     assert comparison["findings"]["resolved"] == []
 
 
+def test_existing_finding_severity_escalation_triggers_high_risk_gate():
+    baseline = report(score=80, severity="medium")
+    current = report(score=80, severity="high")
+
+    comparison = compare_reports(baseline, current)
+
+    assert comparison["findings"]["added"] == []
+    assert comparison["findings"]["new_high_risk"][0]["finding_id"] == "maintainer-zero.core-owner"
+    assert comparison["findings"]["new_high_risk"][0]["change"] == "severity_escalation"
+    assert gate_failed(comparison, fail_on_new_high_risk=True) is True
+
+
 @pytest.mark.parametrize("kwargs, expected", [
     ({"fail_on_score_decrease": True}, True),
     ({"fail_on_new_high_risk": True}, True),

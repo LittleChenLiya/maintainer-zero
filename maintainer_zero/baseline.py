@@ -97,6 +97,22 @@ def compare_reports(baseline: Mapping[str, Any], current: Mapping[str, Any]) -> 
             added_findings.append(entry)
             if str(new_findings[finding_id].get("severity", "")).lower() == "high":
                 new_high_risk.append(entry)
+        # A stable finding can become more dangerous without changing its ID.
+        # Treat a non-high -> high severity transition as a newly introduced
+        # high-risk condition so explicit high-risk gates cannot miss it.
+        for finding_id in sorted(set(old_findings) & set(new_findings)):
+            old_severity = str(old_findings[finding_id].get("severity", "")).lower()
+            new_severity = str(new_findings[finding_id].get("severity", "")).lower()
+            if new_severity == "high" and old_severity != "high":
+                new_high_risk.append(
+                    {
+                        "scenario": scenario,
+                        "finding_id": finding_id,
+                        "finding": dict(new_findings[finding_id]),
+                        "previous_severity": old_severity or "unknown",
+                        "change": "severity_escalation",
+                    }
+                )
         resolved_findings.extend({"scenario": scenario, "finding_id": finding_id} for finding_id in removed_ids)
         status = "added" if old_result is None else "removed" if new_result is None else "improved" if delta is not None and delta > 0 else "regressed" if delta is not None and delta < 0 else "unchanged"
         scenarios.append({"scenario": scenario, "baseline_score": old_score, "current_score": new_score, "delta": delta, "score_delta": delta, "added_finding_ids": added_ids, "resolved_finding_ids": removed_ids, "status": status})

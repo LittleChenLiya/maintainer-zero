@@ -5,4 +5,5 @@ build/
 .venv/
 .continuity*/
 .drafts*/
+.release-check/
 .pytest_cache/

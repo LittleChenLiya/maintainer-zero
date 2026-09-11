@@ -13,5 +13,5 @@ findings, and a score formula, but must not contain executable fields such as
 `command`, `module`, `script`, `shell`, or `exec`. Validate a scenario before review:
 
 ```powershell
-python -c "from maintainer_zero.scenario_registry import load_scenario; load_scenario('examples/scenarios/dependency-yanked.json')"
+maintainer-zero validate-scenario examples/scenarios/dependency-yanked.json
 ```

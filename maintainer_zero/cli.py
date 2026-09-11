@@ -10,12 +10,15 @@ from .report import write_report
 from .recovery import write_recovery_artifacts
 from .scenarios import SCENARIOS
 from .github_metadata import MetadataError, load_metadata, summarize_metadata
+from .scenario_registry import ScenarioSpecError, load_scenario
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="maintainer-zero", description="Chaos engineering drills for open-source continuity")
     sub = parser.add_subparsers(dest="command", required=True)
     init = sub.add_parser("init", help="create a starter continuity config")
     init.add_argument("path", nargs="?", default=".")
+    validate = sub.add_parser("validate-scenario", help="validate a declarative scenario document without executing it")
+    validate.add_argument("path")
     run = sub.add_parser("simulate", aliases=["analyze"], help="run continuity drills")
     run.add_argument("path", nargs="?", default=".")
     run.add_argument("--scenario", choices=[*SCENARIOS, "all"], default=None)
@@ -94,6 +97,14 @@ def main(argv: list[str] | None = None) -> int:
             config.write_text(json.dumps({"scenarios": list(SCENARIOS), "days": 90, "privacy": {"anonymize_people": True, "upload_repository_content": False}}, indent=2), encoding="utf-8")
         print(f"Created {config}")
         return 0
+    if args.command == "validate-scenario":
+        try:
+            scenario = load_scenario(args.path)
+        except ScenarioSpecError as exc:
+            print(f"error: {exc}")
+            return 2
+        print(f"Valid scenario: {scenario['id']} v{scenario['version']}")
+        return 0
     try:
         repo = snapshot_repository(args.path)
         config = _load_config(Path(args.path).resolve())
@@ -121,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         write_report(Path(args.output), repo, results, metadata_summary)
         recovery_output = Path(args.recovery_output) if args.recovery_output else Path(args.output) / "recovery"
         write_recovery_artifacts(recovery_output, repo, results)
-    except (ValueError, MetadataError) as exc:
+    except (ValueError, MetadataError, ScenarioSpecError) as exc:
         print(f"error: {exc}")
         return 2
     print(f"Analyzed {repo.name}: {len(results)} drills written to {Path(args.output).resolve()}")

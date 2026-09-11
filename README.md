@@ -30,6 +30,8 @@ maintainer-zero simulate . --baseline .continuity/continuity.json
 maintainer-zero simulate . --baseline old.json --fail-on-score-decrease --fail-on-new-high-risk
 # Optionally attach a reviewed, read-only metadata snapshot (no network access)
 maintainer-zero simulate . --github-metadata github-metadata.json
+# Validate a declarative community scenario without executing code
+maintainer-zero validate-scenario examples/scenarios/dependency-yanked.json
 ```
 
 Open `.continuity/report.md` or `.continuity/report.html`. To create a starter config in another repository:

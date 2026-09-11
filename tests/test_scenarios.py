@@ -103,3 +103,9 @@ def test_baseline_gate_policies_are_explicit():
     args = parser.parse_args(["simulate", ".", "--baseline", "old.json", "--fail-on-new-high-risk"])
     assert args.fail_on_score_decrease is False
     assert args.fail_on_new_high_risk is True
+
+
+def test_validate_scenario_command_is_read_only():
+    parser = _build_parser()
+    args = parser.parse_args(["validate-scenario", "examples/scenarios/dependency-yanked.json"])
+    assert args.command == "validate-scenario"

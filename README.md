@@ -46,7 +46,7 @@ maintainer-zero simulate /path/to/repository --scenario maintainer-zero --days 9
 
 ## GitHub Action
 
-Copy `.github/workflows/continuity.yml` into a repository to run the drill on every push and upload the report as an artifact. A future release will add PR comments and a hosted badge endpoint.
+This repository includes a self-analysis workflow in `.github/workflows/continuity.yml`, which runs the drill and publishes a job summary and artifact. It is not yet a reusable Marketplace Action: copying the workflow alone into another repository will not install the tool. See [GitHub integration](docs/GITHUB_INTEGRATION.md) for the current boundary. PR comments and a hosted badge endpoint are planned.
 
 ## Roadmap
 

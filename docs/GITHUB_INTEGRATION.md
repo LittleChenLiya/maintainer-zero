@@ -1,6 +1,6 @@
 # GitHub integration
 
-Maintainer-Zero is local-first. The shipped workflow runs against the checkout and does not need a GitHub token or network access to inspect repository content. This keeps private code and maintainer identities out of the service boundary.
+Maintainer-Zero is local-first. The analyzer does not call a GitHub API or upload source files. The shipped workflow runs on a GitHub-hosted runner and explicitly publishes the generated report to a job summary and artifact. Reports currently contain Git author names and the repository path; review this metadata before sharing it.
 
 ## Included workflows
 
@@ -23,5 +23,6 @@ The adapter should accept GITHUB_TOKEN from the workflow environment, redact rep
 
 ## Setup for a repository
 
-Copy .github/workflows/continuity.yml into the target repository. For a private repository, review the generated artifact before sharing it outside the organization. Replace the @OWNER placeholders in .github/CODEOWNERS with real handles before enabling required reviews.
+The supplied continuity.yml is a self-analysis workflow for this project, not yet a reusable Marketplace Action. Copying it alone into an unrelated repository will not install Maintainer-Zero. Until a reusable Action is published, install the tool from a reviewed local checkout and run it against the target repository. Keep tooling separate from untrusted pull-request code and do not use pull_request_target to execute it.
 
+For a private repository, review the generated artifact before sharing it outside the organization. Add verified GitHub handles to .github/CODEOWNERS before enabling required reviews; no owner is assigned by default.

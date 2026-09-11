@@ -1,4 +1,3 @@
-# Replace @OWNER with the GitHub handle(s) responsible for this repository.
-* @OWNER
-.github/ @OWNER
-SECURITY.md @OWNER
+# Add verified GitHub handles with write access before enabling required reviews.
+# Example: * @your-maintainer
+# No owners are assigned until the repository owner makes that choice.

@@ -34,12 +34,19 @@ maintainer-zero simulate . --baseline .continuity/continuity.json
 maintainer-zero simulate . --baseline old.json --fail-on-score-decrease --fail-on-new-high-risk
 # Optionally attach a reviewed, read-only metadata snapshot (no network access)
 maintainer-zero simulate . --github-metadata github-metadata.json
+# Cached snapshots are freshness-checked; stale data requires an explicit offline-review opt-in
+maintainer-zero simulate . --github-metadata github-cache.json --allow-stale-github-metadata
 # Explicitly collect bounded read-only metadata (network is otherwise disabled)
 maintainer-zero collect-github OWNER/REPOSITORY --allow-network --output github-metadata.json
 # Optional, bounded review metadata for one explicitly named pull request:
 maintainer-zero collect-github OWNER/REPOSITORY --allow-network --reviews-pr 123 --output github-metadata.json
 # Optional bounded repository descriptor (visibility/default branch):
 maintainer-zero collect-github OWNER/REPOSITORY --allow-network --include-repository --output github-metadata.json
+# Optionally wrap the reviewed collection in a bounded local cache
+maintainer-zero collect-github OWNER/REPOSITORY --allow-network --output github-metadata.json --cache-output .continuity/github-cache.json --cache-ttl 86400
+# Read a cache offline; expired caches fail unless explicitly allowed
+maintainer-zero simulate . --github-metadata .continuity/github-cache.json --output .continuity
+maintainer-zero simulate . --github-metadata .continuity/github-cache.json --allow-stale-github-metadata --output .continuity
 # Keep a local, same-repository score history (no raw repository records)
 maintainer-zero simulate . --history .continuity/history.json
 # Validate a declarative community scenario without executing code

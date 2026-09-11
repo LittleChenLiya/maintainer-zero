@@ -11,6 +11,7 @@ from .report import write_report
 from .recovery import write_recovery_artifacts
 from .scenarios import SCENARIOS
 from .github_metadata import MetadataError, load_metadata, summarize_metadata
+from .github_cache import MetadataCacheError, cache_status, load_metadata_cache, save_metadata_cache
 from .github_client import GitHubClientError
 from .github_collect import GitHubRepositoryError, collect_repository_metadata
 from .github_http import GitHubHTTPError, GitHubHTTPTransport
@@ -35,6 +36,8 @@ def _build_parser() -> argparse.ArgumentParser:
     collect.add_argument("--page-size", type=int, default=100, metavar="COUNT")
     collect.add_argument("--reviews-pr", type=int, default=None, metavar="NUMBER", help="explicitly collect reviews for one pull request")
     collect.add_argument("--include-repository", action="store_true", help="collect bounded repository visibility and branch metadata")
+    collect.add_argument("--cache-output", default=None, metavar="PATH", help="also write a bounded local metadata cache envelope")
+    collect.add_argument("--cache-ttl", type=int, default=86400, metavar="SECONDS", help="cache TTL when --cache-output is used")
     demo = sub.add_parser("demo", aliases=["demos"], help="run a bounded, data-only before/after demo suite")
     demo.add_argument("path", nargs="?", default=None, help="optional data-only demo suite; default uses the packaged suite")
     demo.add_argument("--format", choices=("text", "json"), default="text", dest="demo_format")
@@ -55,6 +58,11 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--fail-on-score-decrease", action="store_true", help="fail baseline gate when a scenario score decreases")
     run.add_argument("--fail-on-new-high-risk", action="store_true", help="fail baseline gate when a new high-severity finding appears")
     run.add_argument("--github-metadata", default=None, metavar="JSON", help="use a reviewed, read-only GitHub metadata snapshot")
+    run.add_argument(
+        "--allow-stale-github-metadata",
+        action="store_true",
+        help="allow an expired local GitHub metadata cache for offline review",
+    )
     run.add_argument("--history", default=None, metavar="JSON", help="append a compact same-repository trend record (opt-in)")
     return parser
 
@@ -132,6 +140,28 @@ def _anonymize_snapshot(
         release_files=repo.release_files,
     )
 
+
+def _load_metadata_summary(path: str | Path, *, allow_stale: bool = False) -> dict:
+    """Load a plain snapshot or a bounded cache without hiding expiry.
+
+    Plain snapshots retain their historical behavior.  A payload carrying a
+    ``cache`` envelope is routed through the cache validator so an expired
+    snapshot cannot silently look current in a report.
+    """
+    target = Path(path)
+    try:
+        raw = json.loads(target.read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        # Keep the public error wording from the metadata loader for callers
+        # that do not know whether the input was cached.
+        raise MetadataError(f"Invalid GitHub metadata snapshot: {target}") from exc
+    if isinstance(raw, dict) and "cache" in raw:
+        payload = load_metadata_cache(target, allow_stale=allow_stale)
+        summary = summarize_metadata(payload)
+        summary["cache"] = cache_status(target).as_dict()
+        return summary
+    return summarize_metadata(load_metadata(target))
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.command == "init":
@@ -160,6 +190,8 @@ def main(argv: list[str] | None = None) -> int:
             output_path = Path(args.output)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            if args.cache_output:
+                save_metadata_cache(args.cache_output, payload, source="github-api", ttl_seconds=args.cache_ttl)
         except (OSError, ValueError, GitHubRepositoryError, GitHubClientError, GitHubHTTPError) as exc:
             print(f"error: {exc}")
             return 2
@@ -236,7 +268,9 @@ def main(argv: list[str] | None = None) -> int:
             )
         metadata_summary = None
         if args.github_metadata:
-            metadata_summary = summarize_metadata(load_metadata(args.github_metadata))
+            metadata_summary = _load_metadata_summary(
+                args.github_metadata, allow_stale=args.allow_stale_github_metadata
+            )
         results = [SCENARIOS[name](repo, days) for name in names]
         write_report(Path(args.output), repo, results, metadata_summary)
         recovery_output = Path(args.recovery_output) if args.recovery_output else Path(args.output) / "recovery"
@@ -246,7 +280,7 @@ def main(argv: list[str] | None = None) -> int:
             history_summary_path = Path(args.output) / "history-summary.json"
             history_summary_path.write_text(json.dumps(history_summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
             print(f"History appended: {history_summary_path}")
-    except (ValueError, MetadataError, ScenarioSpecError, HistoryError, DemoError, json.JSONDecodeError) as exc:
+    except (ValueError, MetadataError, MetadataCacheError, ScenarioSpecError, HistoryError, DemoError, json.JSONDecodeError) as exc:
         print(f"error: {exc}")
         return 2
     print(f"Analyzed {repo.name}: {len(results)} drills written to {Path(args.output).resolve()}")

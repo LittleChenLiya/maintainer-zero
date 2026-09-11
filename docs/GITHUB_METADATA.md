@@ -29,6 +29,11 @@ fresh = load_metadata_cache("github-cache.json")
 显式传入 `allow_stale=True`。该模块不会自动刷新、联网、读取 token 或把 stale
 计数解释成当前事实。
 
+`simulate --github-metadata` 会自动识别带 `cache` envelope 的快照，并把缓存来源、
+抓取时间、过期时间和 `fresh`/`stale` 状态写入报告摘要。过期缓存默认让演练以
+输入错误退出；仅在明确知道自己正在进行离线复盘时传入
+`--allow-stale-github-metadata`。这个开关不会刷新缓存，也不会把旧数据标记为当前事实。
+
 最小载荷：
 
 ```json

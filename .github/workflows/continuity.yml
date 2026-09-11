@@ -38,6 +38,7 @@ jobs:
             .continuity/continuity.json
             .continuity/report.md
             .continuity/report.html
+            .continuity/recovery/continuity.sarif
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14

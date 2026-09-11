@@ -7,7 +7,8 @@
 .continuity/recovery/
 ├── runbook.md          # 事故前准备、按发现组织的处置清单和验证项
 ├── CODEOWNERS.draft    # 保守的占位规则，不会覆盖仓库中的 CODEOWNERS
-└── issue-drafts.md     # 可复制到 Issue 的草稿，不会调用 GitHub API
+├── issue-drafts.md     # 可复制到 Issue 的草稿，不会调用 GitHub API
+└── continuity.sarif    # SARIF 2.1.0 发现清单；不虚构源代码位置
 ```
 
 这些文件是待维护者审阅的建议，不是已经执行的修复证明。CLI 只写入用户指定的输出目录，不修改被分析仓库、不提交 Issue、不改变权限。`CODEOWNERS.draft` 不猜测或复制真实身份，使用占位别名，提交前必须替换并由维护者确认。

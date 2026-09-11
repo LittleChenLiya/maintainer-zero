@@ -64,6 +64,18 @@ fresh = load_metadata_cache("github-cache.json")
 maintainer-zero collect-github octo-org/example --allow-network --output github-metadata.json
 ```
 
+每个响应体默认最多读取 1,000,000 字节；如需在受限网络环境中进一步缩小
+边界，可以显式传入 `--max-response-bytes N`（`1 <= N <= 1,000,000`）：
+
+```powershell
+maintainer-zero collect-github octo-org/example --allow-network `
+  --max-response-bytes 262144 --output github-metadata.json
+```
+
+这个参数同时约束 HTTP transport 和注入式只读客户端；它只能收紧默认上限，
+不能借助命令行把响应大小上限提高。超过上限的资源会降级为不可用并保留
+`response_too_large` 原因，不会把截断内容解析成完整事实。
+
 该命令默认只请求 issues、pull requests 和 releases 的 HTTPS GET 接口；仓库可见性、归档状态和默认分支等
 repository descriptor 只有传入 `--include-repository` 才会请求。reviews 在没有
 具体 PR 编号时保持 unknown。若要采集单个 PR 的 reviews，必须额外传入例如

@@ -38,6 +38,8 @@ maintainer-zero simulate . --github-metadata github-metadata.json
 maintainer-zero simulate . --github-metadata github-cache.json --allow-stale-github-metadata
 # Explicitly collect bounded read-only metadata (network is otherwise disabled)
 maintainer-zero collect-github OWNER/REPOSITORY --allow-network --output github-metadata.json
+# Tighten the per-response body bound when reviewing a constrained endpoint
+maintainer-zero collect-github OWNER/REPOSITORY --allow-network --max-response-bytes 262144 --output github-metadata.json
 # Optional, bounded review metadata for one explicitly named pull request:
 maintainer-zero collect-github OWNER/REPOSITORY --allow-network --reviews-pr 123 --output github-metadata.json
 # Optional bounded repository descriptor (visibility/default branch):

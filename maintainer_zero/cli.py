@@ -12,6 +12,7 @@ from .scenarios import SCENARIOS
 from .github_metadata import MetadataError, load_metadata, summarize_metadata
 from .scenario_registry import ScenarioSpecError, load_scenario
 from .history import HistoryError, append_history
+from .demos import DemoError, load_demo_suite, run_demo_suite
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="maintainer-zero", description="Chaos engineering drills for open-source continuity")
@@ -20,6 +21,9 @@ def _build_parser() -> argparse.ArgumentParser:
     init.add_argument("path", nargs="?", default=".")
     validate = sub.add_parser("validate-scenario", help="validate a declarative scenario document without executing it")
     validate.add_argument("path")
+    demo = sub.add_parser("demo", help="run a local, data-only before/after demo")
+    demo.add_argument("path")
+    demo.add_argument("--output", default=None, metavar="JSON", help="write results to JSON instead of stdout")
     run = sub.add_parser("simulate", aliases=["analyze"], help="run continuity drills")
     run.add_argument("path", nargs="?", default=".")
     run.add_argument("--scenario", choices=[*SCENARIOS, "all"], default=None)
@@ -107,6 +111,21 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(f"Valid scenario: {scenario['id']} v{scenario['version']}")
         return 0
+    if args.command == "demo":
+        try:
+            results = run_demo_suite(load_demo_suite(args.path))
+            encoded = json.dumps({"schema_version": 1, "results": results}, indent=2, ensure_ascii=False) + "\n"
+            if args.output:
+                output = Path(args.output)
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(encoded, encoding="utf-8")
+                print(f"Demo results written to {output.resolve()}")
+            else:
+                print(encoded, end="")
+        except DemoError as exc:
+            print(f"error: {exc}")
+            return 2
+        return 0
     try:
         repo = snapshot_repository(args.path)
         config = _load_config(Path(args.path).resolve())
@@ -139,7 +158,7 @@ def main(argv: list[str] | None = None) -> int:
             history_summary_path = Path(args.output) / "history-summary.json"
             history_summary_path.write_text(json.dumps(history_summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
             print(f"History appended: {history_summary_path}")
-    except (ValueError, MetadataError, ScenarioSpecError, HistoryError, json.JSONDecodeError) as exc:
+    except (ValueError, MetadataError, ScenarioSpecError, HistoryError, DemoError, json.JSONDecodeError) as exc:
         print(f"error: {exc}")
         return 2
     print(f"Analyzed {repo.name}: {len(results)} drills written to {Path(args.output).resolve()}")

@@ -11,4 +11,10 @@ $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
 python -m pytest tests/test_demos.py -q
 ```
 
+也可以直接运行离线 CLI，结果只写入指定的本地 JSON：
+
+```powershell
+maintainer-zero demo examples/demos/continuity-demos.json --output .continuity/demo-results.json
+```
+
 这些分数是解释性演练结果，不是事故概率、认证或跨项目排名。

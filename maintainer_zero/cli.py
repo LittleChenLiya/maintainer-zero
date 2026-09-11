@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path
 from .analyzer import snapshot_repository
 from .baseline import BaselineError, compare_reports, gate_failed, load_report
@@ -18,6 +20,23 @@ from .github_http import GitHubHTTPError, GitHubHTTPTransport
 from .scenario_registry import ScenarioSpecError, load_scenario
 from .history import HistoryError, append_history
 from .demos import DemoError, load_demo_suite, run_demo_suite
+
+def _atomic_write_text(path: str | Path, content: str) -> None:
+    """Replace one local output file atomically, leaving old data on failure."""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="", dir=target.parent, prefix=f".{target.name}.", suffix=".tmp", delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+        temporary = None
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="maintainer-zero", description="Chaos engineering drills for open-source continuity")
@@ -185,8 +204,9 @@ def main(argv: list[str] | None = None) -> int:
                 include_repository=args.include_repository,
             )
             output_path = Path(args.output)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            if args.cache_output and output_path.resolve() == Path(args.cache_output).resolve():
+                raise ValueError("--output and --cache-output must be different files")
+            _atomic_write_text(output_path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
             if args.cache_output:
                 save_metadata_cache(args.cache_output, payload, source="github-api", ttl_seconds=args.cache_ttl)
         except (OSError, ValueError, GitHubRepositoryError, GitHubClientError, GitHubHTTPError) as exc:

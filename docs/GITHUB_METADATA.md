@@ -71,6 +71,7 @@ repository descriptor 只有传入 `--include-repository` 才会请求。reviews
 `GITHUB_TOKEN`，命令没有 token 参数，也不会把 token 写入输出。失败的权限、限流、
 超时或传输错误会保留为不可用/unknown，而不是被解释为安全。达到页数/条目上限时，
 快照会在摘要中标记 `partial`，报告中的计数不应被解释为完整列表。
+快照文件通过同目录临时文件和原子替换写入；如果写入失败，已有快照不会被截断。`--output` 与 `--cache-output` 必须指向不同文件。
 
 限流响应只会保留两个经过边界校验的调度提示：`retry_after_seconds`（最多 24 小时）
 和 `rate_limit_reset_epoch`（Unix 时间戳）。它们帮助调用方安排下一次运行；工具不会

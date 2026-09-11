@@ -91,3 +91,33 @@ def test_cli_success_path_writes_only_validated_snapshot(tmp_path, monkeypatch, 
     assert payload["schema_version"] == 1
     assert payload["permissions"] == {"issues": True, "pull_requests": True, "releases": True}
     assert "Collected read-only GitHub metadata" in capsys.readouterr().out
+
+def test_cli_success_path_writes_atomic_snapshot_and_cache(tmp_path, monkeypatch):
+    class FakeTransport:
+        @classmethod
+        def from_environment(cls, *, allow_environment=False):
+            return cls()
+
+        def __call__(self, path, params, timeout):
+            return TransportResponse(200, json.dumps([{"path": path}]), {})
+
+    monkeypatch.setattr("maintainer_zero.cli.GitHubHTTPTransport", FakeTransport)
+    output = tmp_path / "snapshot.json"
+    cache = tmp_path / "cache.json"
+    assert main(["collect-github", "acme/demo", "--allow-network", "--output", str(output), "--cache-output", str(cache)]) == 0
+    assert json.loads(output.read_text(encoding="utf-8"))["schema_version"] == 1
+    assert json.loads(cache.read_text(encoding="utf-8"))["cache"]["source"] == "github-api"
+    assert not list(tmp_path.glob(".snapshot.json.*.tmp"))
+
+def test_cli_rejects_snapshot_cache_path_collision(tmp_path, monkeypatch):
+    class FakeTransport:
+        @classmethod
+        def from_environment(cls, *, allow_environment=False):
+            return cls()
+
+        def __call__(self, path, params, timeout):
+            return TransportResponse(200, b"[]", {})
+
+    monkeypatch.setattr("maintainer_zero.cli.GitHubHTTPTransport", FakeTransport)
+    output = tmp_path / "same.json"
+    assert main(["collect-github", "acme/demo", "--allow-network", "--output", str(output), "--cache-output", str(output)]) == 2

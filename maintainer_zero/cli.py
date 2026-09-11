@@ -23,7 +23,7 @@ def _build_parser() -> argparse.ArgumentParser:
     validate.add_argument("path")
     demo = sub.add_parser("demo", aliases=["demos"], help="run a bounded, data-only before/after demo suite")
     demo.add_argument("path", nargs="?", default="examples/demos/continuity-demos.json")
-    demo.add_argument("--format", choices=("text", "json"), default="json", dest="demo_format")
+    demo.add_argument("--format", choices=("text", "json"), default="text", dest="demo_format")
     demo.add_argument("--output", default=None, metavar="PATH", help="write the demo result to PATH instead of stdout")
     demo.add_argument("--fail-on-regression", action="store_true", help="return exit code 1 when any after score does not improve")
     run = sub.add_parser("simulate", aliases=["analyze"], help="run continuity drills")
@@ -120,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
         except DemoError as exc:
             print(f"error: {exc}")
             return 2
-        payload = {"schema_version": 1, "source": str(Path(args.path)), "demos": demos}
+        payload = {"schema_version": 1, "results": demos}
         if args.demo_format == "json":
             rendered = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
         else:

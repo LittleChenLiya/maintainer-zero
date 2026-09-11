@@ -1,9 +1,9 @@
 from pathlib import Path
+import json
 
 import pytest
 
 from maintainer_zero.demos import DemoError, load_demo_suite, run_demo_suite
-from maintainer_zero.cli import main
 from maintainer_zero.cli import main
 
 
@@ -37,7 +37,7 @@ def test_demo_cli_writes_output_and_alias_is_supported(tmp_path):
     output = tmp_path / "nested" / "demo.json"
     assert main(["demos", str(DEMO_PATH), "--format", "json", "--output", str(output)]) == 0
     assert output.exists()
-    assert '"demos"' in output.read_text(encoding="utf-8")
+    assert '"results"' in output.read_text(encoding="utf-8")
 
 
 def test_demo_cli_rejects_malformed_suite(tmp_path, capsys):
@@ -45,6 +45,15 @@ def test_demo_cli_rejects_malformed_suite(tmp_path, capsys):
     path.write_text('{"schema_version": 1, "demos": []}', encoding="utf-8")
     assert main(["demo", str(path)]) == 2
     assert "error:" in capsys.readouterr().out
+
+
+def test_demo_cli_gate_returns_one_when_after_does_not_improve(tmp_path, capsys):
+    payload = json.loads(DEMO_PATH.read_text(encoding="utf-8"))
+    payload["demos"][0]["after"] = payload["demos"][0]["before"]
+    path = tmp_path / "regression.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    assert main(["demo", str(path), "--fail-on-regression"]) == 1
+    assert "Demo gate failed" in capsys.readouterr().out
 
 
 def test_demo_cli_writes_deterministic_json(tmp_path):

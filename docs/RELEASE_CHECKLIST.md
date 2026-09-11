@@ -30,6 +30,11 @@ runner 上验证安装、GITHUB_OUTPUT 解析和矩阵行为。
 脚本会构建一个 wheel 和一个 sdist，在源码树外分别安装，并确认默认 `demo` 从包内
 fixture 读取、输出 3 个结果且通过回归门禁。输出目录是临时产物，不应提交到 Git。
 
+ci.yml 的 release-smoke job 会在 Ubuntu/Python 3.12 runner 上重复执行同一发布验证脚本，
+构建 wheel 和 sdist，并在源码树外安装后运行打包后的 demo。该 job 只验证构建和安装，
+不发布到 PyPI；Windows/Python 矩阵仍由主测试 job 覆盖，真实 Marketplace/PyPI 发布仍需
+单独授权和审核。
+
 ## Composite Action 本地验收
 
 在声明 Action 可发布前，还应检查：

@@ -38,3 +38,20 @@ jobs:
         run: python -c "from pathlib import Path; from maintainer_zero.scenario_registry import load_scenario; [load_scenario(path) for path in sorted(Path('examples/scenarios').glob('*.json'))]"
       - name: CLI smoke test
         run: python -m maintainer_zero simulate . --scenario all --output .continuity
+
+  release-smoke:
+    name: Wheel and sdist install smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install release verifier
+        run: python -m pip install --disable-pip-version-check --no-deps -e .
+      - name: Build and install wheel and sdist outside the checkout
+        run: python tools/verify_release.py --output "$RUNNER_TEMP/maintainer-zero-release-verify"

@@ -33,6 +33,14 @@ def test_ci_preserves_repository_analysis_requirements():
     assert "python -m maintainer_zero simulate . --scenario all" in workflow
 
 
+def test_ci_verifies_built_artifacts_outside_the_source_checkout():
+    workflow = (WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
+
+    assert "release-smoke:" in workflow
+    assert "python tools/verify_release.py --output \"$RUNNER_TEMP/maintainer-zero-release-verify\"" in workflow
+    assert "python-version: \"3.12\"" in workflow
+
+
 def test_workflows_have_no_write_or_untrusted_target_boundary():
     for path in WORKFLOWS.glob("*.yml"):
         workflow = path.read_text(encoding="utf-8")

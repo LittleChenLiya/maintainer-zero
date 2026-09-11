@@ -6,6 +6,7 @@ Maintainer-Zero is local-first. The analyzer does not call a GitHub API or uploa
 
 - ci.yml tests Python 3.10 and 3.12 on Ubuntu and Windows, then runs a CLI smoke test.
 - continuity.yml runs the three drills on pushes, pull requests, a monthly schedule, or manual dispatch. The report is appended to the Actions job summary and uploaded as a 14-day artifact.
+- `action.yml` is a reusable composite Action. It installs the pinned action checkout with no dependencies and runs the same local CLI against `github.workspace`; inputs are passed through environment variables and shell arrays rather than interpolated into commands.
 
 Both workflows use contents: read, disable checkout credential persistence, cap execution time, and cancel superseded runs. They do not use `pull_request_target`, external write permissions, or an unreviewed network client, so fork pull requests stay within the local-analysis boundary.
 
@@ -34,6 +35,19 @@ The adapter should accept GITHUB_TOKEN only through explicit opt-in, redact repo
 
 ## Setup for a repository
 
-The supplied continuity.yml is a self-analysis workflow for this project, not yet a reusable Marketplace Action. Copying it alone into an unrelated repository will not install Maintainer-Zero. Until a reusable Action is published, install the tool from a reviewed local checkout and run it against the target repository. Keep tooling separate from untrusted pull-request code and do not use pull_request_target to execute it.
+The repository now includes a reusable composite Action at its root. After a reviewed release is tagged, a consuming repository can call it from a pinned ref after checkout:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    persist-credentials: false
+- uses: OWNER/maintainer-zero@<reviewed-tag>
+  with:
+    scenario: all
+    output: .continuity
+    fail-under: "70"
+```
+
+The Action remains local-first: it installs only the action checkout, does not contact GitHub, and writes only to the configured output directory. The consuming workflow should pin a reviewed tag or commit, keep `contents: read`, and use `pull_request` rather than `pull_request_target` for untrusted forks. The checked-in `continuity.yml` exercises the same Action locally.
 
 For a private repository, review the generated artifact before sharing it outside the organization. Add verified GitHub handles to .github/CODEOWNERS before enabling required reviews; no owner is assigned by default.

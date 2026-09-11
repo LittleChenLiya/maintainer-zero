@@ -3,6 +3,7 @@ import re
 
 
 WORKFLOWS = Path(__file__).parents[1] / ".github" / "workflows"
+ACTION = Path(__file__).parents[1] / "action.yml"
 
 
 def _matrix_values(workflow: str, key: str) -> list[str]:
@@ -38,3 +39,25 @@ def test_workflows_have_no_write_or_untrusted_target_boundary():
         assert "pull_request_target" not in workflow, path.name
         assert not re.search(r"permissions:[\s\S]*\b(?:write|read-all|write-all)\b", workflow), path.name
         assert "persist-credentials: false" in workflow, path.name
+
+
+def test_reusable_action_is_composite_and_keeps_inputs_bounded():
+    action = ACTION.read_text(encoding="utf-8")
+
+    assert "using: composite" in action
+    assert "github.action_path" in action
+    assert "--no-deps" in action
+    assert "--no-build-isolation" in action
+    for input_name in ("scenario", "days", "output", "fail-under", "baseline"):
+        assert f"  {input_name}:" in action
+    assert "MZ_WORKSPACE: ${{ github.workspace }}" in action
+    assert "python -m maintainer_zero simulate" in action
+    assert "set -euo pipefail" in action
+
+
+def test_continuity_workflow_consumes_the_checked_in_action():
+    workflow = (WORKFLOWS / "continuity.yml").read_text(encoding="utf-8")
+
+    assert "uses: ./" in workflow
+    assert "scenario: all" in workflow
+    assert "output: .continuity" in workflow

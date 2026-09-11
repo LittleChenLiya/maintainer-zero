@@ -27,7 +27,10 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run local continuity drills
-        run: python -m maintainer_zero simulate . --scenario all --output .continuity
+        uses: ./
+        with:
+          scenario: all
+          output: .continuity
       - name: Publish job summary
         shell: bash
         run: cat .continuity/report.md >> "$GITHUB_STEP_SUMMARY"

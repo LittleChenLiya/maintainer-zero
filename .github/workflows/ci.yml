@@ -35,6 +35,6 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
       - name: Validate declarative scenario examples
-        run: python -c "from maintainer_zero.scenario_registry import load_scenario; load_scenario('examples/scenarios/dependency-yanked.json')"
+        run: python -c "from pathlib import Path; from maintainer_zero.scenario_registry import load_scenario; [load_scenario(path) for path in sorted(Path('examples/scenarios').glob('*.json'))]"
       - name: CLI smoke test
         run: python -m maintainer_zero simulate . --scenario all --output .continuity

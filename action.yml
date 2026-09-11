@@ -69,13 +69,14 @@ runs:
       shell: pwsh
       env:
         MZ_ACTION_PATH: ${{ github.action_path }}
-      run: python -m pip install --disable-pip-version-check --no-deps --no-build-isolation $env:MZ_ACTION_PATH
+      run: python -m pip install --disable-pip-version-check --no-deps --no-build-isolation "$env:MZ_ACTION_PATH"
     - id: drill-unix
       name: Run continuity drill (Unix)
       if: runner.os != 'Windows'
       shell: bash
       env:
         MZ_ACTION_PATH: ${{ github.action_path }}
+        MZ_INPUT_WORKSPACE: ${{ github.workspace }}
         MZ_INPUT_PATH: ${{ github.workspace }}/${{ inputs.path }}
         MZ_INPUT_SCENARIO: ${{ inputs.scenario }}
         MZ_INPUT_DAYS: ${{ inputs.days }}
@@ -93,6 +94,7 @@ runs:
       shell: pwsh
       env:
         MZ_ACTION_PATH: ${{ github.action_path }}
+        MZ_INPUT_WORKSPACE: ${{ github.workspace }}
         MZ_INPUT_PATH: ${{ github.workspace }}/${{ inputs.path }}
         MZ_INPUT_SCENARIO: ${{ inputs.scenario }}
         MZ_INPUT_DAYS: ${{ inputs.days }}

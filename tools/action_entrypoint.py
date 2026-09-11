@@ -9,11 +9,35 @@ from pathlib import Path
 
 from maintainer_zero.cli import main
 
+_CONTROL_CHARS = frozenset(chr(code) for code in range(32)) | {chr(127)}
+_PATH_INPUTS = ("MZ_INPUT_PATH", "MZ_INPUT_OUTPUT", "MZ_INPUT_BASELINE", "MZ_INPUT_METADATA")
+
+
+def _validate_environment(env: dict[str, str]) -> None:
+    """Reject control characters and workspace escapes in Action inputs."""
+    for key in _PATH_INPUTS:
+        if any(char in _CONTROL_CHARS for char in env.get(key, "")):
+            raise ValueError(f"{key} contains control characters")
+    workspace = env.get("MZ_INPUT_WORKSPACE", "").strip()
+    if not workspace:
+        return
+    workspace_path = Path(workspace).resolve()
+    for key in ("MZ_INPUT_PATH", "MZ_INPUT_OUTPUT"):
+        value = env.get(key, "")
+        if not value:
+            continue
+        try:
+            Path(value).resolve().relative_to(workspace_path)
+        except ValueError as exc:
+            raise ValueError(f"{key} must remain inside the GitHub workspace") from exc
+
+
 def _truthy(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 def build_argv(environ: dict[str, str] | None = None) -> list[str]:
     env = os.environ if environ is None else environ
+    _validate_environment(env)
     argv = ["simulate", env.get("MZ_INPUT_PATH", "."), "--scenario", env.get("MZ_INPUT_SCENARIO", "all"), "--output", env.get("MZ_INPUT_OUTPUT", ".continuity")]
     for key, option in (("MZ_INPUT_DAYS", "--days"), ("MZ_INPUT_FAIL_UNDER", "--fail-under"), ("MZ_INPUT_BASELINE", "--baseline"), ("MZ_INPUT_METADATA", "--github-metadata")):
         value = env.get(key, "").strip()
@@ -29,6 +53,7 @@ def build_argv(environ: dict[str, str] | None = None) -> list[str]:
 
 def _write_outputs(environ: dict[str, str] | None = None) -> None:
     env = os.environ if environ is None else environ
+    _validate_environment(env)
     output = Path(env.get("MZ_INPUT_OUTPUT", ".continuity")).resolve()
     output_file = env.get("GITHUB_OUTPUT")
     if not output_file:
@@ -38,7 +63,12 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
         handle.write(f"report-json={output / 'continuity.json'}\n")
 
 def run(environ: dict[str, str] | None = None) -> int:
-    code = main(build_argv(environ))
+    try:
+        argv = build_argv(environ)
+    except ValueError as exc:
+        print(f"error: {exc}")
+        return 2
+    code = main(argv)
     if code == 0:
         _write_outputs(environ)
     return code

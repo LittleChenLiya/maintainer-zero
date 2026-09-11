@@ -1,4 +1,5 @@
 from pathlib import Path
+import pytest
 
 from tools.action_entrypoint import build_argv
 
@@ -15,9 +16,11 @@ def test_composite_action_exposes_bounded_local_contract():
     assert "--allow-network" not in action
     assert 'python "$MZ_ACTION_PATH/tools/action_entrypoint.py"' in action
     assert 'python "$env:MZ_ACTION_PATH/tools/action_entrypoint.py"' in action
+    assert 'python -m pip install --disable-pip-version-check --no-deps --no-build-isolation "$env:MZ_ACTION_PATH"' in action
     assert "shell: pwsh" in action
     assert "if: runner.os == 'Windows'" in action
     assert "if: runner.os != 'Windows'" in action
+    assert 'no-build-isolation "$env:MZ_ACTION_PATH"' in action
 
 def test_action_adapter_keeps_untrusted_paths_as_single_argv_values():
     argv = build_argv({
@@ -41,3 +44,24 @@ def test_action_adapter_emits_outputs_only_after_success(tmp_path, monkeypatch):
     lines = output_file.read_text(encoding="utf-8").splitlines()
     assert lines[0].startswith("report-directory=")
     assert lines[1].endswith("continuity.json")
+
+
+def test_action_adapter_rejects_control_characters_before_output_boundary():
+    with pytest.raises(ValueError, match="control characters"):
+        build_argv({"MZ_INPUT_PATH": "repo" + chr(10) + "forged-output=true"})
+
+
+def test_action_adapter_keeps_repository_and_output_below_workspace(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    argv = build_argv({
+        "MZ_INPUT_WORKSPACE": str(workspace),
+        "MZ_INPUT_PATH": str(workspace),
+        "MZ_INPUT_OUTPUT": str(workspace / "reports"),
+    })
+    assert argv[1] == str(workspace)
+    with pytest.raises(ValueError, match="inside the GitHub workspace"):
+        build_argv({
+            "MZ_INPUT_WORKSPACE": str(workspace),
+            "MZ_INPUT_PATH": str(workspace.parent / "outside"),
+        })

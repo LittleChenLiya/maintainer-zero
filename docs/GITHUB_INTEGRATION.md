@@ -7,7 +7,7 @@ Maintainer-Zero is local-first. The analyzer does not call a GitHub API or uploa
 - ci.yml tests Python 3.10 and 3.12 on Ubuntu and Windows, then runs a CLI smoke test.
 - continuity.yml runs the three drills on pushes, pull requests, a monthly schedule, or manual dispatch. The report is appended to the Actions job summary and uploaded as a 14-day artifact.
 
-Both workflows use contents: read, disable checkout credential persistence, cap execution time, and cancel superseded runs.
+Both workflows use contents: read, disable checkout credential persistence, cap execution time, and cancel superseded runs. They do not use `pull_request_target`, external write permissions, or an unreviewed network client, so fork pull requests stay within the local-analysis boundary.
 
 ## Optional API adapter (v0.2 boundary)
 

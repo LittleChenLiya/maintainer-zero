@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from .github_metadata import MAX_METADATA_BYTES, validate_metadata
+from .github_metadata import MAX_METADATA_BYTES, MetadataError, validate_metadata
 
 CACHE_SCHEMA_VERSION = 1
 MAX_CACHE_TTL_SECONDS = 30 * 24 * 60 * 60
@@ -89,7 +89,10 @@ def _read(path: Path) -> dict[str, Any]:
         raise MetadataCacheError(f"invalid metadata cache: {path}") from exc
     if not isinstance(payload, dict):
         raise MetadataCacheError("metadata cache must be a JSON object")
-    validate_metadata(payload)
+    try:
+        validate_metadata(payload)
+    except MetadataError as exc:
+        raise MetadataCacheError("metadata cache payload is invalid") from exc
     payload["cache"] = _validate_cache_block(payload.get("cache"))
     return payload
 
@@ -100,7 +103,10 @@ def save_metadata_cache(path: str | Path, payload: Mapping[str, Any], *,
     """Validate and atomically save a bounded metadata cache envelope."""
     if not isinstance(payload, Mapping):
         raise MetadataCacheError("metadata payload must be an object")
-    validate_metadata(dict(payload))
+    try:
+        validate_metadata(dict(payload))
+    except MetadataError as exc:
+        raise MetadataCacheError("metadata payload is invalid") from exc
     now = _normalise_time(fetched_at or datetime.now(timezone.utc), label="fetched_at")
     if isinstance(ttl_seconds, bool) or not isinstance(ttl_seconds, int) or not 1 <= ttl_seconds <= MAX_CACHE_TTL_SECONDS:
         raise MetadataCacheError("cache ttl_seconds is out of bounds")
@@ -156,4 +162,3 @@ def load_metadata_cache(path: str | Path, *, now: datetime | None = None,
 
 __all__ = ["CACHE_SCHEMA_VERSION", "CacheStatus", "MAX_CACHE_TTL_SECONDS",
            "MetadataCacheError", "cache_status", "load_metadata_cache", "save_metadata_cache"]
-

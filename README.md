@@ -73,7 +73,7 @@ cross-project ranking.
 
 ## GitHub Action
 
-This repository includes a self-analysis workflow in `.github/workflows/continuity.yml`, which runs the drill and publishes a job summary and artifact. It is not yet a reusable Marketplace Action: copying the workflow alone into another repository will not install the tool. See [GitHub integration](docs/GITHUB_INTEGRATION.md) for the current boundary. PR comments and a hosted badge endpoint are planned.
+This repository includes a self-analysis workflow in `.github/workflows/continuity.yml`, which runs the drill and publishes a job summary and artifact. It is not yet a reusable Marketplace Action: copying the workflow alone into another repository will not install the tool. See [GitHub integration](docs/GITHUB_INTEGRATION.md) for the current boundary. PR comments are available as local drafts only; external publishing remains an explicitly injected integration.
 
 ## Roadmap
 

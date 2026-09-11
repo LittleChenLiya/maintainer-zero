@@ -39,3 +39,14 @@ def test_invalid_inputs_are_rejected():
         SimulationConfig(days=-1)
     with pytest.raises(ValueError):
         run_simulation([SimulationEvent(-1, "bad")])
+
+
+def test_first_zero_day_reflects_post_service_state():
+    result = run_simulation(config=SimulationConfig(days=1, initial_capacity=0, daily_demand=1))
+    assert result.first_zero_backlog_day is None
+
+    recovered = run_simulation(
+        [SimulationEvent(1, "restore", capacity_delta=2)],
+        SimulationConfig(days=2, initial_capacity=0, daily_demand=1),
+    )
+    assert recovered.first_zero_backlog_day == 1

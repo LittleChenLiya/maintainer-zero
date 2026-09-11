@@ -100,7 +100,10 @@ def run_simulation(
     backlog = cfg.initial_backlog
     completed = 0.0
     peak = backlog
-    first_zero: int | None = 0 if backlog == 0 else None
+    # Record the first day *after servicing* on which backlog is zero.  An
+    # initially empty queue is not considered recovered if day-zero demand
+    # immediately creates work that cannot be serviced.
+    first_zero: int | None = None
     timeline: list[dict[str, Any]] = []
 
     for day in range(cfg.days + 1):

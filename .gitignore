@@ -6,4 +6,5 @@ build/
 .continuity*/
 .drafts*/
 .release-check/
+.release-verify/
 .pytest_cache/

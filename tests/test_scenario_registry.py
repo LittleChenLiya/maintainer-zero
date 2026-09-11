@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -6,10 +7,13 @@ from maintainer_zero.scenario_registry import (
     ScenarioRegistryError,
     load_bundled_registry,
     load_registry,
+    load_scenario,
     scenario_ids,
     validate_registry,
     validate_scenario,
 )
+
+EXAMPLES = Path(__file__).parents[1] / "examples" / "scenarios"
 
 
 def test_bundled_registry_is_versioned_and_deterministic():
@@ -17,6 +21,19 @@ def test_bundled_registry_is_versioned_and_deterministic():
     assert registry["schema_version"] == 1
     assert scenario_ids(registry) == ("ci-outage", "dependency-yanked", "maintainer-zero")
     assert all(item["execution"]["mode"] == "builtin" for item in registry["scenarios"])
+
+
+def test_all_community_examples_are_bounded_and_loadable():
+    examples = sorted(EXAMPLES.glob("*.json"))
+    assert len(examples) >= 10
+    loaded = [load_scenario(path) for path in examples]
+    assert [item["id"] for item in loaded] == sorted(item["id"] for item in loaded)
+    assert all(item["schema_version"] == 1 for item in loaded)
+    assert all(
+        item.get("execution", {}).get("mode") == "declarative"
+        or "execution" not in item
+        for item in loaded
+    )
 
 
 def test_registry_rejects_duplicate_or_unsupported_scenarios():

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "review-queue-spike",
+  "version": "1.0.0",
+  "title": "Review queue spike",
+  "summary": "Simulate a sudden increase in pull requests while review capacity is constrained.",
+  "trigger": {"type": "review-capacity-drop", "description": "Several reviewers become unavailable during a release window.", "duration_days": 14},
+  "assumptions": ["Recent review activity is a proxy for queue capacity, not an individual performance score.", "A queue can be triaged without merging unreviewed changes."],
+  "inputs": [{"name": "reviewers", "description": "Reviewed backup reviewers for protected paths.", "source": "configuration"}],
+  "score": {"formula": "100 minus bounded penalties for protected paths without a backup reviewer", "range": [0, 100]},
+  "recovery_actions": ["Document a review rotation and escalation window.", "Practice pausing risky merges while preserving urgent fixes."],
+  "limitations": ["Does not read private review permissions or predict human availability.", "Does not approve, merge, or close pull requests."],
+  "execution": {"mode": "declarative"}
+}

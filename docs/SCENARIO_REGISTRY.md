@@ -4,6 +4,11 @@ Maintainer-Zero keeps community scenario descriptions in a small, reviewable
 JSON format. The first registry is in maintainer_zero/scenario_registry.json.
 It describes the three built-in drills without changing their executable
 scoring functions. A registry is metadata and policy, not a plugin loader.
+The `examples/scenarios/` directory also contains a small community catalog
+of standalone declarations (review queue, signing, package registry,
+security, documentation, artifact, tracker, domain, and localization drills).
+These examples are intentionally data-only: they document a drill contract
+but are not loaded as executable plugins.
 
 ## Safety and review contract
 

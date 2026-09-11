@@ -20,7 +20,8 @@ def _safe_text(value: object) -> str:
 
 def _safe_value(value: object) -> object:
     if isinstance(value, str):
-        return _safe_text(value)
+        safe = _safe_text(value)
+        return safe if safe == "<local-repository>" else safe.replace("<", "&lt;").replace(">", "&gt;")
     if isinstance(value, list):
         return [_safe_value(item) for item in value]
     if isinstance(value, dict):

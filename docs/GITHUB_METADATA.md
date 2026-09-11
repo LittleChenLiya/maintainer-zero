@@ -6,6 +6,29 @@ GitHub API 响应整理成 JSON，再交给 `load_metadata()` / `summarize_metad
 CLI 可以通过 `simulate --github-metadata PATH` 读取这个快照；报告只保存摘要和
 unknown 状态，不复制原始记录。该参数不会触发网络请求。
 
+## 本地缓存契约
+
+如果集成方需要重复使用采集结果，可以把已校验快照包装为本地缓存：
+
+```python
+from datetime import datetime, timezone
+from maintainer_zero.github_cache import save_metadata_cache, load_metadata_cache
+
+save_metadata_cache(
+    "github-cache.json", payload, source="github-api", ttl_seconds=86400,
+    fetched_at=datetime.now(timezone.utc),
+)
+fresh = load_metadata_cache("github-cache.json")
+```
+
+缓存只增加 `cache` 元数据（来源、抓取时间、过期时间和 TTL），不改变原始
+快照的 schema。TTL 必须在 1 秒到 30 天之间，时间戳必须带时区，过期时间必须
+与抓取时间和 TTL 精确一致；文件大小继续受 10 MB 上限约束，并通过临时文件
+替换写入。`cache_status()` 会返回 `missing`、`invalid`、`fresh` 或 `stale`。
+过期缓存默认被 `load_metadata_cache()` 拒绝，只有离线审阅确实需要旧数据时才
+显式传入 `allow_stale=True`。该模块不会自动刷新、联网、读取 token 或把 stale
+计数解释成当前事实。
+
 最小载荷：
 
 ```json

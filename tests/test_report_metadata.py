@@ -5,6 +5,7 @@ from maintainer_zero.cli import _build_parser
 from maintainer_zero.models import DrillResult, RepoSnapshot
 from maintainer_zero.report import write_report
 from maintainer_zero.github_cache import save_metadata_cache
+from maintainer_zero.github_metadata import MAX_METADATA_BYTES
 
 
 def test_cli_accepts_metadata_snapshot():
@@ -49,3 +50,11 @@ def test_cli_rejects_stale_metadata_cache_unless_explicit(tmp_path):
     assert main(["simulate", ".", "--scenario", "ci-outage", "--github-metadata", str(cache), "--allow-stale-github-metadata", "--output", str(output)]) == 0
     report = json.loads((output / "continuity.json").read_text(encoding="utf-8"))
     assert report["github_metadata"]["cache"]["state"] == "stale"
+
+
+def test_cli_rejects_oversized_cached_snapshot_before_parsing(tmp_path):
+    cache = tmp_path / "oversized.json"
+    cache.write_bytes(b'{"schema_version":1,"permissions":{},"data":{},"cache":{}}' + b" " * MAX_METADATA_BYTES)
+    from maintainer_zero.cli import main
+
+    assert main(["simulate", str(tmp_path), "--scenario", "ci-outage", "--github-metadata", str(cache), "--output", str(tmp_path / "out")]) == 2

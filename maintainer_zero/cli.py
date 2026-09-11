@@ -149,18 +149,15 @@ def _load_metadata_summary(path: str | Path, *, allow_stale: bool = False) -> di
     snapshot cannot silently look current in a report.
     """
     target = Path(path)
-    try:
-        raw = json.loads(target.read_bytes())
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        # Keep the public error wording from the metadata loader for callers
-        # that do not know whether the input was cached.
-        raise MetadataError(f"Invalid GitHub metadata snapshot: {target}") from exc
-    if isinstance(raw, dict) and "cache" in raw:
+    # Use the bounded metadata reader before inspecting the envelope.  This
+    # prevents cache detection from creating an unbounded JSON parsing path.
+    payload = load_metadata(target)
+    if "cache" in payload:
         payload = load_metadata_cache(target, allow_stale=allow_stale)
         summary = summarize_metadata(payload)
         summary["cache"] = cache_status(target).as_dict()
         return summary
-    return summarize_metadata(load_metadata(target))
+    return summarize_metadata(payload)
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)

@@ -35,7 +35,7 @@
 - [x] 增加离线 GitHub 元数据快照校验与权限降级摘要
 - [x] 注入式只读 GitHub 元数据客户端边界：分页、响应限制和错误降级
 - [x] CLI 接受已审阅的元数据快照并把脱敏摘要写入报告
-- 显式 opt-in 的 GitHub GET 采集命令已覆盖 issues、pull requests 和 releases；reviews、缓存、速率等待与真实写入仍由后续集成负责
+- 显式 opt-in 的 GitHub GET 采集命令已覆盖 issues、pull requests、releases，以及显式 `--include-repository` 的有限仓库描述；reviews 需指定单个 PR，分页截断会标记 `partial`，缓存、速率等待与真实写入仍由后续集成负责
 - 从报告生成 CODEOWNERS / Issue / Runbook 草稿
 - 维护者匿名化和组织级角色映射
 - PR 评论、分数回归门禁和 SARIF 输出

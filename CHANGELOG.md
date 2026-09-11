@@ -13,6 +13,8 @@
 - 完成本地 wheel/sdist 构建和隔离安装烟测；CI 矩阵仍需由 GitHub Actions 实际运行确认。
 - 增加 `collect-github OWNER/REPOSITORY` 显式只读采集命令；网络和环境 token 均需独立 opt-in，默认仍离线。
 - 加固 GitHub 采集边界：仓库路径、分页/响应/总量上限、记录类型、有限超时和重定向行为均有测试。
+- 增加显式 `--include-repository` 的有限仓库描述采集；快照和报告传播 `partial` 截断状态，避免把上限内计数误读为完整数据。
+- 默认 starter 配置匿名化仓库名称/路径，并清理报告与本地 PR 草稿中的外部输入。
 
 ## 发布说明
 

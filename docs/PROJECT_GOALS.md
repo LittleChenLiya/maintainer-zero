@@ -32,6 +32,7 @@
 - [x] 维护者离开场景接入确定性积压模拟器
 - [x] 版本化报告 schema、稳定 finding ID 与 `--baseline` 比较
 - [x] 生成只读恢复 Runbook、CODEOWNERS / Issue 草稿和 SARIF
+- [x] 增加离线 GitHub 元数据快照校验与权限降级摘要
 - 可选 GitHub API 适配器：Issues、PR review、权限和 release 元数据
 - 从报告生成 CODEOWNERS / Issue / Runbook 草稿
 - 维护者匿名化和组织级角色映射

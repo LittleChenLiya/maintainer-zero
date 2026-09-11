@@ -1,10 +1,12 @@
 from pathlib import Path
+import json
 
 from maintainer_zero.models import DrillResult, Finding, RepoSnapshot
 from maintainer_zero.recovery import (
     render_codeowners_draft,
     render_issue_drafts,
     render_runbook,
+    render_sarif,
     write_recovery_artifacts,
 )
 
@@ -59,7 +61,17 @@ def test_write_recovery_artifacts_writes_only_selected_directory(tmp_path: Path)
     source.mkdir()
     out = tmp_path / "artifacts"
     paths = write_recovery_artifacts(out, RepoSnapshot(path=str(source), name="demo"), [_result()])
-    assert [p.name for p in paths] == ["runbook.md", "CODEOWNERS.draft", "issue-drafts.md"]
+    assert [p.name for p in paths] == ["runbook.md", "CODEOWNERS.draft", "issue-drafts.md", "continuity.sarif"]
     assert all(p.parent == out and p.exists() for p in paths)
     assert not (source / "CODEOWNERS").exists()
     assert not (source / "runbook.md").exists()
+
+
+def test_sarif_is_valid_and_has_no_fake_locations():
+    payload = json.loads(render_sarif(RepoSnapshot(path=".", name="demo"), [_result(detail="secret=hidden")]))
+    assert payload["version"] == "2.1.0"
+    run = payload["runs"][0]
+    assert run["tool"]["driver"]["name"] == "Maintainer-Zero"
+    assert run["results"][0]["ruleId"] == "demo.owner"
+    assert "hidden" not in json.dumps(payload)
+    assert "locations" not in run["results"][0]

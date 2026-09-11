@@ -10,6 +10,10 @@ Maintainer-Zero turns that question into a repeatable, explainable drill. It rea
 
 This is an early MVP. Results are heuristics, not a security certification. It does not upload repository content or call GitHub APIs.
 
+The first M3 metadata boundary is offline-only: `maintainer_zero.github_metadata` validates
+an already-reviewed JSON snapshot and preserves missing permissions as `unknown`. It does
+not fetch GitHub, read tokens, or write external systems. See [GitHub metadata](docs/GITHUB_METADATA.md).
+
 ## Quick start
 
 ```powershell
@@ -81,9 +85,3 @@ Add a scenario with explicit assumptions, a deterministic test, and a short expl
 ## License
 
 MIT
-@@
- This is an early MVP. Results are heuristics, not a security certification. It does not upload repository content or call GitHub APIs.
-+
-+The first M3 metadata boundary is offline-only: `maintainer_zero.github_metadata` validates
-+an already-reviewed JSON snapshot and preserves missing permissions as `unknown`. It does
-+not fetch GitHub, read tokens, or write external systems. See [GitHub metadata](docs/GITHUB_METADATA.md).

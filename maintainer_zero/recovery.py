@@ -7,6 +7,7 @@ it never edits a repository, creates GitHub issues, or changes CODEOWNERS.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Iterable
@@ -161,6 +162,51 @@ def render_issue_drafts(repo: RepoSnapshot, results: list[DrillResult]) -> str:
     return "\n".join(lines)
 
 
+def render_sarif(repo: RepoSnapshot, results: list[DrillResult]) -> str:
+    """Render findings as SARIF 2.1.0 for GitHub Code Scanning ingestion.
+
+    Findings are repository-level observations, so this intentionally omits a
+    source location rather than inventing a file/line.  The payload contains
+    only sanitized finding text and can be reviewed before upload.
+    """
+    rules: dict[str, dict[str, object]] = {}
+    sarif_results: list[dict[str, object]] = []
+    level_map = {"high": "error", "medium": "warning", "low": "note"}
+    for result, finding, identifier in _iter_findings(results):
+        severity = _safe_text(finding.severity).lower()
+        rules.setdefault(
+            identifier,
+            {
+                "id": identifier,
+                "name": identifier,
+                "shortDescription": {"text": _safe_text(finding.title)},
+                "help": {"text": _safe_text(finding.action)},
+                "properties": {"security-severity": {"high": "8.0", "medium": "5.0", "low": "2.0"}.get(severity, "1.0")},
+            },
+        )
+        sarif_results.append(
+            {
+                "ruleId": identifier,
+                "level": level_map.get(severity, "warning"),
+                "message": {"text": f"{_safe_text(finding.detail)} Action: {_safe_text(finding.action)}"},
+                "properties": {"scenario": _safe_text(result.scenario), "score": result.score},
+            }
+        )
+    payload = {
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {"driver": {"name": "Maintainer-Zero", "version": "0.2", "informationUri": "https://github.com/"}},
+                "automationDetails": {"id": f"maintainer-zero/{_safe_text(repo.name)}"},
+                "results": sarif_results,
+                "rules": list(rules.values()),
+            }
+        ],
+    }
+    return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+
+
 def write_recovery_artifacts(out: Path, repo: RepoSnapshot, results: list[DrillResult]) -> list[Path]:
     """Write recovery drafts below *out* and return paths in stable order."""
     out = Path(out)
@@ -169,6 +215,7 @@ def write_recovery_artifacts(out: Path, repo: RepoSnapshot, results: list[DrillR
         "runbook.md": render_runbook(repo, results),
         "CODEOWNERS.draft": render_codeowners_draft(repo, results),
         "issue-drafts.md": render_issue_drafts(repo, results),
+        "continuity.sarif": render_sarif(repo, results),
     }
     paths: list[Path] = []
     for filename, content in artefacts.items():

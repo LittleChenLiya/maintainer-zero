@@ -24,7 +24,3 @@ GitHub API 响应整理成 JSON，再交给 `load_metadata()` / `summarize_metad
 未来网络适配器仍必须自行实现超时、分页和令牌隔离。
 
 该层是 M3 的边界契约，不代表已经完成 GitHub API 客户端。
-*** Update File: D:\maintainer-zero\docs\PROJECT_GOALS.md
-@@
- - [x] 生成只读恢复 Runbook、CODEOWNERS / Issue 草稿和 SARIF
-+ [x] 增加离线 GitHub 元数据快照校验与权限降级摘要

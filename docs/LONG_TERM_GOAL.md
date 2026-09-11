@@ -63,7 +63,4 @@
 
 ## 当前执行记录
 
-2026-09-11：建立长期目标并完成 M1 首个可验收增量。随后启动 M2，已交付版本化报告 schema、稳定 finding ID、`--baseline` 比较、分数回归退出码，以及只写入输出目录的 Runbook、CODEOWNERS、Issue 草稿和 SARIF 工件。下一步进入 M2 的 GitHub 元数据适配与更严格的评分证据覆盖率。
-@@
--2026-09-11：建立长期目标并完成 M1 首个可验收增量。随后启动 M2，已交付版本化报告 schema、稳定 finding ID、`--baseline` 比较、分数回归退出码，以及只写入输出目录的 Runbook、CODEOWNERS、Issue 草稿和 SARIF 工件。下一步进入 M2 的 GitHub 元数据适配与更严格的评分证据覆盖率。
-+2026-09-11：建立长期目标并完成 M1 首个可验收增量。M2 已交付版本化报告 schema、稳定 finding ID、`--baseline` 比较、分数回归退出码，以及只写入输出目录的 Runbook、CODEOWNERS、Issue 草稿和 SARIF 工件。M3 已开始，先交付离线 GitHub 元数据快照契约：权限不足和字段缺失显式降级为 unknown；下一步再评估受控的只读 API 客户端。
+2026-09-11：建立长期目标并完成 M1 首个可验收增量。M2 已交付版本化报告 schema、稳定 finding ID、`--baseline` 比较、分数回归退出码，以及只写入输出目录的 Runbook、CODEOWNERS、Issue 草稿和 SARIF 工件。M3 已开始，先交付离线 GitHub 元数据快照契约：权限不足和字段缺失显式降级为 unknown；下一步再评估受控的只读 API 客户端。

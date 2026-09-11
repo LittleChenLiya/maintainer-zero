@@ -86,6 +86,12 @@ def test_append_rejects_backwards_timestamp(tmp_path):
     with pytest.raises(HistoryError, match="must not move backwards"):
         append_history(path, report(score=81), recorded_at="2026-01-01T00:00:00Z")
 
+def test_append_history_uses_atomic_same_directory_replacement(tmp_path):
+    path = tmp_path / "history.json"
+    append_history(path, report(score=80), recorded_at="2026-01-01T00:00:00Z")
+    assert not list(tmp_path.glob(".history.json.*.tmp"))
+    assert json.loads(path.read_text(encoding="utf-8"))["entries"][0]["overall_score"] == 80
+
 
 def test_history_rejects_out_of_order_and_mixed_rule_entries(tmp_path):
     path = tmp_path / "history.json"

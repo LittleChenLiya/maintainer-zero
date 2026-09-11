@@ -22,6 +22,22 @@ def test_client_degrades_unavailable_resource(status, reason):
     assert "issues" not in payload["data"]
     assert payload["collection"]["issues"]["reason"] == reason
 
+def test_client_preserves_bounded_rate_limit_scheduling_hints():
+    payload = ReadOnlyGitHubClient(
+        lambda *_: TransportResponse(429, b"{}", {"Retry-After": "37", "X-RateLimit-Reset": "1700000000", "X-Leak": "ignore"})
+    ).collect({"issues": "/repos/acme/demo/issues"})
+    status = payload["collection"]["issues"]
+    assert status["retry_after_seconds"] == 37
+    assert status["rate_limit_reset_epoch"] == 1700000000
+    assert "X-Leak" not in status
+
+def test_client_discards_unbounded_or_malformed_rate_limit_hints():
+    payload = ReadOnlyGitHubClient(
+        lambda *_: TransportResponse(403, b"{}", {"Retry-After": "999999", "X-RateLimit-Reset": "not-an-epoch"})
+    ).collect({"issues": "/repos/acme/demo/issues"})
+    assert "retry_after_seconds" not in payload["collection"]["issues"]
+    assert "rate_limit_reset_epoch" not in payload["collection"]["issues"]
+
 def test_client_rejects_unapproved_paths_and_bounds_response():
     client = ReadOnlyGitHubClient(lambda *_: TransportResponse(200, b"[]"), max_response_bytes=2)
     with pytest.raises(GitHubClientError, match="unsupported"):

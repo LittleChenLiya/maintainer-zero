@@ -65,11 +65,23 @@ def validate_metadata(payload: Any) -> dict[str, Any]:
         for status in collection.values():
             if not isinstance(status, dict) or not isinstance(status.get("available"), bool):
                 raise MetadataError("metadata collection status is malformed")
+            allowed_status = {"available", "pages", "truncated", "reason", "retry_after_seconds", "rate_limit_reset_epoch"}
+            if set(status) - allowed_status:
+                raise MetadataError("metadata collection status contains an unsupported field")
             pages = status.get("pages")
             if isinstance(pages, bool) or not isinstance(pages, int) or not 0 <= pages <= 50:
                 raise MetadataError("metadata collection pages are out of bounds")
             if not isinstance(status.get("truncated"), bool):
                 raise MetadataError("metadata collection truncated must be boolean")
+            reason = status.get("reason")
+            if reason is not None and (not isinstance(reason, str) or not reason or len(reason) > 64):
+                raise MetadataError("metadata collection reason is malformed")
+            retry_after = status.get("retry_after_seconds")
+            if retry_after is not None and (isinstance(retry_after, bool) or not isinstance(retry_after, int) or not 0 <= retry_after <= 86400):
+                raise MetadataError("metadata retry_after_seconds is out of bounds")
+            reset_epoch = status.get("rate_limit_reset_epoch")
+            if reset_epoch is not None and (isinstance(reset_epoch, bool) or not isinstance(reset_epoch, int) or not 0 <= reset_epoch <= 4102444800):
+                raise MetadataError("metadata rate_limit_reset_epoch is out of bounds")
     return payload
 
 def summarize_metadata(payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -91,6 +103,12 @@ def summarize_metadata(payload: Mapping[str, Any]) -> dict[str, Any]:
             partial.append(key)
     if partial:
         summary["partial"] = partial
+    if isinstance(collection, dict) and collection:
+        summary["collection"] = {
+            key: {field: status[field] for field in ("available", "pages", "truncated", "reason", "retry_after_seconds", "rate_limit_reset_epoch") if field in status}
+            for key, status in sorted(collection.items())
+            if isinstance(status, dict)
+        }
     return summary
 
 __all__ = ["MAX_METADATA_BYTES", "MetadataError", "SCHEMA_VERSION", "load_metadata", "summarize_metadata", "validate_metadata"]

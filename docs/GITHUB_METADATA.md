@@ -72,6 +72,11 @@ repository descriptor 只有传入 `--include-repository` 才会请求。reviews
 超时或传输错误会保留为不可用/unknown，而不是被解释为安全。达到页数/条目上限时，
 快照会在摘要中标记 `partial`，报告中的计数不应被解释为完整列表。
 
+限流响应只会保留两个经过边界校验的调度提示：`retry_after_seconds`（最多 24 小时）
+和 `rate_limit_reset_epoch`（Unix 时间戳）。它们帮助调用方安排下一次运行；工具不会
+自动等待、重试或把任意响应头复制到快照，无法解析或超出范围的值会被丢弃。
+这些字段会随 `collection` 状态进入机器可读演练报告；Markdown 报告仍只展示未知和部分采集提示。
+
 ## 注入式只读客户端
 
 `maintainer_zero.github_client.ReadOnlyGitHubClient` 提供了一个不绑定 HTTP 库的

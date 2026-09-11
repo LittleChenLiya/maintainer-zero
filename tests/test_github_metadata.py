@@ -64,3 +64,11 @@ def test_repository_descriptor_rejects_nested_or_unknown_fields():
 def test_summary_marks_truncated_resources_as_partial():
     payload = {**snapshot(), "collection": {"issues": {"available": True, "pages": 5, "truncated": True}}}
     assert summarize_metadata(payload)["partial"] == ["issues"]
+
+def test_summary_preserves_only_bounded_collection_status_fields():
+    payload = {**snapshot(), "collection": {"issues": {"available": False, "pages": 0, "truncated": False, "reason": "rate_limited", "retry_after_seconds": 30, "rate_limit_reset_epoch": 1700000000}}}
+    assert summarize_metadata(payload)["collection"] == {"issues": {"available": False, "pages": 0, "truncated": False, "reason": "rate_limited", "retry_after_seconds": 30, "rate_limit_reset_epoch": 1700000000}}
+
+def test_metadata_rejects_unbounded_collection_scheduling_hints():
+    with pytest.raises(MetadataError, match="retry_after_seconds"):
+        validate_metadata({**snapshot(), "collection": {"issues": {"available": False, "pages": 0, "truncated": False, "retry_after_seconds": 86401}}})

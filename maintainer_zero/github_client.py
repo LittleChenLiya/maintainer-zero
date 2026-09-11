@@ -38,6 +38,8 @@ class CollectionStatus:
     pages: int
     truncated: bool
     reason: str | None = None
+    retry_after_seconds: int | None = None
+    rate_limit_reset_epoch: int | None = None
 
 class GitHubClientError(ValueError):
     """Raised for invalid bounds or non-whitelisted paths."""
@@ -68,6 +70,32 @@ def _header(headers: Mapping[str, str] | None, name: str) -> str | None:
 def _has_next(headers: Mapping[str, str] | None) -> bool:
     return bool(re.search(r'<[^>]+>;\s*rel="next"', _header(headers, "link") or "", re.I))
 
+def _rate_limit_hints(headers: Mapping[str, str] | None) -> tuple[int | None, int | None]:
+    """Extract bounded scheduling hints without preserving arbitrary headers."""
+    retry_after: int | None = None
+    reset_epoch: int | None = None
+    raw_retry = (_header(headers, "retry-after") or "").strip()
+    if raw_retry.isdigit():
+        value = int(raw_retry)
+        if value <= 86_400:
+            retry_after = value
+    raw_reset = (_header(headers, "x-ratelimit-reset") or "").strip()
+    if raw_reset.isdigit():
+        value = int(raw_reset)
+        if 0 <= value <= 4_102_444_800:
+            reset_epoch = value
+    return retry_after, reset_epoch
+
+def _status_payload(status: CollectionStatus) -> dict[str, Any]:
+    payload: dict[str, Any] = {"available": status.available, "pages": status.pages, "truncated": status.truncated}
+    if status.reason:
+        payload["reason"] = status.reason
+    if status.retry_after_seconds is not None:
+        payload["retry_after_seconds"] = status.retry_after_seconds
+    if status.rate_limit_reset_epoch is not None:
+        payload["rate_limit_reset_epoch"] = status.rate_limit_reset_epoch
+    return payload
+
 class ReadOnlyGitHubClient:
     """Collect bounded metadata through a caller-owned GET-only transport."""
 
@@ -92,7 +120,7 @@ class ReadOnlyGitHubClient:
         for resource, path in sorted(paths.items()):
             records, status = (self._collect_resource(path) if resource in _ARRAY_RESOURCES else self._collect_repository(path))
             permissions[resource] = status.available
-            collection[resource] = {"available": status.available, "pages": status.pages, "truncated": status.truncated, **({"reason": status.reason} if status.reason else {})}
+            collection[resource] = _status_payload(status)
             if status.available:
                 data[resource] = records
         return validate_metadata({"schema_version": SCHEMA_VERSION, "permissions": permissions, "data": data, "collection": collection})
@@ -107,7 +135,8 @@ class ReadOnlyGitHubClient:
             return {}, CollectionStatus(False, 0, False, "invalid_transport_response")
         if response.status_code in (401, 403, 404, 429):
             reasons = {401: "unauthorized", 403: "forbidden_or_rate_limited", 404: "not_found_or_unavailable", 429: "rate_limited"}
-            return {}, CollectionStatus(False, 0, False, reasons[response.status_code])
+            retry_after, reset_epoch = _rate_limit_hints(response.headers)
+            return {}, CollectionStatus(False, 0, False, reasons[response.status_code], retry_after, reset_epoch)
         if response.status_code != 200:
             return {}, CollectionStatus(False, 0, False, f"http_{response.status_code}")
         try:
@@ -144,7 +173,8 @@ class ReadOnlyGitHubClient:
                 return records, CollectionStatus(False, page - 1, False, "invalid_transport_response")
             if response.status_code in (401, 403, 404, 429):
                 reasons = {401: "unauthorized", 403: "forbidden_or_rate_limited", 404: "not_found_or_unavailable", 429: "rate_limited"}
-                return records, CollectionStatus(False, page - 1, False, reasons[response.status_code])
+                retry_after, reset_epoch = _rate_limit_hints(response.headers)
+                return records, CollectionStatus(False, page - 1, False, reasons[response.status_code], retry_after, reset_epoch)
             if response.status_code != 200:
                 return records, CollectionStatus(False, page - 1, False, f"http_{response.status_code}")
             try:

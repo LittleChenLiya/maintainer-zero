@@ -16,6 +16,7 @@ def test_maintainer_drill_flags_single_point():
     assert 0 <= result.score <= 100
     assert any(f.title == "核心维护单点" for f in result.findings)
     assert result.metrics["departed_maintainer"] == "A"
+    assert result.findings[0].finding_id == "maintainer-zero.core-owner"
 
 def test_dependency_drill_is_deterministic():
     first = dependency_yanked(repo())

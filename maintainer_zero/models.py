@@ -23,6 +23,7 @@ class Finding:
     title: str
     detail: str
     action: str
+    finding_id: str = ""
 
 @dataclass
 class DrillResult:

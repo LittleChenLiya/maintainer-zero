@@ -20,6 +20,8 @@ pip install -e .
 maintainer-zero simulate . --scenario all --output .continuity
 # CI gate: fail if any scenario scores below 70
 maintainer-zero simulate . --scenario all --fail-under 70
+# Compare with a previous report; regression returns exit code 1
+maintainer-zero simulate . --baseline .continuity/continuity.json
 ```
 
 Open `.continuity/report.md` or `.continuity/report.html`. To create a starter config in another repository:
@@ -28,6 +30,12 @@ Open `.continuity/report.md` or `.continuity/report.html`. To create a starter c
 maintainer-zero init /path/to/repository
 maintainer-zero simulate /path/to/repository --scenario maintainer-zero --days 90
 ```
+
+Each simulation also creates reviewable recovery drafts under `.continuity/recovery/`:
+`runbook.md`, `CODEOWNERS.draft`, and `issue-drafts.md`. They are suggestions only;
+the CLI never edits the analyzed repository, changes permissions, or submits GitHub
+Issues. Use `--recovery-output PATH` to choose another output directory. See
+[恢复工件说明](docs/RECOVERY_ARTIFACTS.md).
 
 ## What it inspects
 
@@ -43,7 +51,8 @@ maintainer-zero simulate /path/to/repository --scenario maintainer-zero --days 9
 .continuity/
 ├── continuity.json   # machine-readable result
 ├── report.md         # reviewable report for a PR
-└── report.html       # standalone local view
+├── report.html        # standalone local view
+└── recovery/          # Runbook, CODEOWNERS, Issue drafts and SARIF
 ```
 
 ## GitHub Action

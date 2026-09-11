@@ -4,8 +4,10 @@ import argparse
 import json
 from pathlib import Path
 from .analyzer import snapshot_repository
+from .baseline import BaselineError, compare_reports, load_report
 from .models import RepoSnapshot
 from .report import write_report
+from .recovery import write_recovery_artifacts
 from .scenarios import SCENARIOS
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -18,7 +20,13 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--scenario", choices=[*SCENARIOS, "all"], default=None)
     run.add_argument("--days", type=int, default=None)
     run.add_argument("--output", default=".continuity")
+    run.add_argument(
+        "--recovery-output",
+        default=None,
+        help="directory for reviewable recovery drafts (default: OUTPUT/recovery)",
+    )
     run.add_argument("--fail-under", type=int, default=None, metavar="SCORE", help="exit 1 when any drill score is below SCORE (0-100)")
+    run.add_argument("--baseline", default=None, metavar="JSON", help="compare with a prior continuity.json report")
     return parser
 
 
@@ -104,12 +112,26 @@ def main(argv: list[str] | None = None) -> int:
             repo = _anonymize_snapshot(repo)
         results = [SCENARIOS[name](repo, days) for name in names]
         write_report(Path(args.output), repo, results)
+        recovery_output = Path(args.recovery_output) if args.recovery_output else Path(args.output) / "recovery"
+        write_recovery_artifacts(recovery_output, repo, results)
     except ValueError as exc:
         print(f"error: {exc}")
         return 2
     print(f"Analyzed {repo.name}: {len(results)} drills written to {Path(args.output).resolve()}")
     for result in results:
         print(f"  {result.scenario}: {result.score}/100 ({result.confidence} confidence)")
+    if args.baseline:
+        try:
+            current_report = load_report(Path(args.output) / "continuity.json")
+            comparison = compare_reports(load_report(args.baseline), current_report)
+        except BaselineError as exc:
+            print(f"error: {exc}")
+            return 2
+        comparison_path = Path(args.output) / "baseline-comparison.json"
+        comparison_path.write_text(json.dumps(comparison, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"Baseline comparison: {comparison['status']} ({comparison_path})")
+        if comparison["status"] == "regressed":
+            return 1
     if fail_under is not None:
         failing = [result for result in results if result.score < fail_under]
         if failing:

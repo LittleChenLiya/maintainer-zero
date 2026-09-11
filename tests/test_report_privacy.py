@@ -17,6 +17,7 @@ def test_report_redacts_secrets_and_control_characters(tmp_path):
     outputs = tmp_path / "out"
     write_report(outputs, repo, [result("token=super-secret\n<!-- injected -->")])
     payload = json.loads((outputs / "continuity.json").read_text(encoding="utf-8"))
+    assert payload["repository"]["path"] == "C:/private/repo"
     rendered = "\n".join([
         (outputs / "report.md").read_text(encoding="utf-8"),
         (outputs / "report.html").read_text(encoding="utf-8"),

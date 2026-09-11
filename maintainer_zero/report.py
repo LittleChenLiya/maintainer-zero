@@ -15,7 +15,6 @@ def _safe_text(value: object) -> str:
     """Sanitize repository-controlled text before it enters a shareable report."""
     text = str(value).replace("\r", " ").replace("\n", " ")
     text = "".join(char if char.isprintable() or char == "\t" else " � " for char in text).strip()
-    text = text.replace("<", "&lt;").replace(">", "&gt;")
     return _SECRET_RE.sub(lambda match: f"{match.group(1)}[REDACTED]", text)
 
 
@@ -33,7 +32,12 @@ def _display(value: object) -> str:
     safe = _safe_value(value)
     if isinstance(safe, (dict, list)):
         return json.dumps(safe, ensure_ascii=False, sort_keys=True)
-    return str(safe)
+    rendered = json.dumps(safe, ensure_ascii=False, sort_keys=True) if isinstance(safe, (dict, list)) else str(safe)
+    return rendered.replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _markdown_text(value: object) -> str:
+    return _safe_text(value).replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _metadata_section(metadata_summary: dict | None) -> list[str]:
@@ -42,20 +46,20 @@ def _metadata_section(metadata_summary: dict | None) -> list[str]:
     fields = metadata_summary.get("fields", {})
     unknown = metadata_summary.get("unknown", [])
     lines = ["## GitHub metadata", "", "Read-only metadata was supplied by an external snapshot; unavailable fields remain unknown.", ""]
-    lines.extend(f"- **{_safe_text(key)}**: {_display(value) if value is not None else 'unknown'}" for key, value in fields.items())
+    lines.extend(f"- **{_markdown_text(key)}**: {_display(value) if value is not None else 'unknown'}" for key, value in fields.items())
     if unknown:
         lines.extend(["", f"Unknown fields: `{', '.join(unknown)}`"] )
     return lines + [""]
 
 def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None) -> str:
-    lines = [f"# OSS Continuity Report: {_safe_text(repo.name)}", "", "- **Rule version:** `0.2`", f"- Commits analyzed: **{repo.commits}**", f"- Contributors: **{len(repo.contributors)}**", f"- Dependencies found: **{len(repo.dependencies)}**", f"- Workflows found: **{len(repo.workflows)}**", "", "> This is an explainable heuristic drill, not a security certification.", ""]
+    lines = [f"# OSS Continuity Report: {_markdown_text(repo.name)}", "", "- **Rule version:** `0.2`", f"- Commits analyzed: **{repo.commits}**", f"- Contributors: **{len(repo.contributors)}**", f"- Dependencies found: **{len(repo.dependencies)}**", f"- Workflows found: **{len(repo.workflows)}**", "", "> This is an explainable heuristic drill, not a security certification.", ""]
     for result in results:
-        lines += [f"## {_safe_text(result.scenario)} — {result.score}/100", "", f"Confidence: `{_safe_text(result.confidence)}`", "", "### Metrics", ""]
-        lines.extend(f"- **{_safe_text(key)}**: {_display(value)}" for key, value in result.metrics.items())
+        lines += [f"## {_markdown_text(result.scenario)} — {result.score}/100", "", f"Confidence: `{_markdown_text(result.confidence)}`", "", "### Metrics", ""]
+        lines.extend(f"- **{_markdown_text(key)}**: {_display(value)}" for key, value in result.metrics.items())
         lines += ["", "### Findings", ""]
-        lines.extend(f"- **{_safe_text(f.severity).upper()} — {_safe_text(f.title)}** (`{_safe_text(f.finding_id or 'unclassified')}`): {_safe_text(f.detail)} *Action:* {_safe_text(f.action)}" for f in result.findings)
+        lines.extend(f"- **{_markdown_text(f.severity).upper()} — {_markdown_text(f.title)}** (`{_markdown_text(f.finding_id or 'unclassified')}`): {_markdown_text(f.detail)} *Action:* {_markdown_text(f.action)}" for f in result.findings)
         lines += ["", "### Timeline", "", "```mermaid", "timeline", "    title Incident drill"]
-        lines.extend(f"    Day {e['day']} : {_safe_text(e['event'])} : {_safe_text(e['impact'])}" for e in result.timeline)
+        lines.extend(f"    Day {e['day']} : {_markdown_text(e['event'])} : {_markdown_text(e['impact'])}" for e in result.timeline)
         lines += ["```", ""]
     lines += _metadata_section(metadata_summary)
     lines += ["## Suggested next steps", "", "1. Assign a backup owner for every critical path.", "2. Test a clean checkout and local release procedure.", "3. Re-run this drill monthly and track score changes in Git."]

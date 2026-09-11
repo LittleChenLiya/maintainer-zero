@@ -32,6 +32,8 @@ def test_publish_requires_explicit_opt_in_and_injected_publisher():
 
 def test_publish_validates_draft_key_and_publisher_result():
     draft = build_comment_draft(report())
+    with pytest.raises(PRCommentError, match="invalid comment draft"):
+        publish_comment(object(), enabled=True, publisher=lambda **kwargs: "comment-1")
     invalid = dict(draft, idempotency_key="not-a-sha256-key")
     with pytest.raises(PRCommentError, match="invalid comment draft"):
         publish_comment(invalid, enabled=True, publisher=lambda **kwargs: "comment-1")

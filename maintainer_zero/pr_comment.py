@@ -83,6 +83,8 @@ def publish_comment(
         raise PRCommentError("PR comment publishing is disabled; review the local draft instead")
     if publisher is None or not callable(publisher):
         raise PRCommentError("an explicit publisher is required for PR comment publishing")
+    if not isinstance(draft, Mapping):
+        raise PRCommentError("invalid comment draft")
     body, key = draft.get("body"), draft.get("idempotency_key")
     if (
         not isinstance(body, str)

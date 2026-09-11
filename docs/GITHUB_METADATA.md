@@ -36,8 +36,9 @@ unknown 状态，不复制原始记录。该参数不会触发网络请求。
 maintainer-zero collect-github octo-org/example --allow-network --output github-metadata.json
 ```
 
-该命令只请求 issues、pull requests 和 releases 的 HTTPS GET 接口；reviews 在没有
-具体 PR 编号时保持 unknown。只有同时传入 `--allow-environment-token` 才会读取
+该命令默认只请求 issues、pull requests 和 releases 的 HTTPS GET 接口；reviews 在没有
+具体 PR 编号时保持 unknown。若要采集单个 PR 的 reviews，必须额外传入例如
+`--reviews-pr 123`，避免一次性为所有 PR 扩大请求量。只有同时传入 `--allow-environment-token` 才会读取
 `GITHUB_TOKEN`，命令没有 token 参数，也不会把 token 写入输出。失败的权限、限流、
 超时或传输错误会保留为不可用/unknown，而不是被解释为安全。
 

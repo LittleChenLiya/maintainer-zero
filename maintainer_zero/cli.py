@@ -32,6 +32,7 @@ def _build_parser() -> argparse.ArgumentParser:
     collect.add_argument("--timeout", type=float, default=5.0, metavar="SECONDS")
     collect.add_argument("--max-pages", type=int, default=5, metavar="COUNT")
     collect.add_argument("--page-size", type=int, default=100, metavar="COUNT")
+    collect.add_argument("--reviews-pr", type=int, default=None, metavar="NUMBER", help="explicitly collect reviews for one pull request")
     demo = sub.add_parser("demo", aliases=["demos"], help="run a bounded, data-only before/after demo suite")
     demo.add_argument("path", nargs="?", default=None, help="optional data-only demo suite; default uses the packaged suite")
     demo.add_argument("--format", choices=("text", "json"), default="text", dest="demo_format")
@@ -128,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
                 timeout_seconds=args.timeout,
                 max_pages=args.max_pages,
                 page_size=args.page_size,
+                reviews_pr=args.reviews_pr,
             )
             output_path = Path(args.output)
             output_path.parent.mkdir(parents=True, exist_ok=True)

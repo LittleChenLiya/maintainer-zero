@@ -15,8 +15,11 @@ from maintainer_zero.cli import main
 def test_repository_slug_paths_are_bounded_and_deterministic():
     assert validate_repository_slug("acme/demo") == "acme/demo"
     assert repository_paths("acme/demo")["pull_requests"] == "/repos/acme/demo/pulls"
+    assert repository_paths("acme/demo", reviews_pr=42)["reviews"] == "/repos/acme/demo/pulls/42/reviews"
     with pytest.raises(GitHubRepositoryError, match="OWNER/REPOSITORY"):
         validate_repository_slug("acme/demo/issues")
+    with pytest.raises(GitHubRepositoryError, match="reviews_pr"):
+        repository_paths("acme/demo", reviews_pr=0)
 
 
 def test_collection_uses_read_only_resources_and_preserves_unknowns():
@@ -32,6 +35,17 @@ def test_collection_uses_read_only_resources_and_preserves_unknowns():
     assert all(call[0].startswith("/repos/acme/demo/") for call in calls)
     assert all(call[2] == 5.0 for call in calls)
     assert payload["permissions"] == {"issues": True, "pull_requests": True, "releases": True}
+
+def test_reviews_are_explicitly_scoped_to_one_pull_request():
+    calls = []
+
+    def fetch(path, params, timeout):
+        calls.append(path)
+        return TransportResponse(200, b"[]", {})
+
+    payload = collect_repository_metadata("acme/demo", fetch, reviews_pr=7)
+    assert "reviews" in payload["permissions"]
+    assert "/repos/acme/demo/pulls/7/reviews" in calls
 
 
 def test_cli_requires_explicit_network_opt_in(tmp_path, capsys):

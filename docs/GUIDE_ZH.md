@@ -49,6 +49,8 @@ maintainer-zero collect-github octo-org/example --allow-network --output github-
 maintainer-zero simulate . --github-metadata github-metadata.json --output .continuity
 ```
 
+如需审阅单个 PR 的评论/评审元数据，可显式指定 `--reviews-pr 123`；不指定时该字段保持 unknown，工具不会遍历所有 PR。
+
 只有额外传入 `--allow-environment-token` 才会读取 `GITHUB_TOKEN`；命令只执行 GET，不执行 GitHub 写操作。
 
 ## 隐私与安全边界

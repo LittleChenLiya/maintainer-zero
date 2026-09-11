@@ -21,9 +21,11 @@ def _build_parser() -> argparse.ArgumentParser:
     init.add_argument("path", nargs="?", default=".")
     validate = sub.add_parser("validate-scenario", help="validate a declarative scenario document without executing it")
     validate.add_argument("path")
-    demo = sub.add_parser("demo", help="run a local, data-only before/after demo")
-    demo.add_argument("path")
-    demo.add_argument("--output", default=None, metavar="JSON", help="write results to JSON instead of stdout")
+    demo = sub.add_parser("demo", aliases=["demos"], help="run a bounded, data-only before/after demo suite")
+    demo.add_argument("path", nargs="?", default="examples/demos/continuity-demos.json")
+    demo.add_argument("--format", choices=("text", "json"), default="json", dest="demo_format")
+    demo.add_argument("--output", default=None, metavar="PATH", help="write the demo result to PATH instead of stdout")
+    demo.add_argument("--fail-on-regression", action="store_true", help="return exit code 1 when any after score does not improve")
     run = sub.add_parser("simulate", aliases=["analyze"], help="run continuity drills")
     run.add_argument("path", nargs="?", default=".")
     run.add_argument("--scenario", choices=[*SCENARIOS, "all"], default=None)
@@ -111,20 +113,40 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(f"Valid scenario: {scenario['id']} v{scenario['version']}")
         return 0
-    if args.command == "demo":
+    if args.command in {"demo", "demos"}:
         try:
-            results = run_demo_suite(load_demo_suite(args.path))
-            encoded = json.dumps({"schema_version": 1, "results": results}, indent=2, ensure_ascii=False) + "\n"
-            if args.output:
-                output = Path(args.output)
-                output.parent.mkdir(parents=True, exist_ok=True)
-                output.write_text(encoded, encoding="utf-8")
-                print(f"Demo results written to {output.resolve()}")
-            else:
-                print(encoded, end="")
+            suite = load_demo_suite(args.path)
+            demos = run_demo_suite(suite)
         except DemoError as exc:
             print(f"error: {exc}")
             return 2
+        payload = {"schema_version": 1, "source": str(Path(args.path)), "demos": demos}
+        if args.demo_format == "json":
+            rendered = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+        else:
+            lines = [f"Demo suite: {len(demos)} data-only demo(s)"]
+            for item in demos:
+                status = "improved" if item["improved"] else "not improved"
+                lines.append(
+                    f"  {item['id']} ({item['scenario']}): "
+                    f"{item['before_score']} -> {item['after_score']} "
+                    f"({item['score_delta']:+d}, {status})"
+                )
+            rendered = "\n".join(lines) + "\n"
+        if args.output:
+            output_path = Path(args.output)
+            try:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(rendered, encoding="utf-8")
+            except OSError as exc:
+                print(f"error: cannot write demo output: {output_path}")
+                return 2
+            print(f"Demo result written to {output_path}")
+        else:
+            print(rendered, end="")
+        if args.fail_on_regression and any(not item["improved"] for item in demos):
+            print("Demo gate failed: one or more after scores did not improve")
+            return 1
         return 0
     try:
         repo = snapshot_repository(args.path)

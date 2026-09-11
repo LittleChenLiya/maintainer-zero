@@ -43,3 +43,12 @@ unknown 状态，不复制原始记录。该参数不会触发网络请求。
 这是真实网络适配器的安全内核，而不是默认联网功能。项目仍不提供内置 HTTP
 认证客户端；启用网络前，调用方必须提供经过审阅的 GET-only transport，并自行
 处理凭证隔离、速率等待和组织策略。
+
+## 标准库 HTTP transport（显式 opt-in）
+
+`maintainer_zero.github_http.GitHubHTTPTransport` 提供一个最小的 stdlib GET transport：
+只接受白名单资源路径、强制 HTTPS、限制响应体大小、支持调用方注入 opener，且构造
+对象不会联网。环境变量 `GITHUB_TOKEN` 只有在 `from_environment(allow_environment=True)`
+时才读取；默认不读取 token。HTTP 429/403 的响应和 `Retry-After` 头会交给上层只读
+客户端处理，transport 不自动重试或隐藏等待。测试使用 fake opener，项目不在 CI 中访问
+真实 GitHub。

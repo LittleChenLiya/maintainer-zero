@@ -11,7 +11,7 @@ Both workflows use contents: read, disable checkout credential persistence, cap 
 
 ## Optional API adapter (v0.2 boundary)
 
-The current `maintainer_zero.github_metadata` module validates offline snapshots produced by a separately reviewed client. It does not fetch GitHub or read tokens. It preserves missing permissions as `unknown`; a network client remains future work and must follow least privilege:
+The current `maintainer_zero.github_metadata` module validates offline snapshots produced by a separately reviewed client. The optional `github_http` transport is an explicit, GET-only stdlib boundary; it is never enabled by default and does not hide rate-limit waits. It preserves missing permissions as `unknown`; callers remain responsible for least-privilege credentials and policy:
 
 | Capability | Required permission | Write access |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ The current `maintainer_zero.github_metadata` module validates offline snapshots
 | Release and tag metadata | contents: read | None |
 | PR comment (opt-in) | pull-requests: write | Comment only |
 
-The adapter should accept GITHUB_TOKEN from the workflow environment, redact repository names and people in exported reports when configured, and fail closed when a permission is missing. It must never print tokens or upload raw prompts, repository files, or unredacted report payloads.
+The adapter should accept GITHUB_TOKEN only through explicit opt-in, redact repository names and people in exported reports when configured, and fail closed when a permission is missing. It must never print tokens or upload raw prompts, repository files, or unredacted report payloads.
 
 ## PR 评论草稿边界
 

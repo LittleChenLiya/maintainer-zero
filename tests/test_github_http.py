@@ -1,0 +1,47 @@
+import json
+
+import pytest
+
+from maintainer_zero.github_http import GitHubHTTPError, GitHubHTTPTransport
+
+
+class FakeResponse:
+    status = 200
+    headers = {"X-Test": "ok"}
+
+    def read(self, limit):
+        assert limit > 0
+        return json.dumps([{"number": 1}]).encode()
+
+
+def test_transport_is_get_only_and_does_not_expose_token():
+    calls = []
+
+    def opener(request, timeout):
+        calls.append((request, timeout))
+        return FakeResponse()
+
+    transport = GitHubHTTPTransport(token="secret-token", opener=opener)
+    response = transport("/repos/acme/demo/issues", {"page": "1"}, 2.5)
+    assert response.status_code == 200
+    assert calls[0][0].method == "GET"
+    assert calls[0][0].get_header("Authorization") == "Bearer secret-token"
+    assert "secret-token" not in repr(response)
+    assert calls[0][1] == 2.5
+
+
+def test_transport_rejects_unapproved_paths_and_unsafe_config():
+    with pytest.raises(GitHubHTTPError, match="non-whitelisted"):
+        GitHubHTTPTransport()("/repos/acme/demo/issues?state=all", {}, 1)
+    with pytest.raises(GitHubHTTPError, match="https"):
+        GitHubHTTPTransport(config=type("Config", (), {"api_base": "http://localhost", "user_agent": "x", "max_response_bytes": 1})())
+    with pytest.raises(GitHubHTTPError, match="single-line"):
+        GitHubHTTPTransport(token="bad\nsecret")
+
+
+def test_environment_token_requires_explicit_opt_in(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "secret")
+    without_opt_in = GitHubHTTPTransport.from_environment()
+    assert without_opt_in.token is None
+    with_opt_in = GitHubHTTPTransport.from_environment(allow_environment=True)
+    assert with_opt_in.token == "secret"

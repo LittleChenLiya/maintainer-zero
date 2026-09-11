@@ -33,7 +33,8 @@
 - [x] 版本化报告 schema、稳定 finding ID 与 `--baseline` 比较
 - [x] 生成只读恢复 Runbook、CODEOWNERS / Issue 草稿和 SARIF
 - [x] 增加离线 GitHub 元数据快照校验与权限降级摘要
-- 可选 GitHub API 适配器：Issues、PR review、权限和 release 元数据
+- [x] 注入式只读 GitHub 元数据客户端边界：分页、响应限制和错误降级
+- 可选 GitHub API 认证适配器：Issues、PR review、权限和 release 元数据
 - 从报告生成 CODEOWNERS / Issue / Runbook 草稿
 - 维护者匿名化和组织级角色映射
 - PR 评论、分数回归门禁和 SARIF 输出

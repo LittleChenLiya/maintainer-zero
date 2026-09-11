@@ -24,3 +24,20 @@ GitHub API 响应整理成 JSON，再交给 `load_metadata()` / `summarize_metad
 未来网络适配器仍必须自行实现超时、分页和令牌隔离。
 
 该层是 M3 的边界契约，不代表已经完成 GitHub API 客户端。
+
+## 注入式只读客户端
+
+`maintainer_zero.github_client.ReadOnlyGitHubClient` 提供了一个不绑定 HTTP 库的
+传输边界。调用方注入 `fetch(path, params, timeout)`，自行决定认证、代理和网络
+策略；客户端只允许四类 GET 资源路径，并将结果整理成同一快照格式。
+
+客户端具备以下可测试约束：
+
+- 每个资源最多读取有限页数，支持 GitHub `Link: rel="next"` 分页提示；
+- 限制单页大小、单响应字节数和总记录数；
+- 401/403/404/429、非 200、超时/传输异常、非法 JSON 均降级为不可用并保留原因；
+- 不接收或写入 token，不执行任何 POST、PATCH、DELETE，不创建 Issue 或评论。
+
+这是真实网络适配器的安全内核，而不是默认联网功能。项目仍不提供内置 HTTP
+认证客户端；启用网络前，调用方必须提供经过审阅的 GET-only transport，并自行
+处理凭证隔离、速率等待和组织策略。

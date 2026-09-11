@@ -17,5 +17,8 @@ maintainer-zero = "maintainer_zero.cli:main"
 [tool.setuptools.packages.find]
 include = ["maintainer_zero*"]
 
+[tool.setuptools.package-data]
+maintainer_zero = ["*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -84,6 +84,8 @@ See [the long-term execution plan](docs/LONG_TERM_GOAL.md) for milestones and ac
 
 Bus-factor dashboards statically count contributors; dependency scanners find package vulnerabilities; digital-twin tools map architecture. Maintainer-Zero simulates the *sequence of consequences after an operational failure* and turns the result into a recovery plan. Public searches found adjacent tools, but no mature open-source implementation combining those capabilities.
 
+The checked-in scenario registry is available at maintainer_zero/scenario_registry.json. It is a versioned, data-only contract for scenario review; registry loading never executes an entrypoint or formula. See docs/SCENARIO_REGISTRY.md for contribution and safety rules.
+
 ## Contributing
 
 Add a scenario with explicit assumptions, a deterministic test, and a short explanation of how its score is calculated. See [CONTRIBUTING.md](CONTRIBUTING.md).

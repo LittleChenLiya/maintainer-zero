@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "maintainer-zero-core",
+  "version": "1.0.0",
+  "description": "Reviewed starter scenarios shipped with Maintainer-Zero.",
+  "scenarios": [
+    {
+      "schema_version": 1,
+      "id": "ci-outage",
+      "version": "1.0.0",
+      "title": "CI and release outage",
+      "summary": "Simulate verification and release pipelines becoming unavailable.",
+      "trigger": {"type": "ci-unavailable", "description": "CI cannot validate or publish changes during the drill window.", "duration_days": 14},
+      "assumptions": ["Workflow files are evidence of a pipeline, not proof that a backup runner exists.", "The repository can use a documented local validation fallback."],
+      "inputs": [
+        {"name": "workflows", "description": "Workflow files found in .github/workflows.", "source": "observed"},
+        {"name": "release_files", "description": "Release configuration paths found in the repository.", "source": "observed"}
+      ],
+      "score": {"formula": "max(10, 100 - workflow_count * 5 - (25 if release_path_detected else 0))", "range": [0, 100]},
+      "recovery_actions": ["Document local test and release commands.", "Record a reviewed backup runner and credential handoff path."],
+      "limitations": ["Does not call GitHub APIs or verify runner availability.", "Does not execute workflows or publish a release."],
+      "execution": {"mode": "builtin", "entrypoint": "maintainer_zero.scenarios:ci_outage"}
+    },
+    {
+      "schema_version": 1,
+      "id": "dependency-yanked",
+      "version": "1.0.0",
+      "title": "Dependency yanked",
+      "summary": "Simulate a declared dependency becoming unavailable to a clean build.",
+      "trigger": {"type": "dependency-unavailable", "description": "A dependency source no longer serves a package needed by a clean install.", "duration_days": 30},
+      "assumptions": ["Names in supported manifests approximate the dependency surface.", "A listed dependency is not proof that the package is currently unavailable."],
+      "inputs": [
+        {"name": "dependencies", "description": "Normalized dependency names from supported manifests.", "source": "observed"},
+        {"name": "cold_build", "description": "Whether a clean, network-isolated build was verified.", "source": "unknown"}
+      ],
+      "score": {"formula": "100 when no supported dependency is declared; otherwise 100 minus a bounded dependency-surface penalty", "range": [0, 100]},
+      "recovery_actions": ["Pin sources and versions and retain a reviewed fallback mirror.", "Schedule a clean-build check without warm caches."],
+      "limitations": ["Does not contact package indexes or prove that a package was yanked.", "Only currently supported manifest formats are considered."],
+      "execution": {"mode": "builtin", "entrypoint": "maintainer_zero.scenarios:dependency_yanked"}
+    },
+    {
+      "schema_version": 1,
+      "id": "maintainer-zero",
+      "version": "1.0.0",
+      "title": "Core maintainer unavailable",
+      "summary": "Simulate a high-contribution maintainer becoming unavailable during the drill.",
+      "trigger": {"type": "maintainer-unavailable", "description": "The highest-contribution maintainer cannot review, merge, or release changes.", "duration_days": 90},
+      "assumptions": ["Commit concentration is a proxy for work capacity, not a measure of individual worth.", "A CODEOWNER rule does not prove that the listed person is available."],
+      "inputs": [
+        {"name": "contributors", "description": "Contributor commit counts from local Git history.", "source": "observed"},
+        {"name": "codeowners", "description": "Parsed CODEOWNERS paths and owners.", "source": "observed"},
+        {"name": "release_files", "description": "Release configuration paths found in the repository.", "source": "observed"}
+      ],
+      "score": {"formula": "weighted backup-maintainer, CODEOWNERS, and release-path signals, bounded to 0..100", "range": [0, 100]},
+      "recovery_actions": ["Assign a second owner for each critical path and verify access.", "Practice a review, merge, and release handoff with a clean checkout."],
+      "limitations": ["Commit history cannot establish current availability or permissions.", "The backlog model is deterministic and is not calibrated incident probability."],
+      "execution": {"mode": "builtin", "entrypoint": "maintainer_zero.scenarios:maintainer_zero"}
+    }
+  ]
+}

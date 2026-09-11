@@ -1,5 +1,7 @@
 # 同仓库趋势历史
 
+机器消费提示：`history-summary.json` 同时提供 `*_since_previous` 与 `*_since_first` 的分数、场景、Finding 数量和高危 Finding 变化；缺失数据不会被当作零。规则升级后应建立新的历史文件，避免把规则变化误报成项目改进或退化。
+
 `simulate --history PATH` 会把当前报告追加到一个本地 JSON 历史文件，并在输出目录生成 `history-summary.json`。历史只保存分数、场景分数、Finding 数量和高危 Finding 数量，不复制仓库内容、原始事件或贡献者记录。
 
 ```powershell

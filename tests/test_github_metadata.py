@@ -23,6 +23,23 @@ def test_load_metadata_reads_local_snapshot(tmp_path):
     path.write_text(json.dumps(snapshot()), encoding="utf-8")
     assert load_metadata(path)["schema_version"] == 1
 
+def test_validation_rejects_unknown_resources_and_non_object_records():
+    with pytest.raises(MetadataError, match="unsupported resource"):
+        validate_metadata({**snapshot(), "data": {"unknown": []}})
+    with pytest.raises(MetadataError, match="bounded"):
+        validate_metadata({**snapshot(), "data": {"issues": ["not-an-object"]}})
+
+def test_load_metadata_rejects_oversized_files(tmp_path):
+    path = tmp_path / "large.json"
+    path.write_bytes(b"{" + b"x" * 10_000_000 + b"}")
+    with pytest.raises(MetadataError, match="exceeds"):
+        load_metadata(path)
+
+def test_collection_status_is_bounded():
+    payload = {**snapshot(), "collection": {"issues": {"available": True, "pages": 51, "truncated": False}}}
+    with pytest.raises(MetadataError, match="pages"):
+        validate_metadata(payload)
+
 def test_summary_does_not_expose_tokens():
     payload = snapshot()
     payload["token"] = "do-not-store"

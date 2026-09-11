@@ -8,6 +8,8 @@ from typing import Any, Mapping
 
 SCHEMA_VERSION = 1
 _MAX_ITEMS = 5000
+MAX_METADATA_BYTES = 10_000_000
+_RESOURCES = ("issues", "pull_requests", "reviews", "releases")
 
 class MetadataError(ValueError):
     """Raised when a metadata snapshot violates the local envelope."""
@@ -15,7 +17,12 @@ class MetadataError(ValueError):
 def load_metadata(path: str | Path) -> dict[str, Any]:
     path = Path(path)
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_bytes()
+        if len(raw) > MAX_METADATA_BYTES:
+            raise MetadataError(f"metadata snapshot exceeds {MAX_METADATA_BYTES} bytes")
+        payload = json.loads(raw)
+    except MetadataError:
+        raise
     except (OSError, json.JSONDecodeError) as exc:
         raise MetadataError(f"Invalid GitHub metadata snapshot: {path}") from exc
     return validate_metadata(payload)
@@ -26,14 +33,29 @@ def validate_metadata(payload: Any) -> dict[str, Any]:
     if payload.get("schema_version") != SCHEMA_VERSION:
         raise MetadataError(f"unsupported metadata schema_version: {payload.get('schema_version')!r}")
     permissions = payload.get("permissions")
-    if not isinstance(permissions, dict) or any(not isinstance(key, str) or not isinstance(value, bool) for key, value in permissions.items()):
+    if (not isinstance(permissions, dict) or set(permissions) - set(_RESOURCES)
+            or any(not isinstance(key, str) or not isinstance(value, bool) for key, value in permissions.items())):
         raise MetadataError("metadata permissions must be an object of booleans")
     data = payload.get("data")
     if not isinstance(data, dict):
         raise MetadataError("metadata data must be an object")
-    for key in ("issues", "pull_requests", "reviews", "releases"):
-        if key in data and (not isinstance(data[key], list) or len(data[key]) > _MAX_ITEMS):
+    if set(data) - set(_RESOURCES):
+        raise MetadataError("metadata data contains an unsupported resource")
+    for key in _RESOURCES:
+        if key in data and (not isinstance(data[key], list) or len(data[key]) > _MAX_ITEMS or any(not isinstance(item, dict) for item in data[key])):
             raise MetadataError(f"metadata {key} must be a bounded array")
+    collection = payload.get("collection")
+    if collection is not None:
+        if not isinstance(collection, dict) or set(collection) - set(_RESOURCES):
+            raise MetadataError("metadata collection contains an unsupported resource")
+        for status in collection.values():
+            if not isinstance(status, dict) or not isinstance(status.get("available"), bool):
+                raise MetadataError("metadata collection status is malformed")
+            pages = status.get("pages")
+            if isinstance(pages, bool) or not isinstance(pages, int) or not 0 <= pages <= 50:
+                raise MetadataError("metadata collection pages are out of bounds")
+            if not isinstance(status.get("truncated"), bool):
+                raise MetadataError("metadata collection truncated must be boolean")
     return payload
 
 def summarize_metadata(payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -42,7 +64,7 @@ def summarize_metadata(payload: Mapping[str, Any]) -> dict[str, Any]:
     permissions = payload["permissions"]
     data = payload["data"]
     summary: dict[str, Any] = {"source": "github-metadata", "read_only": True, "permissions": {key: bool(value) for key, value in sorted(permissions.items())}, "fields": {}, "unknown": []}
-    for key in ("issues", "pull_requests", "reviews", "releases"):
+    for key in _RESOURCES:
         if not permissions.get(key, False) or key not in data:
             summary["fields"][key] = None
             summary["unknown"].append(key)
@@ -50,4 +72,4 @@ def summarize_metadata(payload: Mapping[str, Any]) -> dict[str, Any]:
             summary["fields"][key] = len(data[key])
     return summary
 
-__all__ = ["MetadataError", "SCHEMA_VERSION", "load_metadata", "summarize_metadata", "validate_metadata"]
+__all__ = ["MAX_METADATA_BYTES", "MetadataError", "SCHEMA_VERSION", "load_metadata", "summarize_metadata", "validate_metadata"]

@@ -30,6 +30,8 @@ maintainer-zero simulate . --baseline .continuity/continuity.json
 maintainer-zero simulate . --baseline old.json --fail-on-score-decrease --fail-on-new-high-risk
 # Optionally attach a reviewed, read-only metadata snapshot (no network access)
 maintainer-zero simulate . --github-metadata github-metadata.json
+# Keep a local, same-repository score history (no raw repository records)
+maintainer-zero simulate . --history .continuity/history.json
 # Validate a declarative community scenario without executing code
 maintainer-zero validate-scenario examples/scenarios/dependency-yanked.json
 ```
@@ -64,6 +66,10 @@ Issues. Use `--recovery-output PATH` to choose another output directory. See
 ├── report.html        # standalone local view
 └── recovery/          # Runbook, CODEOWNERS, Issue drafts and SARIF
 ```
+
+With `--history`, the output also includes `history-summary.json`; see
+[同仓库趋势历史](docs/TREND_HISTORY.md). History is local-only and is not a
+cross-project ranking.
 
 ## GitHub Action
 

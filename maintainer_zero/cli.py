@@ -11,6 +11,7 @@ from .recovery import write_recovery_artifacts
 from .scenarios import SCENARIOS
 from .github_metadata import MetadataError, load_metadata, summarize_metadata
 from .scenario_registry import ScenarioSpecError, load_scenario
+from .history import HistoryError, append_history
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="maintainer-zero", description="Chaos engineering drills for open-source continuity")
@@ -34,6 +35,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--fail-on-score-decrease", action="store_true", help="fail baseline gate when a scenario score decreases")
     run.add_argument("--fail-on-new-high-risk", action="store_true", help="fail baseline gate when a new high-severity finding appears")
     run.add_argument("--github-metadata", default=None, metavar="JSON", help="use a reviewed, read-only GitHub metadata snapshot")
+    run.add_argument("--history", default=None, metavar="JSON", help="append a compact same-repository trend record (opt-in)")
     return parser
 
 
@@ -132,7 +134,12 @@ def main(argv: list[str] | None = None) -> int:
         write_report(Path(args.output), repo, results, metadata_summary)
         recovery_output = Path(args.recovery_output) if args.recovery_output else Path(args.output) / "recovery"
         write_recovery_artifacts(recovery_output, repo, results)
-    except (ValueError, MetadataError, ScenarioSpecError) as exc:
+        if args.history:
+            history_summary = append_history(args.history, json.loads((Path(args.output) / "continuity.json").read_text(encoding="utf-8")))
+            history_summary_path = Path(args.output) / "history-summary.json"
+            history_summary_path.write_text(json.dumps(history_summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            print(f"History appended: {history_summary_path}")
+    except (ValueError, MetadataError, ScenarioSpecError, HistoryError, json.JSONDecodeError) as exc:
         print(f"error: {exc}")
         return 2
     print(f"Analyzed {repo.name}: {len(results)} drills written to {Path(args.output).resolve()}")

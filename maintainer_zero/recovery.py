@@ -8,7 +8,9 @@ it never edits a repository, creates GitHub issues, or changes CODEOWNERS.
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
 from pathlib import Path
 from typing import Iterable
 
@@ -206,6 +208,23 @@ def render_sarif(repo: RepoSnapshot, results: list[DrillResult]) -> str:
     }
     return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
 
+def _atomic_write_text(path: str | Path, content: str) -> None:
+    """Atomically replace one recovery draft in its output directory."""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="", dir=target.parent, prefix=f".{target.name}.", suffix=".tmp", delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+        temporary = None
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
 
 def write_recovery_artifacts(out: Path, repo: RepoSnapshot, results: list[DrillResult]) -> list[Path]:
     """Write recovery drafts below *out* and return paths in stable order."""
@@ -220,6 +239,6 @@ def write_recovery_artifacts(out: Path, repo: RepoSnapshot, results: list[DrillR
     paths: list[Path] = []
     for filename, content in artefacts.items():
         path = out / filename
-        path.write_text(content, encoding="utf-8")
+        _atomic_write_text(path, content)
         paths.append(path)
     return paths

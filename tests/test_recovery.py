@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import pytest
 
 from maintainer_zero.models import DrillResult, Finding, RepoSnapshot
 from maintainer_zero.recovery import (
@@ -75,3 +76,28 @@ def test_sarif_is_valid_and_has_no_fake_locations():
     assert run["results"][0]["ruleId"] == "demo.owner"
     assert "hidden" not in json.dumps(payload)
     assert "locations" not in run["results"][0]
+
+def test_recovery_artifacts_use_atomic_replacement_and_clean_temporary_files(tmp_path: Path):
+    out = tmp_path / "artifacts"
+    write_recovery_artifacts(out, RepoSnapshot(path=".", name="demo"), [_result()])
+    assert not list(out.glob(".*.tmp"))
+    assert (out / "runbook.md").read_text(encoding="utf-8").startswith("# Continuity")
+
+def test_recovery_write_failure_keeps_existing_artifact_intact(tmp_path: Path, monkeypatch):
+    import maintainer_zero.recovery as recovery_module
+    out = tmp_path / "artifacts"
+    out.mkdir()
+    existing = out / "runbook.md"
+    existing.write_text("old runbook\n", encoding="utf-8")
+    original_replace = recovery_module.os.replace
+
+    def fail_replace(source, target):
+        if Path(target) == existing:
+            raise OSError("simulated replace failure")
+        return original_replace(source, target)
+
+    monkeypatch.setattr(recovery_module.os, "replace", fail_replace)
+    with pytest.raises(OSError, match="simulated replace failure"):
+        write_recovery_artifacts(out, RepoSnapshot(path=".", name="demo"), [_result()])
+    assert existing.read_text(encoding="utf-8") == "old runbook\n"
+    assert not list(out.glob(".runbook.md.*.tmp"))

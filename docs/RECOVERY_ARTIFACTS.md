@@ -2,6 +2,7 @@
 
 `maintainer-zero simulate` 会在输出目录下生成 `recovery/`，也可以用
 `--recovery-output PATH` 指定目录：
+恢复工件使用同目录临时文件和原子替换写入；如果生成期间失败，已有草稿不会被截断。
 
 ```text
 .continuity/recovery/

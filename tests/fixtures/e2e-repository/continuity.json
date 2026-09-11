@@ -1,0 +1,9 @@
+{
+  "scenarios": ["maintainer-zero", "dependency-yanked", "ci-outage"],
+  "days": 7,
+  "privacy": {
+    "anonymize_people": true,
+    "anonymize_repository": true,
+    "upload_repository_content": false
+  }
+}

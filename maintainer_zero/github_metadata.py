@@ -9,7 +9,8 @@ from typing import Any, Mapping
 SCHEMA_VERSION = 1
 _MAX_ITEMS = 5000
 MAX_METADATA_BYTES = 10_000_000
-_RESOURCES = ("issues", "pull_requests", "reviews", "releases")
+_RESOURCES = ("repository", "issues", "pull_requests", "reviews", "releases")
+_ARRAY_RESOURCES = frozenset(_RESOURCES) - {"repository"}
 
 class MetadataError(ValueError):
     """Raised when a metadata snapshot violates the local envelope."""
@@ -41,7 +42,20 @@ def validate_metadata(payload: Any) -> dict[str, Any]:
         raise MetadataError("metadata data must be an object")
     if set(data) - set(_RESOURCES):
         raise MetadataError("metadata data contains an unsupported resource")
-    for key in _RESOURCES:
+    if "repository" in data:
+        record = data["repository"]
+        if not isinstance(record, dict) or len(record) > 32:
+            raise MetadataError("metadata repository must be a bounded object")
+        allowed = {
+            "archived", "default_branch", "fork", "forks_count",
+            "has_discussions", "has_issues", "has_wiki",
+            "open_issues_count", "stargazers_count", "visibility",
+        }
+        if set(record) - allowed:
+            raise MetadataError("metadata repository contains an unsupported field")
+        if any(not isinstance(value, (str, int, float, bool)) and value is not None for value in record.values()):
+            raise MetadataError("metadata repository fields must be scalar")
+    for key in _ARRAY_RESOURCES:
         if key in data and (not isinstance(data[key], list) or len(data[key]) > _MAX_ITEMS or any(not isinstance(item, dict) for item in data[key])):
             raise MetadataError(f"metadata {key} must be a bounded array")
     collection = payload.get("collection")
@@ -64,12 +78,19 @@ def summarize_metadata(payload: Mapping[str, Any]) -> dict[str, Any]:
     permissions = payload["permissions"]
     data = payload["data"]
     summary: dict[str, Any] = {"source": "github-metadata", "read_only": True, "permissions": {key: bool(value) for key, value in sorted(permissions.items())}, "fields": {}, "unknown": []}
+    collection = payload.get("collection", {})
+    partial: list[str] = []
     for key in _RESOURCES:
         if not permissions.get(key, False) or key not in data:
             summary["fields"][key] = None
             summary["unknown"].append(key)
         else:
-            summary["fields"][key] = len(data[key])
+            summary["fields"][key] = data[key] if key == "repository" else len(data[key])
+        status = collection.get(key) if isinstance(collection, dict) else None
+        if isinstance(status, dict) and status.get("truncated") is True:
+            partial.append(key)
+    if partial:
+        summary["partial"] = partial
     return summary
 
 __all__ = ["MAX_METADATA_BYTES", "MetadataError", "SCHEMA_VERSION", "load_metadata", "summarize_metadata", "validate_metadata"]

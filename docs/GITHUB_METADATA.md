@@ -36,23 +36,26 @@ unknown 状态，不复制原始记录。该参数不会触发网络请求。
 maintainer-zero collect-github octo-org/example --allow-network --output github-metadata.json
 ```
 
-该命令默认只请求 issues、pull requests 和 releases 的 HTTPS GET 接口；reviews 在没有
+该命令默认只请求 issues、pull requests 和 releases 的 HTTPS GET 接口；仓库可见性、归档状态和默认分支等
+repository descriptor 只有传入 `--include-repository` 才会请求。reviews 在没有
 具体 PR 编号时保持 unknown。若要采集单个 PR 的 reviews，必须额外传入例如
 `--reviews-pr 123`，避免一次性为所有 PR 扩大请求量。只有同时传入 `--allow-environment-token` 才会读取
 `GITHUB_TOKEN`，命令没有 token 参数，也不会把 token 写入输出。失败的权限、限流、
-超时或传输错误会保留为不可用/unknown，而不是被解释为安全。
+超时或传输错误会保留为不可用/unknown，而不是被解释为安全。达到页数/条目上限时，
+快照会在摘要中标记 `partial`，报告中的计数不应被解释为完整列表。
 
 ## 注入式只读客户端
 
 `maintainer_zero.github_client.ReadOnlyGitHubClient` 提供了一个不绑定 HTTP 库的
 传输边界。调用方注入 `fetch(path, params, timeout)`，自行决定认证、代理和网络
-策略；客户端只允许四类 GET 资源路径，并将结果整理成同一快照格式。
+策略；客户端只允许白名单 GET 资源路径，并将结果整理成同一快照格式。
 
 客户端具备以下可测试约束：
 
 - 每个资源最多读取有限页数，支持 GitHub `Link: rel="next"` 分页提示；
 - 限制单页大小、单响应字节数和总记录数；
 - 401/403/404/429、非 200、超时/传输异常、非法 JSON 均降级为不可用并保留原因；
+- repository descriptor 只保留默认分支、可见性、归档和计数等标量字段，不复制 owner、URL 或原始仓库对象；
 - 不接收或写入 token，不执行任何 POST、PATCH、DELETE，不创建 Issue 或评论。
 
 这是真实网络适配器的安全内核，而不是默认联网功能。项目仍不提供内置 HTTP

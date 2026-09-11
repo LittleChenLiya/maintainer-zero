@@ -36,6 +36,19 @@ def test_collection_uses_read_only_resources_and_preserves_unknowns():
     assert all(call[2] == 5.0 for call in calls)
     assert payload["permissions"] == {"issues": True, "pull_requests": True, "releases": True}
 
+def test_repository_metadata_is_opt_in_and_uses_single_object_request():
+    calls = []
+
+    def fetch(path, params, timeout):
+        calls.append((path, dict(params)))
+        if path.endswith("/issues") or path.endswith("/pulls") or path.endswith("/releases"):
+            return TransportResponse(200, b"[]", {})
+        return TransportResponse(200, json.dumps({"default_branch": "main", "visibility": "public", "archived": False}), {})
+
+    payload = collect_repository_metadata("acme/demo", fetch, include_repository=True)
+    assert payload["data"]["repository"]["default_branch"] == "main"
+    assert next(params for path, params in calls if path == "/repos/acme/demo") == {}
+
 def test_reviews_are_explicitly_scoped_to_one_pull_request():
     calls = []
 

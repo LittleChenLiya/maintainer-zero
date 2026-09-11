@@ -50,6 +50,8 @@ maintainer-zero simulate . --github-metadata github-metadata.json --output .cont
 ```
 
 如需审阅单个 PR 的评论/评审元数据，可显式指定 `--reviews-pr 123`；不指定时该字段保持 unknown，工具不会遍历所有 PR。
+分页或条目达到上限时报告会标记为 partial，不代表完整数据。
+如需仓库默认分支、可见性和归档状态等有限元数据，可额外传入 `--include-repository`；该请求只保留标量字段。
 
 只有额外传入 `--allow-environment-token` 才会读取 `GITHUB_TOKEN`；命令只执行 GET，不执行 GitHub 写操作。
 

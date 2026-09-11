@@ -8,7 +8,7 @@ def snapshot():
     return {"schema_version": 1, "permissions": {"issues": True, "pull_requests": False}, "data": {"issues": [{"number": 1}]}}
 
 def test_summary_preserves_unknown_permissions_and_is_deterministic():
-    expected = {"source": "github-metadata", "read_only": True, "permissions": {"issues": True, "pull_requests": False}, "fields": {"issues": 1, "pull_requests": None, "reviews": None, "releases": None}, "unknown": ["pull_requests", "reviews", "releases"]}
+    expected = {"source": "github-metadata", "read_only": True, "permissions": {"issues": True, "pull_requests": False}, "fields": {"repository": None, "issues": 1, "pull_requests": None, "reviews": None, "releases": None}, "unknown": ["repository", "pull_requests", "reviews", "releases"]}
     assert summarize_metadata(snapshot()) == expected
     assert summarize_metadata(snapshot()) == expected
 
@@ -46,3 +46,21 @@ def test_summary_does_not_expose_tokens():
     summary = summarize_metadata(payload)
     assert summary["read_only"] is True
     assert "token" not in summary
+
+def test_repository_descriptor_is_scalar_and_summarized_without_raw_lists():
+    payload = snapshot()
+    payload["permissions"]["repository"] = True
+    payload["data"]["repository"] = {"default_branch": "main", "visibility": "public", "archived": False}
+    summary = summarize_metadata(payload)
+    assert summary["fields"]["repository"] == payload["data"]["repository"]
+    assert "repository" not in summary["unknown"]
+
+def test_repository_descriptor_rejects_nested_or_unknown_fields():
+    payload = snapshot()
+    payload["data"]["repository"] = {"owner": {"login": "x"}}
+    with pytest.raises(MetadataError, match="repository"):
+        validate_metadata(payload)
+
+def test_summary_marks_truncated_resources_as_partial():
+    payload = {**snapshot(), "collection": {"issues": {"available": True, "pages": 5, "truncated": True}}}
+    assert summarize_metadata(payload)["partial"] == ["issues"]

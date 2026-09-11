@@ -46,10 +46,13 @@ def _metadata_section(metadata_summary: dict | None) -> list[str]:
         return []
     fields = metadata_summary.get("fields", {})
     unknown = metadata_summary.get("unknown", [])
+    partial = metadata_summary.get("partial", [])
     lines = ["## GitHub metadata", "", "Read-only metadata was supplied by an external snapshot; unavailable fields remain unknown.", ""]
     lines.extend(f"- **{_markdown_text(key)}**: {_display(value) if value is not None else 'unknown'}" for key, value in fields.items())
     if unknown:
         lines.extend(["", f"Unknown fields: `{', '.join(unknown)}`"] )
+    if partial:
+        lines.extend(["", f"Partially collected fields (page/item limit): `{', '.join(partial)}`; counts are not complete."])
     return lines + [""]
 
 def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None) -> str:

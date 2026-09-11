@@ -40,7 +40,7 @@
 ### M3 — GitHub 元数据与可复用集成
 
 - [x] 建立注入式只读元数据客户端边界，支持白名单路径、分页、超时参数、大小上限和权限/传输降级；CLI 通过显式 `collect-github` 接入；reviews 仅在显式指定单个 PR 时采集。
-- [x] 离线快照保留观测事实与 unknown 状态，并可通过 CLI 注入报告；标准库 HTTP GET transport 已完成，速率等待和缓存仍由调用方负责。
+- [x] 离线快照保留观测事实与 unknown 状态，并可通过 CLI 注入报告；标准库 HTTP GET transport 已完成，支持显式仓库描述采集并将分页截断标记为 `partial`，速率等待和缓存仍由调用方负责。
 - [x] 当前 CI/演练工作流使用最小 `contents: read` 权限，不使用 `pull_request_target` 或外部写权限；可复用 Action 仍待发布。
 - [x] PR 评论默认只生成本地草稿；显式注入 publisher 后使用稳定幂等键，真实 GitHub 写入仍由集成方负责。
 - [x] 保留本地报告历史与同仓库趋势，不进行跨项目误导性排名。
@@ -64,4 +64,4 @@
 
 ## 当前执行记录
 
-2026-09-11：建立长期目标并完成 M1 首个可验收增量。M2 已交付版本化报告 schema、稳定 finding ID、`--baseline` 比较、分数回归退出码，以及只写入输出目录的 Runbook、CODEOWNERS、Issue 草稿和 SARIF 工件。M3 已交付离线 GitHub 元数据快照、受控只读客户端边界、显式 opt-in 的标准库 GET transport、本地同仓库趋势历史和默认禁用的 PR 评论草稿/幂等边界；本轮增加了单 PR reviews 的显式采集、更严格的 HTTP 配置边界、仓库身份脱敏和 PR 草稿输入清理，真实 GitHub publisher 仍由集成方负责。M4 已交付版本化场景注册表、10 个 data-only 社区样例、3 个事故前/改进后 demo、输入边界校验、中文指南和变更日志。wheel/sdist 已由 `tools/verify_release.py` 在源码树外隔离安装并运行默认 demo；CI 矩阵实际运行、真实外部 publisher 和正式发布仍待完成。
+2026-09-11：建立长期目标并完成 M1 首个可验收增量。M2 已交付版本化报告 schema、稳定 finding ID、`--baseline` 比较、分数回归退出码，以及只写入输出目录的 Runbook、CODEOWNERS、Issue 草稿和 SARIF 工件。M3 已交付离线 GitHub 元数据快照、受控只读客户端边界、显式 opt-in 的标准库 GET transport、本地同仓库趋势历史和默认禁用的 PR 评论草稿/幂等边界；本轮增加了单 PR reviews 的显式采集、有限仓库描述、截断 `partial` 传播、更严格的 HTTP 配置边界、仓库身份脱敏和 PR 草稿输入清理，真实 GitHub publisher 仍由集成方负责。M4 已交付版本化场景注册表、10 个 data-only 社区样例、3 个事故前/改进后 demo、输入边界校验、中文指南和变更日志。wheel/sdist 已由 `tools/verify_release.py` 在源码树外隔离安装并运行默认 demo；CI 矩阵实际运行、真实外部 publisher 和正式发布仍待完成。

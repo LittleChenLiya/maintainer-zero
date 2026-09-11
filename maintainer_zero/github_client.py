@@ -18,11 +18,13 @@ DEFAULT_TIMEOUT_SECONDS = 5.0
 MAX_COLLECTION_BYTES = 10_000_000
 _REPOSITORY_PATH = r"/repos/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}"
 _PATHS = {
+    "repository": re.compile(_REPOSITORY_PATH),
     "issues": re.compile(_REPOSITORY_PATH + r"/issues"),
     "pull_requests": re.compile(_REPOSITORY_PATH + r"/pulls"),
     "reviews": re.compile(_REPOSITORY_PATH + r"/pulls/[1-9][0-9]{0,9}/reviews"),
     "releases": re.compile(_REPOSITORY_PATH + r"/releases"),
 }
+_ARRAY_RESOURCES = frozenset(("issues", "pull_requests", "reviews", "releases"))
 
 @dataclass(frozen=True)
 class TransportResponse:
@@ -79,7 +81,7 @@ class ReadOnlyGitHubClient:
     def collect(self, paths: Mapping[str, str]) -> dict[str, Any]:
         # Validate the entire request before any resource starts network I/O.
         if not isinstance(paths, Mapping) or not 1 <= len(paths) <= len(_PATHS):
-            raise GitHubClientError("paths must contain 1..4 supported resources")
+            raise GitHubClientError(f"paths must contain 1..{len(_PATHS)} supported resources")
         for resource, path in paths.items():
             if (not isinstance(resource, str) or resource not in _PATHS
                     or not isinstance(path, str) or not _PATHS[resource].fullmatch(path)):
@@ -88,12 +90,47 @@ class ReadOnlyGitHubClient:
         permissions: dict[str, bool] = {}
         collection: dict[str, dict[str, Any]] = {}
         for resource, path in sorted(paths.items()):
-            records, status = self._collect_resource(path)
+            records, status = (self._collect_resource(path) if resource in _ARRAY_RESOURCES else self._collect_repository(path))
             permissions[resource] = status.available
             collection[resource] = {"available": status.available, "pages": status.pages, "truncated": status.truncated, **({"reason": status.reason} if status.reason else {})}
             if status.available:
                 data[resource] = records
         return validate_metadata({"schema_version": SCHEMA_VERSION, "permissions": permissions, "data": data, "collection": collection})
+
+    def _collect_repository(self, path: str) -> tuple[dict[str, Any], CollectionStatus]:
+        """Fetch one repository descriptor and keep only safe scalar fields."""
+        try:
+            response = self.fetch(path, {}, self.timeout_seconds)
+        except Exception:
+            return {}, CollectionStatus(False, 0, False, "transport_error")
+        if not isinstance(response, TransportResponse):
+            return {}, CollectionStatus(False, 0, False, "invalid_transport_response")
+        if response.status_code in (401, 403, 404, 429):
+            reasons = {401: "unauthorized", 403: "forbidden_or_rate_limited", 404: "not_found_or_unavailable", 429: "rate_limited"}
+            return {}, CollectionStatus(False, 0, False, reasons[response.status_code])
+        if response.status_code != 200:
+            return {}, CollectionStatus(False, 0, False, f"http_{response.status_code}")
+        try:
+            raw = response.body.encode("utf-8") if isinstance(response.body, str) else response.body
+        except UnicodeError:
+            return {}, CollectionStatus(False, 1, False, "invalid_json")
+        if not isinstance(raw, bytes) or len(raw) > self.max_response_bytes:
+            return {}, CollectionStatus(False, 1, False, "response_too_large")
+        try:
+            payload = json.loads(raw)
+        except (UnicodeError, json.JSONDecodeError, RecursionError):
+            return {}, CollectionStatus(False, 1, False, "invalid_json")
+        if not isinstance(payload, dict):
+            return {}, CollectionStatus(False, 1, False, "expected_object")
+        allowed = {
+            "default_branch", "visibility", "archived", "fork",
+            "has_issues", "has_wiki", "has_discussions",
+            "open_issues_count", "stargazers_count", "forks_count",
+        }
+        record = {key: payload[key] for key in sorted(allowed) if key in payload}
+        if any(not isinstance(value, (str, int, float, bool)) and value is not None for value in record.values()):
+            return {}, CollectionStatus(False, 1, False, "invalid_record")
+        return record, CollectionStatus(True, 1, False)
 
     def _collect_resource(self, path: str) -> tuple[list[Any], CollectionStatus]:
         records: list[Any] = []

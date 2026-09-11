@@ -38,6 +38,8 @@ maintainer-zero simulate . --github-metadata github-metadata.json
 maintainer-zero collect-github OWNER/REPOSITORY --allow-network --output github-metadata.json
 # Optional, bounded review metadata for one explicitly named pull request:
 maintainer-zero collect-github OWNER/REPOSITORY --allow-network --reviews-pr 123 --output github-metadata.json
+# Optional bounded repository descriptor (visibility/default branch):
+maintainer-zero collect-github OWNER/REPOSITORY --allow-network --include-repository --output github-metadata.json
 # Keep a local, same-repository score history (no raw repository records)
 maintainer-zero simulate . --history .continuity/history.json
 # Validate a declarative community scenario without executing code

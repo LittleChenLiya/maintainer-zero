@@ -30,7 +30,7 @@ def validate_repository_slug(repository: str) -> str:
     return repository
 
 
-def repository_paths(repository: str, *, reviews_pr: int | None = None) -> dict[str, str]:
+def repository_paths(repository: str, *, reviews_pr: int | None = None, include_repository: bool = False) -> dict[str, str]:
     """Return bounded resource paths; reviews are opt-in for one PR."""
     repository = validate_repository_slug(repository)
     if reviews_pr is not None and (isinstance(reviews_pr, bool) or not isinstance(reviews_pr, int) or not 1 <= reviews_pr <= 9_999_999_999):
@@ -41,6 +41,8 @@ def repository_paths(repository: str, *, reviews_pr: int | None = None) -> dict[
         "pull_requests": f"{prefix}/pulls",
         "releases": f"{prefix}/releases",
     }
+    if include_repository:
+        paths["repository"] = prefix
     if reviews_pr is not None:
         paths["reviews"] = f"{prefix}/pulls/{reviews_pr}/reviews"
     return paths
@@ -55,6 +57,7 @@ def collect_repository_metadata(
     page_size: int = DEFAULT_PAGE_SIZE,
     max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
     reviews_pr: int | None = None,
+    include_repository: bool = False,
 ) -> dict[str, Any]:
     """Collect only bounded read-only metadata through a caller-owned transport."""
     return ReadOnlyGitHubClient(
@@ -63,7 +66,7 @@ def collect_repository_metadata(
         max_pages=max_pages,
         page_size=page_size,
         max_response_bytes=max_response_bytes,
-    ).collect(repository_paths(repository, reviews_pr=reviews_pr))
+    ).collect(repository_paths(repository, reviews_pr=reviews_pr, include_repository=include_repository))
 
 
 __all__ = [

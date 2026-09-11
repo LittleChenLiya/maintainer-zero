@@ -55,7 +55,7 @@ maintainer-zero simulate . --github-metadata github-metadata.json --output .cont
 
 ## 隐私与安全边界
 
-- 默认数据留在本地；可选择匿名化贡献者和 CODEOWNERS 身份。
+- 默认数据留在本地；可在 `continuity.json` 中启用 `privacy.anonymize_people` 和 `privacy.anonymize_repository`。前者匿名化贡献者/CODEOWNERS，后者把仓库名替换为稳定短摘要、把本地路径替换为 `<local-repository>`；依赖名仍可能含私有信息，分享前请人工审查。
 - 报告中的结论必须结合输入证据、假设和规则版本阅读。
 - 社区场景是受限 JSON 数据，只允许内置/声明式契约，不接受可执行字段。
 - 不要把个人贡献者分数公开排名，也不要把缺失权限或缺失 API 数据当作安全。

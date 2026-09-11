@@ -12,6 +12,8 @@ This is an early MVP. Results are heuristics, not a security certification. It i
 the optional `collect-github` command can make explicitly authorized, read-only HTTPS GET requests
 and writes only a local metadata snapshot.
 
+For shareable reports, the starter config anonymizes contributor identities and the local repository name/path; keep `privacy.anonymize_repository` enabled unless a private local report is intended.
+
 The M3 metadata boundary validates reviewed snapshots and preserves missing permissions as
 `unknown`. Network collection requires both `--allow-network` and, for environment credentials,
 `--allow-environment-token`; it never writes to GitHub. See [GitHub metadata](docs/GITHUB_METADATA.md).
@@ -51,6 +53,11 @@ Open `.continuity/report.md` or `.continuity/report.html`. To create a starter c
 maintainer-zero init /path/to/repository
 maintainer-zero simulate /path/to/repository --scenario maintainer-zero --days 90
 ```
+
+The starter config enables `privacy.anonymize_people` and `privacy.anonymize_repository`, so
+shareable reports do not include contributor identities, the repository basename, or the local
+absolute path. Dependency names and findings can still be repository-sensitive; review artifacts
+before publishing them.
 
 Three offline before/after demos are available in [examples/demos](examples/demos/continuity-demos.json);
 they use data-only snapshots and never execute fixture paths or commands. See [demo guide](docs/DEMOS.md).

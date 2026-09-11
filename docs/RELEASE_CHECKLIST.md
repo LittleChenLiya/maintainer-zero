@@ -7,10 +7,14 @@ $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
 python -m pytest -q
 python -m compileall -q maintainer_zero
 python -m pip wheel . --no-deps --no-build-isolation --wheel-dir D:\Codex\maintainer-zero-wheelhouse
-python -m pip install --no-deps --target D:\Codex\maintainer-zero-wheel-install <wheel>
+python -m pip download . --no-deps --no-binary :all: --dest D:\Codex\maintainer-zero-wheelhouse --no-build-isolation
+python -m pip install --no-deps --target D:\Codex\maintainer-zero-wheel-install <wheel-or-sdist>
 $env:PYTHONPATH='D:\Codex\maintainer-zero-wheel-install'
 python -m maintainer_zero validate-scenario examples/scenarios/security-advisory-flood.json
+python -m maintainer_zero demo --format json --fail-on-regression
 ```
 
 安装验证必须使用隔离目录，并至少确认 CLI 可导入、一个社区场景可校验、
 以及内置注册表可加载。验证目录是临时产物，不应提交到 Git。
+从隔离目录运行 `demo` 时必须确认它读取包内 fixture，而不是源码树中的
+`examples/demos/continuity-demos.json`；可以在仓库外执行并解析 JSON 输出。

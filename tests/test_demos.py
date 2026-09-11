@@ -27,10 +27,11 @@ def test_demos_reject_unknown_scenario():
 
 
 def test_demo_cli_renders_json_without_reading_a_repository(capsys):
-    assert main(["demo", str(DEMO_PATH), "--format", "json"]) == 0
+    assert main(["demo", "--format", "json"]) == 0
     output = capsys.readouterr().out
-    assert '"schema_version": 1' in output
-    assert '"maintainer-handoff"' in output
+    payload = json.loads(output)
+    assert payload["schema_version"] == 1
+    assert payload["results"][0]["id"] == "maintainer-handoff"
 
 
 def test_demo_cli_writes_output_and_alias_is_supported(tmp_path):

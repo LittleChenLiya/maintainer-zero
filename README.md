@@ -84,6 +84,7 @@ This repository includes a self-analysis workflow in `.github/workflows/continui
 ## Roadmap
 
 See [the long-term execution plan](docs/LONG_TERM_GOAL.md) for milestones and acceptance criteria.
+中文用户可参阅 [中文使用指南](docs/GUIDE_ZH.md)；开发变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 - GitHub API adapter for Issues, reviews, permissions, and release metadata
 - CODEOWNERS and recovery-plan patch suggestions

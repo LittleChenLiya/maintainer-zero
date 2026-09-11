@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import importlib.resources
 import re
 from pathlib import Path
 from typing import Any, Mapping
@@ -114,15 +115,20 @@ def validate_demo_suite(payload: Any) -> dict[str, Any]:
     return {"schema_version": 1, "demos": result}
 
 
-def load_demo_suite(path: str | Path) -> dict[str, Any]:
+def load_demo_suite(path: str | Path | None = None) -> dict[str, Any]:
     try:
-        with Path(path).open("rb") as source:
-            raw = source.read(MAX_DEMO_BYTES + 1)
+        if path is None:
+            raw = importlib.resources.files("maintainer_zero").joinpath("continuity_demos.json").read_bytes()
+            source_label = "maintainer_zero/continuity_demos.json"
+        else:
+            with Path(path).open("rb") as source:
+                raw = source.read(MAX_DEMO_BYTES + 1)
+            source_label = str(path)
         if len(raw) > MAX_DEMO_BYTES:
             raise DemoError(f"demo suite exceeds {MAX_DEMO_BYTES} bytes")
         payload = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
-        raise DemoError(f"invalid demo suite: {path}") from exc
+        raise DemoError(f"invalid demo suite: {source_label if 'source_label' in locals() else path}") from exc
     return validate_demo_suite(payload)
 
 

@@ -15,6 +15,11 @@ maintainer-zero demo --format json --output .continuity/demo.json
 可用于 CI：只要任一“改进后”分数没有高于“事故前”，命令就以退出码 1 结束；输入
 错误使用退出码 2。`demo` 与 `demos` 是同义命令。
 
+不带路径时，CLI 从已安装包内的 `maintainer_zero/continuity_demos.json` 读取内置
+fixture，因此在任意工作目录、隔离安装和源码树外都可运行。传入路径仍可运行经审阅的
+本地 data-only suite。JSON 输出的顶层契约是 `schema_version` 与 `results`；输入 fixture
+仍使用 `schema_version` 与 `demos`。
+
 Demo 文件是受限的 JSON 数据：只允许内置场景和快照字段，不执行路径、命令或脚本。
 加载器限制文件大小为 1 MiB、最多 10 个 demo；计数、列表、文本和 ID 都有边界，
 贡献者计数不能超过提交总数。

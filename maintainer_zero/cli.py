@@ -22,7 +22,7 @@ def _build_parser() -> argparse.ArgumentParser:
     validate = sub.add_parser("validate-scenario", help="validate a declarative scenario document without executing it")
     validate.add_argument("path")
     demo = sub.add_parser("demo", aliases=["demos"], help="run a bounded, data-only before/after demo suite")
-    demo.add_argument("path", nargs="?", default="examples/demos/continuity-demos.json")
+    demo.add_argument("path", nargs="?", default=None, help="optional data-only demo suite; default uses the packaged suite")
     demo.add_argument("--format", choices=("text", "json"), default="text", dest="demo_format")
     demo.add_argument("--output", default=None, metavar="PATH", help="write the demo result to PATH instead of stdout")
     demo.add_argument("--fail-on-regression", action="store_true", help="return exit code 1 when any after score does not improve")

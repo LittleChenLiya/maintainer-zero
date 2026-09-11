@@ -15,6 +15,10 @@ maintainer-zero demo --format json --output .continuity/demo.json
 可用于 CI：只要任一“改进后”分数没有高于“事故前”，命令就以退出码 1 结束；输入
 错误使用退出码 2。`demo` 与 `demos` 是同义命令。
 
+Demo 文件是受限的 JSON 数据：只允许内置场景和快照字段，不执行路径、命令或脚本。
+加载器限制文件大小为 1 MiB、最多 10 个 demo；计数、列表、文本和 ID 都有边界，
+贡献者计数不能超过提交总数。
+
 运行测试即可验证三个改进后的分数都高于事故前：
 
 ```powershell

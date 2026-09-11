@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any, Mapping
 
 MAX_COMMENT_CHARS = 12_000
 MAX_COMMENT_RESULTS = 500
 MAX_INLINE_CHARS = 200
+_IDEMPOTENCY_KEY_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class PRCommentError(ValueError):
@@ -70,15 +72,35 @@ def publish_comment(
     enabled: bool = False,
     publisher: Any = None,
 ) -> str:
-    """Publish only through an explicitly injected publisher; default is refusal."""
+    """Publish through an explicitly injected publisher; default is refusal.
+
+    The publisher is deliberately a narrow dependency-injection seam. It must accept
+    keyword arguments ``body`` and ``idempotency_key`` and return a non-empty string
+    identifier. The stable key is passed unchanged so an integration can make retries
+    idempotent; this module never retries or performs network I/O.
+    """
     if not enabled:
         raise PRCommentError("PR comment publishing is disabled; review the local draft instead")
     if publisher is None or not callable(publisher):
         raise PRCommentError("an explicit publisher is required for PR comment publishing")
     body, key = draft.get("body"), draft.get("idempotency_key")
-    if not isinstance(body, str) or not isinstance(key, str) or not body or not key:
+    if (
+        not isinstance(body, str)
+        or not isinstance(key, str)
+        or not body
+        or not _IDEMPOTENCY_KEY_RE.fullmatch(key)
+        or len(body) > MAX_COMMENT_CHARS
+    ):
         raise PRCommentError("invalid comment draft")
-    return str(publisher(body=body, idempotency_key=key))
+    try:
+        result = publisher(body=body, idempotency_key=key)
+    except PermissionError as exc:
+        raise PRCommentError("publisher permission denied; verify pull-requests: write") from exc
+    except Exception as exc:
+        raise PRCommentError("PR comment publisher failed") from exc
+    if not isinstance(result, str) or not result.strip():
+        raise PRCommentError("publisher must return a non-empty comment identifier")
+    return result
 
 
 __all__ = ["MAX_COMMENT_CHARS", "MAX_COMMENT_RESULTS", "PRCommentError", "build_comment_draft", "publish_comment"]

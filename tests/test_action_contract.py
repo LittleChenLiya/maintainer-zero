@@ -14,6 +14,10 @@ def test_composite_action_exposes_bounded_local_contract():
     assert "pull_request_target" not in action
     assert "--allow-network" not in action
     assert 'python "$MZ_ACTION_PATH/tools/action_entrypoint.py"' in action
+    assert 'python "$env:MZ_ACTION_PATH/tools/action_entrypoint.py"' in action
+    assert "shell: pwsh" in action
+    assert "if: runner.os == 'Windows'" in action
+    assert "if: runner.os != 'Windows'" in action
 
 def test_action_adapter_keeps_untrusted_paths_as_single_argv_values():
     argv = build_argv({

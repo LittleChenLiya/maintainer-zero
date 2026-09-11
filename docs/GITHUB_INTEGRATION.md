@@ -50,7 +50,7 @@ steps:
       fail-under: '70'
 ```
 
-当前仓库尚未发布到 Marketplace；本地 Action 契约测试验证输入边界，但不等同于真实远程 runner 结果。
+当前仓库尚未发布到 Marketplace；Action 对 Unix runner 使用 `bash`，对 Windows runner 使用 `pwsh`，本地契约测试验证两种 shell 分支和输入边界，但不等同于真实远程 runner 结果。
 
 ## Setup for a repository
 

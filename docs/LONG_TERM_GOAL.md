@@ -64,4 +64,4 @@
 
 ## 当前执行记录
 
-2026-09-11：建立长期目标并完成 M1 首个可验收增量。M2 已交付版本化报告 schema、稳定 finding ID、`--baseline` 比较、分数回归退出码，以及只写入输出目录的 Runbook、CODEOWNERS、Issue 草稿和 SARIF 工件。M3 已交付离线 GitHub 元数据快照、受控只读客户端边界、显式 opt-in 的标准库 GET transport、本地同仓库趋势历史和默认禁用的 PR 评论草稿/幂等边界；本轮增加了单 PR reviews 的显式采集和更严格的 HTTP 配置边界，真实 GitHub publisher 仍由集成方负责。M4 已交付版本化场景注册表、10 个 data-only 社区样例、3 个事故前/改进后 demo、输入边界校验、中文指南和变更日志。wheel/sdist 已由 `tools/verify_release.py` 在源码树外隔离安装并运行默认 demo；CI 矩阵实际运行、真实外部 publisher 和正式发布仍待完成。
+2026-09-11：建立长期目标并完成 M1 首个可验收增量。M2 已交付版本化报告 schema、稳定 finding ID、`--baseline` 比较、分数回归退出码，以及只写入输出目录的 Runbook、CODEOWNERS、Issue 草稿和 SARIF 工件。M3 已交付离线 GitHub 元数据快照、受控只读客户端边界、显式 opt-in 的标准库 GET transport、本地同仓库趋势历史和默认禁用的 PR 评论草稿/幂等边界；本轮增加了单 PR reviews 的显式采集、更严格的 HTTP 配置边界、仓库身份脱敏和 PR 草稿输入清理，真实 GitHub publisher 仍由集成方负责。M4 已交付版本化场景注册表、10 个 data-only 社区样例、3 个事故前/改进后 demo、输入边界校验、中文指南和变更日志。wheel/sdist 已由 `tools/verify_release.py` 在源码树外隔离安装并运行默认 demo；CI 矩阵实际运行、真实外部 publisher 和正式发布仍待完成。

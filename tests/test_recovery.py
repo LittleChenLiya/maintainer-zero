@@ -138,3 +138,29 @@ def test_recovery_write_failure_keeps_existing_artifact_intact(tmp_path: Path, m
         write_recovery_artifacts(out, RepoSnapshot(path=".", name="demo"), [_result()])
     assert existing.read_text(encoding="utf-8") == "old runbook\n"
     assert not list(out.glob(".runbook.md.*.tmp"))
+
+
+def test_recovery_rejects_symlinked_output_directory(tmp_path: Path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "artifacts"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="may not contain a symlink"):
+        write_recovery_artifacts(linked, RepoSnapshot(path=".", name="demo"), [_result()])
+    assert not list(outside.iterdir())
+
+
+def test_recovery_rejects_symlinked_parent_directory(tmp_path: Path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked_parent = tmp_path / "linked-parent"
+    try:
+        linked_parent.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="may not contain a symlink"):
+        write_recovery_artifacts(linked_parent / "artifacts", RepoSnapshot(path=".", name="demo"), [_result()])
+    assert not list(outside.iterdir())

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
 import tempfile
 from pathlib import Path
 from typing import Iterable
@@ -251,10 +252,40 @@ def _atomic_write_text(path: str | Path, content: str) -> None:
             temporary.unlink(missing_ok=True)
 
 
+def _safe_output_directory(path: str | Path) -> Path:
+    """Create and validate an output directory without following links.
+
+    Recovery artifacts are often uploaded or copied outside the repository.
+    Rejecting symlinked path components keeps an attacker-controlled output
+    path from redirecting those writes into an unrelated directory.
+    """
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts:
+        current /= part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            try:
+                current.mkdir()
+                info = current.lstat()
+            except OSError as exc:
+                raise ValueError(f"could not create recovery output directory: {current}") from exc
+        except OSError as exc:
+            raise ValueError(f"could not inspect recovery output directory: {current}") from exc
+        if stat.S_ISLNK(info.st_mode):
+            raise ValueError(f"recovery output path may not contain a symlink: {current}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValueError(f"recovery output path is not a directory: {current}")
+    return target
+
+
 def write_recovery_artifacts(out: Path, repo: RepoSnapshot, results: list[DrillResult]) -> list[Path]:
     """Write recovery drafts below *out* and return paths in stable order."""
-    out = Path(out)
-    out.mkdir(parents=True, exist_ok=True)
+    out = _safe_output_directory(out)
     artefacts = {
         "runbook.md": render_runbook(repo, results),
         "CODEOWNERS.draft": render_codeowners_draft(repo, results),

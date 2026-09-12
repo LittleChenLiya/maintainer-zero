@@ -20,6 +20,7 @@ from .github_http import GitHubHTTPError, GitHubHTTPTransport, HTTPTransportConf
 from .scenario_registry import ScenarioSpecError, load_registry, load_scenario, scenario_summary
 from .history import HistoryError, append_history, render_trend_markdown
 from .demos import DemoError, load_demo_suite, run_demo_suite
+from . import __version__
 
 def _atomic_write_text(path: str | Path, content: str) -> None:
     """Replace one local output file atomically, leaving old data on failure."""
@@ -40,6 +41,12 @@ def _atomic_write_text(path: str | Path, content: str) -> None:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="maintainer-zero", description="Chaos engineering drills for open-source continuity")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="show the installed Maintainer-Zero version and exit",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     init = sub.add_parser("init", help="create a starter continuity config")
     init.add_argument("path", nargs="?", default=".")

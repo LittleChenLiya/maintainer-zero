@@ -25,6 +25,7 @@ cd D:\maintainer-zero
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -e .
+maintainer-zero --version
 maintainer-zero simulate . --scenario all --output .continuity
 # CI gate: fail if any scenario scores below 70
 maintainer-zero simulate . --scenario all --fail-under 70

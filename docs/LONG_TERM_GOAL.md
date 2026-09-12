@@ -68,6 +68,8 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：修复损坏 `package.json` 被静默视为“无依赖”的问题；JSON、顶层类型或 dependencies/devDependencies/peerDependencies 字段类型不合法时，分析器现在返回受控输入错误，避免错误的低风险结论，新增 3 类负例。
+
 - 2026-09-12：修正发布验证脚本的默认产物目录为明确的 `D:/Codex/maintainer-zero-release-verify` 绝对路径，避免 Windows 反斜杠字符串在特定调用方式下被解释为项目内相对路径；新增默认路径契约测试。
 
 - 2026-09-12：为只读 GitHub transport 增加安全 `repr`：调试输出只显示 `token_present`，不显示 token 内容；新增凭证泄露负例，避免异常诊断或日志意外暴露认证值。

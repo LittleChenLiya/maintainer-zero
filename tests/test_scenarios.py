@@ -37,6 +37,20 @@ def test_snapshot_rejects_non_git_directory(tmp_path):
         snapshot_repository(tmp_path)
 
 
+@pytest.mark.parametrize("contents", [
+    "{not-json}",
+    "[]",
+    '{"dependencies": []}',
+])
+def test_snapshot_rejects_malformed_package_manifest(tmp_path, contents):
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo_path, check=True, capture_output=True)
+    (repo_path / "package.json").write_text(contents, encoding="utf-8")
+    with pytest.raises(ValueError, match="Invalid dependency manifest"):
+        snapshot_repository(repo_path)
+
+
 def test_snapshot_does_not_follow_repository_symlink_outside_root(tmp_path):
     repo_path = tmp_path / "repo"
     repo_path.mkdir()

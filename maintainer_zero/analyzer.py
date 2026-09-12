@@ -40,10 +40,15 @@ def _read_dependencies(path: Path) -> list[str]:
     if package is not None and package.is_file():
         try:
             data = json.loads(package.read_text(encoding="utf-8"))
-            for key in ("dependencies", "devDependencies", "peerDependencies"):
-                found.update(str(k) for k in data.get(key, {}))
-        except (OSError, json.JSONDecodeError):
-            pass
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError(f"Invalid dependency manifest: {package}") from exc
+        if not isinstance(data, dict):
+            raise ValueError(f"Invalid dependency manifest: {package}")
+        for key in ("dependencies", "devDependencies", "peerDependencies"):
+            section = data.get(key, {})
+            if not isinstance(section, dict) or any(not isinstance(name, str) or not name.strip() for name in section):
+                raise ValueError(f"Invalid dependency manifest: {package}")
+            found.update(section)
     for filename in ("requirements.txt", "requirements-dev.txt"):
         req = _safe_repo_path(path, filename)
         if req is not None and req.is_file():

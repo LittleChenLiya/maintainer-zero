@@ -61,3 +61,15 @@ def test_client_rejects_non_object_records():
     payload = ReadOnlyGitHubClient(lambda *_: TransportResponse(200, b"[1]")).collect({"issues": "/repos/acme/demo/issues"})
     assert payload["permissions"]["issues"] is False
     assert payload["collection"]["issues"]["reason"] == "invalid_record"
+
+
+def test_client_rejects_nonstandard_numbers_in_object_and_array_payloads():
+    repository = ReadOnlyGitHubClient(
+        lambda *_: TransportResponse(200, b'{"open_issues_count": NaN}')
+    ).collect({"repository": "/repos/acme/demo"})
+    assert repository["collection"]["repository"]["reason"] == "invalid_json"
+
+    issues = ReadOnlyGitHubClient(
+        lambda *_: TransportResponse(200, b'[{"number": Infinity}]')
+    ).collect({"issues": "/repos/acme/demo/issues"})
+    assert issues["collection"]["issues"]["reason"] == "invalid_json"

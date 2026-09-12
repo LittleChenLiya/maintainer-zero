@@ -61,6 +61,18 @@ def test_repository_descriptor_rejects_nested_or_unknown_fields():
     with pytest.raises(MetadataError, match="repository"):
         validate_metadata(payload)
 
+
+def test_metadata_rejects_nonstandard_json_numbers(tmp_path):
+    payload = snapshot()
+    payload["data"]["issues"][0]["number"] = float("nan")
+    with pytest.raises(MetadataError, match="non-finite"):
+        validate_metadata(payload)
+
+    path = tmp_path / "nan.json"
+    path.write_text('{"schema_version": 1, "permissions": {}, "data": {"issues": [{"n": NaN}]}}', encoding="utf-8")
+    with pytest.raises(MetadataError, match="non-standard"):
+        load_metadata(path)
+
 def test_summary_marks_truncated_resources_as_partial():
     payload = {**snapshot(), "collection": {"issues": {"available": True, "pages": 5, "truncated": True}}}
     assert summarize_metadata(payload)["partial"] == ["issues"]

@@ -68,6 +68,8 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：收紧 GitHub 元数据的 JSON 数值边界：拒绝 NaN/Infinity 等非标准 JSON 数值，HTTP 采集的对象/数组响应统一降级为 invalid_json，内存注入快照也执行有限数值校验；专项 35 项通过。
+
 - 2026-09-12：将 demo --output 纳入统一原子写入边界；新增写入失败时保留已有文件、并清理临时文件的回归测试，专项 10 项通过。
 
 - 2026-09-12：将 CLI 生成的 history-summary.json 与 baseline-comparison.json 纳入同目录原子替换边界，避免中断时截断已有门禁/趋势证据；离线真实 Git fixture 新增回归覆盖，专项 18 项通过。

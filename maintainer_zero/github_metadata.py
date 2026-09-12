@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -15,13 +16,28 @@ _ARRAY_RESOURCES = frozenset(_RESOURCES) - {"repository"}
 class MetadataError(ValueError):
     """Raised when a metadata snapshot violates the local envelope."""
 
+
+def _reject_nonstandard_number(value: str) -> None:
+    raise MetadataError(f"metadata contains non-standard JSON number: {value}")
+
+
+def _validate_finite_numbers(value: Any) -> None:
+    if isinstance(value, float) and not math.isfinite(value):
+        raise MetadataError("metadata contains a non-finite number")
+    if isinstance(value, dict):
+        for nested in value.values():
+            _validate_finite_numbers(nested)
+    elif isinstance(value, list):
+        for nested in value:
+            _validate_finite_numbers(nested)
+
 def load_metadata(path: str | Path) -> dict[str, Any]:
     path = Path(path)
     try:
         raw = path.read_bytes()
         if len(raw) > MAX_METADATA_BYTES:
             raise MetadataError(f"metadata snapshot exceeds {MAX_METADATA_BYTES} bytes")
-        payload = json.loads(raw)
+        payload = json.loads(raw, parse_constant=_reject_nonstandard_number)
     except MetadataError:
         raise
     except (OSError, json.JSONDecodeError) as exc:
@@ -29,6 +45,7 @@ def load_metadata(path: str | Path) -> dict[str, Any]:
     return validate_metadata(payload)
 
 def validate_metadata(payload: Any) -> dict[str, Any]:
+    _validate_finite_numbers(payload)
     if not isinstance(payload, dict):
         raise MetadataError("metadata snapshot must be a JSON object")
     if payload.get("schema_version") != SCHEMA_VERSION:

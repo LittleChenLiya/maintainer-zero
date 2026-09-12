@@ -45,6 +45,10 @@ class GitHubClientError(ValueError):
     """Raised for invalid bounds or non-whitelisted paths."""
 
 
+def _reject_nonstandard_number(value: str) -> None:
+    raise ValueError(f"non-standard JSON number: {value}")
+
+
 def validate_github_path(path: str) -> None:
     if not isinstance(path, str) or not any(pattern.fullmatch(path) for pattern in _PATHS.values()):
         raise GitHubClientError("unsupported metadata path")
@@ -146,8 +150,8 @@ class ReadOnlyGitHubClient:
         if not isinstance(raw, bytes) or len(raw) > self.max_response_bytes:
             return {}, CollectionStatus(False, 1, False, "response_too_large")
         try:
-            payload = json.loads(raw)
-        except (UnicodeError, json.JSONDecodeError, RecursionError):
+            payload = json.loads(raw, parse_constant=_reject_nonstandard_number)
+        except (UnicodeError, json.JSONDecodeError, ValueError, RecursionError):
             return {}, CollectionStatus(False, 1, False, "invalid_json")
         if not isinstance(payload, dict):
             return {}, CollectionStatus(False, 1, False, "expected_object")
@@ -187,8 +191,8 @@ class ReadOnlyGitHubClient:
             if collected_bytes > MAX_COLLECTION_BYTES:
                 return records, CollectionStatus(False, page, False, "collection_too_large")
             try:
-                payload = json.loads(raw)
-            except (UnicodeError, json.JSONDecodeError, RecursionError):
+                payload = json.loads(raw, parse_constant=_reject_nonstandard_number)
+            except (UnicodeError, json.JSONDecodeError, ValueError, RecursionError):
                 return records, CollectionStatus(False, page, False, "invalid_json")
             if not isinstance(payload, list):
                 return records, CollectionStatus(False, page, False, "expected_array")

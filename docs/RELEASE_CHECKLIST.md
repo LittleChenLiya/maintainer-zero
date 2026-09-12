@@ -6,7 +6,7 @@
 $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
 python -m pytest -q
 python -m compileall -q maintainer_zero
-python tools/verify_release.py --output D:\Codex\maintainer-zero-release-verify
+python tools/verify_release.py --output D:/Codex/maintainer-zero-release-verify
 python -m pip install --no-deps --target D:\Codex\maintainer-zero-wheel-install <wheel-or-sdist>
 $env:PYTHONPATH='D:\Codex\maintainer-zero-wheel-install'
 python -m maintainer_zero validate-scenario examples/scenarios/security-advisory-flood.json

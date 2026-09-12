@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse, json, os, subprocess, sys, tempfile
 from pathlib import Path
 
+DEFAULT_VERIFY_OUTPUT = Path("D:/Codex/maintainer-zero-release-verify")
+
 def run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
     completed = subprocess.run(command, cwd=cwd, env=env, check=True, text=True, capture_output=True)
     return completed.stdout
@@ -42,7 +44,7 @@ def verify(root: Path, output: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(__file__).parents[1])
-    parser.add_argument("--output", type=Path, default=Path(r"D:\\Codex\\maintainer-zero-release-verify"))
+    parser.add_argument("--output", type=Path, default=DEFAULT_VERIFY_OUTPUT)
     args = parser.parse_args(); verify(args.root.resolve(), args.output.resolve()); return 0
 
 if __name__ == "__main__":

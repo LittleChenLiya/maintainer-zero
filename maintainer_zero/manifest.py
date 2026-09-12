@@ -93,7 +93,9 @@ def write_manifest(output: str | Path, artifacts: Iterable[str | Path]) -> Path:
         entry = _entry(root, item)
         if entry is None: continue
         key = entry["path"].casefold()
-        if key not in seen: seen.add(key); entries.append(entry)
+        if key in seen:
+            raise ManifestError(f"duplicate artifact path: {entry['path']}")
+        seen.add(key); entries.append(entry)
     entries.sort(key=lambda x: x["path"])
     if not entries: raise ManifestError("manifest requires at least one artifact")
     if len(entries) > MAX_ARTIFACTS: raise ManifestError("manifest has too many artifacts")

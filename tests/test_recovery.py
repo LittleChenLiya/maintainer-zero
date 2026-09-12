@@ -33,9 +33,30 @@ def test_recovery_drafts_include_stable_finding_id_and_never_credentials():
     assert "demo.owner" in runbook
     assert "demo.owner" in issue
     assert "super-secret" not in runbook
-    assert "token=[REDACTED]" in runbook
+    assert r"token=\[REDACTED\]" in runbook
     assert "C:/private/repo" not in runbook  # path is not copied from the snapshot
-    assert "<风险>" in runbook
+    assert r"\<风险\>" in runbook
+
+
+def test_recovery_markdown_escapes_structure_and_broader_credentials():
+    malicious = r"[click](https://example.invalid) `code` *emphasis* <tag> authorization:secret-value"
+    result = _result(detail=malicious)
+    result.scenario = malicious
+    result.findings[0].title = malicious
+    result.findings[0].action = malicious
+    runbook = render_runbook(RepoSnapshot(path=".", name=malicious), [result])
+    issue = render_issue_drafts(RepoSnapshot(path=".", name=malicious), [result])
+    rendered = runbook + issue
+    assert "secret-value" not in rendered
+    assert "[click](https://example.invalid)" not in rendered
+    assert r"\[click\]\(https://example.invalid\) \`code\` \*emphasis\* \<tag\>" in rendered
+
+
+def test_recovery_escapes_untrusted_finding_id_inside_code_span():
+    result = _result()
+    result.findings[0].finding_id = r"bad`id"
+    rendered = render_runbook(RepoSnapshot(path=".", name="demo"), [result])
+    assert r"bad\`id" in rendered
 
 
 def test_runbook_exposes_simulated_queue_indicators_as_assumptions():

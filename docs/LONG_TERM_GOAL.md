@@ -128,3 +128,4 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-12：在源码树外完成 wheel/sdist 双产物验证：两个归档均可隔离安装、导入包内模块并运行 3 场景 demo；验证产物写入 `D:/Codex/maintainer-zero-release-verify`，未发布到 PyPI。
 - 2026-09-12：补齐自带 GitHub workflow 的恢复工件上传契约，JSON、Markdown、HTML、SARIF、Runbook、CODEOWNERS 草稿和 Issue 草稿现在一并进入 artifact；仍不写回仓库或 GitHub。
 - 2026-09-12：修复源码树外 sdist 安装验证在干净环境中的离线缺口，安装探针显式禁用 build isolation；专项验证 3 项通过，避免隐式网络解析构建依赖。
+- 2026-09-12：加固恢复工件文本边界：Runbook/Issue/CODEOWNERS 草稿对反引号、链接、强调、HTML 和表格符号做 Markdown 转义，并扩展 `authorization:` 凭证脱敏；新增恶意输入负例。

@@ -11,6 +11,7 @@ from typing import Any, Mapping
 REGISTRY_SCHEMA_VERSION = 1
 SCENARIO_SCHEMA_VERSION = 1
 MAX_REGISTRY_BYTES = 1_048_576
+MAX_SCENARIO_BYTES = 1_048_576
 MAX_SCENARIOS = 100
 _ID_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
 _LEGACY_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -188,10 +189,16 @@ def validate_scenario(payload: Mapping[str, Any]) -> dict[str, Any]:
     return _validate_registry_scenario(scenario)
 
 
-def load_scenario(path: str | Path) -> dict[str, Any]:
+def load_scenario(path: str | Path, *, max_bytes: int = MAX_SCENARIO_BYTES) -> dict[str, Any]:
     scenario_path = Path(path)
+    if max_bytes <= 0:
+        raise ValueError("max_bytes must be positive")
     try:
+        if scenario_path.stat().st_size > max_bytes:
+            raise ScenarioSpecError(f"scenario exceeds {max_bytes} bytes")
         payload = json.loads(scenario_path.read_text(encoding="utf-8"))
+    except ScenarioSpecError:
+        raise
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ScenarioSpecError(f"Invalid scenario document: {scenario_path}") from exc
     return validate_scenario(payload)
@@ -283,7 +290,7 @@ def scenario_summary(scenario: Mapping[str, Any]) -> dict[str, Any]:
 
 
 __all__ = [
-    "MAX_REGISTRY_BYTES", "REGISTRY_SCHEMA_VERSION", "SCENARIO_SCHEMA_VERSION",
+    "MAX_REGISTRY_BYTES", "MAX_SCENARIO_BYTES", "REGISTRY_SCHEMA_VERSION", "SCENARIO_SCHEMA_VERSION",
     "ScenarioRegistryError", "ScenarioSpecError", "bundled_registry_path",
     "load_bundled_registry", "load_registry", "load_scenario", "scenario_ids",
     "scenario_summary", "validate_registry", "validate_scenario",

@@ -22,7 +22,8 @@ but are not loaded as executable plugins.
 - Execution is limited to reviewed builtin or data-only declarative modes.
   Registry loading never imports an entrypoint, executes a subprocess, or
   evaluates a formula.
-- Local files are size-bounded and parsed as UTF-8 JSON. Duplicate IDs and
+- Registry and standalone scenario files are limited to 1 MiB and parsed as
+  UTF-8 JSON before validation. Duplicate IDs and
   duplicate input names are rejected.
 
 Validate a contribution before opening a pull request:

@@ -5,6 +5,7 @@ import pytest
 
 from maintainer_zero.scenario_registry import (
     ScenarioRegistryError,
+    ScenarioSpecError,
     load_bundled_registry,
     load_registry,
     load_scenario,
@@ -65,6 +66,15 @@ def test_load_registry_bounds_untrusted_file(tmp_path):
     path.write_text("[]", encoding="utf-8")
     with pytest.raises(ScenarioRegistryError, match="JSON object"):
         load_registry(path)
+
+
+def test_load_scenario_bounds_untrusted_file(tmp_path):
+    path = tmp_path / "scenario.json"
+    path.write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="max_bytes"):
+        load_scenario(path, max_bytes=0)
+    with pytest.raises(ScenarioSpecError, match="exceeds"):
+        load_scenario(path, max_bytes=1)
 
 
 def test_scenario_summary_is_stable_and_does_not_expose_entrypoint():

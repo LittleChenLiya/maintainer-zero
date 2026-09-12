@@ -20,6 +20,13 @@ _SEVERITIES = {"info", "low", "medium", "high"}
 _INPUT_TYPES = {"boolean", "integer", "number", "string"}
 _SOURCES = {"observed", "assumed", "configuration", "unknown"}
 _MODES = {"builtin", "declarative"}
+_ALLOWED_BUILTIN_ENTRYPOINTS = frozenset(
+    {
+        "maintainer_zero.scenarios:ci_outage",
+        "maintainer_zero.scenarios:dependency_yanked",
+        "maintainer_zero.scenarios:maintainer_zero",
+    }
+)
 
 
 class ScenarioSpecError(ValueError):
@@ -177,6 +184,8 @@ def _validate_registry_scenario(payload: Mapping[str, Any]) -> dict[str, Any]:
         entrypoint = _text(execution.get("entrypoint"), "scenario.execution.entrypoint", 200)
         if any(char in entrypoint for char in (";", "|", "&", "\n", "\r")):
             raise ScenarioRegistryError("scenario.execution.entrypoint contains unsafe characters")
+        if entrypoint not in _ALLOWED_BUILTIN_ENTRYPOINTS:
+            raise ScenarioRegistryError("scenario.execution.entrypoint is not an approved builtin")
     elif "entrypoint" in execution:
         raise ScenarioRegistryError("declarative scenarios must not declare an entrypoint")
     _reject_forbidden(scenario, allow_entrypoint=True)

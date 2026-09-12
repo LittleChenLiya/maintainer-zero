@@ -25,6 +25,9 @@ but are not loaded as executable plugins.
 - Registry and standalone scenario files are limited to 1 MiB and parsed as
   UTF-8 JSON before validation. Duplicate IDs and
   duplicate input names are rejected.
+- Builtin entrypoints are restricted to the three reviewed functions shipped
+  by the project; unknown entrypoints are rejected before any future executor
+  could resolve them.
 
 Validate a contribution before opening a pull request:
 

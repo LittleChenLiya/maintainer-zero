@@ -32,6 +32,8 @@ maintainer-zero simulate . --baseline .continuity/continuity.json --fail-on-new-
 
 退出码为 0（通过）、1（门禁失败）或 2（输入错误）。分数比较只能说明当前规则和输入快照下的变化。
 
+如果 `--baseline` 指向本次 `--output` 目录中的旧 `continuity.json`，CLI 会在写入新报告前读取并保留旧快照，因此可以安全地在同一目录执行连续演练。
+
 ## 离线 Demo
 
 ```powershell

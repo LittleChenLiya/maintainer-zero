@@ -106,6 +106,29 @@ def test_offline_fixture_runs_analyze_report_recovery_and_baseline_gate(tmp_path
     assert comparison["status"] == "regressed"
     assert comparison["gates"]["score_decreased"] is True
 
+    # The documented in-place workflow uses the previous report as the
+    # baseline while writing the next report to the same output directory.
+    # The CLI must snapshot that baseline before replacing continuity.json.
+    assert (
+        main(
+            [
+                "simulate",
+                str(repo),
+                "--days",
+                "7",
+                "--output",
+                str(baseline_dir),
+                "--baseline",
+                str(baseline_dir / "continuity.json"),
+                "--fail-on-score-decrease",
+            ]
+        )
+        == 1
+    )
+    in_place_comparison = json.loads((baseline_dir / "baseline-comparison.json").read_text(encoding="utf-8"))
+    assert in_place_comparison["status"] == "regressed"
+    assert in_place_comparison["gates"]["score_decreased"] is True
+
 
 def test_cli_history_and_baseline_sidecars_use_atomic_replacement(tmp_path: Path):
     repo = _git_fixture(tmp_path)

@@ -414,6 +414,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         repo = snapshot_repository(args.path)
         config = _load_config(Path(args.path).resolve())
+        # Load the baseline before writing the new report.  This is important
+        # for the documented in-place workflow where --baseline points at the
+        # previous output/continuity.json; report generation atomically replaces
+        # that path before the comparison phase below.
+        baseline_report = load_report(args.baseline) if args.baseline else None
         configured_names = config.get("scenarios", list(SCENARIOS))
         if isinstance(configured_names, str):
             configured_names = [configured_names]
@@ -470,7 +475,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.baseline:
         try:
             current_report = load_report(Path(args.output) / "continuity.json")
-            comparison = compare_reports(load_report(args.baseline), current_report)
+            comparison = compare_reports(baseline_report, current_report)
         except BaselineError as exc:
             print(f"error: {exc}")
             return 2

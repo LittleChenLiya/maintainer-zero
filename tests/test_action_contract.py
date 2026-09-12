@@ -1,4 +1,6 @@
 from pathlib import Path
+import stat
+from types import SimpleNamespace
 import pytest
 
 from tools.action_entrypoint import build_argv, _write_outputs
@@ -96,6 +98,39 @@ def test_action_adapter_rejects_symlinked_github_output_parent(tmp_path):
         pytest.skip("symlinks unavailable")
     with pytest.raises(ValueError, match="parent path"):
         _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(linked / "github-output")})
+
+
+def test_action_adapter_rejects_reparse_output_parent_without_following_it(tmp_path, monkeypatch):
+    linked = tmp_path / "linked-parent"
+    linked.mkdir()
+    output_file = linked / "github-output"
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        if path == linked:
+            return SimpleNamespace(st_mode=stat.S_IFDIR, st_file_attributes=0x400)
+        return original_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(ValueError, match="parent path"):
+        _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(output_file)})
+    assert not output_file.exists()
+
+
+def test_action_adapter_rejects_reparse_output_file_without_writing(tmp_path, monkeypatch):
+    output_file = tmp_path / "github-output"
+    output_file.write_text("keep\n", encoding="utf-8")
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        if path == output_file:
+            return SimpleNamespace(st_mode=stat.S_IFREG, st_file_attributes=0x400)
+        return original_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(ValueError, match="symbolic link"):
+        _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(output_file)})
+    assert output_file.read_text(encoding="utf-8") == "keep\n"
 
 
 def test_action_adapter_rejects_hardlinked_github_output(tmp_path):

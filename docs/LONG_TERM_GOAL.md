@@ -68,6 +68,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：恢复工件原子替换新增整套目标预检；若 Runbook、CODEOWNERS、Issue 或 SARIF 任一目标是符号链接、reparse point 或特殊文件，写入会在首次替换前 fail-closed，避免留下半套恢复证据；新增回归负例。
 - 2026-09-12：补齐报告与 history 输出路径边界：报告原子写入和趋势历史现在逐级拒绝父目录符号链接、Windows reparse point、特殊文件及超大 history，新增输出重定向负例。
 - 2026-09-12：统一只读 GitHub transport 的默认 User-Agent 与包版本 0.2.0，并补充请求头追踪测试；日志中的客户端版本不再停留在 0.1。
 - 2026-09-12：修复 metadata cache 的双重读取竞态：fresh/stale 判断与返回载荷现在来自同一次校验读取，新增替换期间一致性负例。

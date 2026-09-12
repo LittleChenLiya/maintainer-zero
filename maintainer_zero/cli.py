@@ -40,6 +40,12 @@ def _atomic_write_text(path: str | Path, content: str) -> None:
             temporary.unlink(missing_ok=True)
 
 
+def _is_link_like(info: os.stat_result) -> bool:
+    """Treat Windows junctions/reparse points as links as well as POSIX symlinks."""
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
+
+
 def _safe_output_file(path: str | Path) -> Path:
     """Return an absolute output path with non-symlinked parent components."""
     target = Path(os.path.abspath(path))
@@ -52,13 +58,13 @@ def _safe_output_file(path: str | Path) -> Path:
         except FileNotFoundError:
             current.mkdir()
             info = current.lstat()
-        if stat.S_ISLNK(info.st_mode):
+        if _is_link_like(info):
             raise ValueError(f"output path may not contain a symlink: {current}")
         if not stat.S_ISDIR(info.st_mode):
             raise ValueError(f"output path parent is not a directory: {current}")
     if os.path.lexists(target):
         info = target.lstat()
-        if stat.S_ISLNK(info.st_mode):
+        if _is_link_like(info):
             raise ValueError(f"output file may not be a symlink: {target}")
         if not stat.S_ISREG(info.st_mode):
             raise ValueError(f"output path is not a regular file: {target}")

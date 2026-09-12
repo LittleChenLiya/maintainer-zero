@@ -286,6 +286,12 @@ def _atomic_write_text(path: str | Path, content: str) -> None:
             temporary.unlink(missing_ok=True)
 
 
+def _is_link_like(info: os.stat_result) -> bool:
+    """Treat Windows junctions/reparse points as links as well as POSIX symlinks."""
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
+
+
 def _safe_output_directory(path: str | Path) -> Path:
     """Create and validate an output directory without following links.
 
@@ -310,7 +316,7 @@ def _safe_output_directory(path: str | Path) -> Path:
                 raise ValueError(f"could not create recovery output directory: {current}") from exc
         except OSError as exc:
             raise ValueError(f"could not inspect recovery output directory: {current}") from exc
-        if stat.S_ISLNK(info.st_mode):
+        if _is_link_like(info):
             raise ValueError(f"recovery output path may not contain a symlink: {current}")
         if not stat.S_ISDIR(info.st_mode):
             raise ValueError(f"recovery output path is not a directory: {current}")

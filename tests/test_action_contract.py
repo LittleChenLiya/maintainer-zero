@@ -8,7 +8,7 @@ ROOT = Path(__file__).parents[1]
 def test_composite_action_exposes_bounded_local_contract():
     action = (ROOT / "action.yml").read_text(encoding="utf-8")
     assert "using: composite" in action
-    assert "report-directory:" in action and "report-json:" in action
+    assert all(name in action for name in ("report-directory:", "report-json:", "report-markdown:", "report-html:", "recovery-directory:"))
     assert "MZ_INPUT_PATH: ${{ github.workspace }}/${{ inputs.path }}" in action
     assert "MZ_INPUT_METADATA: ${{ inputs.github-metadata }}" in action
     assert "GITHUB_TOKEN" not in action
@@ -42,6 +42,9 @@ def test_action_adapter_emits_outputs_only_after_success(tmp_path, monkeypatch):
     lines = output_file.read_text(encoding="utf-8").splitlines()
     assert lines[0].startswith("report-directory=")
     assert lines[1].endswith("continuity.json")
+    assert lines[2].endswith("report.md")
+    assert lines[3].endswith("report.html")
+    assert lines[4].endswith("recovery")
 
 
 def test_action_adapter_requires_runner_output_to_be_absolute_and_in_runner_temp(tmp_path):

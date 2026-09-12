@@ -60,6 +60,9 @@ def test_action_entrypoint_success_writes_reports_and_github_outputs(tmp_path: P
     assert lines == [
         f"report-directory={output.resolve()}",
         f"report-json={(output / 'continuity.json').resolve()}",
+        f"report-markdown={(output / 'report.md').resolve()}",
+        f"report-html={(output / 'report.html').resolve()}",
+        f"recovery-directory={(output / 'recovery').resolve()}",
     ]
 
 

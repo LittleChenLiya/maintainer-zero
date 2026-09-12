@@ -54,6 +54,15 @@ outputs:
   report-json:
     description: Absolute path to continuity.json
     value: ${{ steps.drill-unix.outputs.report-json || steps.drill-windows.outputs.report-json }}
+  report-markdown:
+    description: Absolute path to report.md
+    value: ${{ steps.drill-unix.outputs.report-markdown || steps.drill-windows.outputs.report-markdown }}
+  report-html:
+    description: Absolute path to report.html
+    value: ${{ steps.drill-unix.outputs.report-html || steps.drill-windows.outputs.report-html }}
+  recovery-directory:
+    description: Absolute path to generated recovery drafts
+    value: ${{ steps.drill-unix.outputs.recovery-directory || steps.drill-windows.outputs.recovery-directory }}
 
 runs:
   using: composite

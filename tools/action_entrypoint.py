@@ -83,6 +83,9 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
     payload = (
         f"report-directory={output}\n"
         f"report-json={output / 'continuity.json'}\n"
+        f"report-markdown={output / 'report.md'}\n"
+        f"report-html={output / 'report.html'}\n"
+        f"recovery-directory={output / 'recovery'}\n"
     )
     flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
     nofollow = getattr(os, "O_NOFOLLOW", 0)

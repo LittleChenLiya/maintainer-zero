@@ -78,6 +78,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-12：恢复 Runbook、Issue、CODEOWNERS 草稿和 SARIF 同步输出非敏感隐私边界摘要；单独下载恢复 artifact 时仍可审计匿名化状态与仓库内容上传禁用。
 - 2026-09-12：将 Python 包版本统一为 0.2.0，并用自动化测试校验 pyproject.toml 与包内 __version__ 一致；报告规则版本 0.2 继续作为独立协议版本。
 - 2026-09-12：报告 JSON 与 SARIF 增加工具发行版本证据，并与规则版本分离；新增报告和恢复工件回归测试，避免长期趋势无法区分工具实现变化。
+- 2026-09-12：基线比较增加工具版本边界：两份报告均声明且不一致时拒绝比较，旧版缺少工具字段时保留兼容读取；新增跨工具版本负例。
 - 2026-09-12：恢复目录改为整套工件暂存、原子替换并支持中途失败回滚；新增回归测试证明既有 Runbook、CODEOWNERS、Issue 和 SARIF 不会被半套更新覆盖。
 - 2026-09-12：自带 continuity workflow 扩展为 Ubuntu/Windows 矩阵，分别使用 bash/PowerShell 发布 Job Summary，并为每个 runner 上传完整且独立命名的报告与恢复工件；本地契约测试覆盖工作流结构，真实远程 runner 仍需实际执行确认。
 

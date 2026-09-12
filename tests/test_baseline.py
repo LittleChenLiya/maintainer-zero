@@ -101,3 +101,19 @@ def test_compare_reports_rejects_mixed_rule_versions():
     current["rule_version"] = "0.3"
     with pytest.raises(ValueError, match="different rule versions"):
         compare_reports(baseline, current)
+
+
+def test_compare_reports_rejects_mixed_tool_versions():
+    baseline = report(score=80)
+    current = report(score=80)
+    baseline["tool"] = {"name": "Maintainer-Zero", "version": "0.2.0"}
+    current["tool"] = {"name": "Maintainer-Zero", "version": "0.3.0"}
+    with pytest.raises(ValueError, match="different tool versions"):
+        compare_reports(baseline, current)
+
+
+def test_legacy_report_without_tool_metadata_remains_comparable():
+    baseline = report(score=80)
+    current = report(score=80)
+    current["tool"] = {"name": "Maintainer-Zero", "version": "0.2.0"}
+    assert compare_reports(baseline, current)["status"] == "unchanged"

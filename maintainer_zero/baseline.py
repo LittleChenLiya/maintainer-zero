@@ -39,6 +39,14 @@ def _validate_report(report: Mapping[str, Any]) -> None:
         raise BaselineError("continuity report repository must be an object")
     if not isinstance(report.get("results"), list):
         raise BaselineError("continuity report results must be an array")
+    tool = report.get("tool")
+    if tool is not None and (
+        not isinstance(tool, Mapping)
+        or tool.get("name") != "Maintainer-Zero"
+        or not isinstance(tool.get("version"), str)
+        or not tool["version"].strip()
+    ):
+        raise BaselineError("continuity report tool metadata is invalid")
 
 
 def _results(report: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
@@ -83,6 +91,10 @@ def compare_reports(baseline: Mapping[str, Any], current: Mapping[str, Any]) -> 
     _validate_report(current)
     if baseline["rule_version"] != current["rule_version"]:
         raise BaselineError("cannot compare reports produced by different rule versions")
+    baseline_tool = baseline.get("tool")
+    current_tool = current.get("tool")
+    if baseline_tool is not None and current_tool is not None and baseline_tool["version"] != current_tool["version"]:
+        raise BaselineError("cannot compare reports produced by different tool versions")
     old_results, new_results = _results(baseline), _results(current)
     scenarios: list[dict[str, Any]] = []
     added_findings: list[dict[str, Any]] = []

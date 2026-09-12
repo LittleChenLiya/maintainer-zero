@@ -73,3 +73,13 @@ def test_client_rejects_nonstandard_numbers_in_object_and_array_payloads():
         lambda *_: TransportResponse(200, b'[{"number": Infinity}]')
     ).collect({"issues": "/repos/acme/demo/issues"})
     assert issues["collection"]["issues"]["reason"] == "invalid_json"
+
+    overflowing_repository = ReadOnlyGitHubClient(
+        lambda *_: TransportResponse(200, b'{"open_issues_count": 1e999}')
+    ).collect({"repository": "/repos/acme/demo"})
+    assert overflowing_repository["collection"]["repository"]["reason"] == "invalid_json"
+
+    overflowing_issues = ReadOnlyGitHubClient(
+        lambda *_: TransportResponse(200, b'[{"number": 1e999}]')
+    ).collect({"issues": "/repos/acme/demo/issues"})
+    assert overflowing_issues["collection"]["issues"]["reason"] == "invalid_json"

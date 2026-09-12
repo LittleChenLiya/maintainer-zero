@@ -49,6 +49,16 @@ def _reject_nonstandard_number(value: str) -> None:
     raise ValueError(f"non-standard JSON number: {value}")
 
 
+def _contains_non_finite_number(value: Any) -> bool:
+    if isinstance(value, float):
+        return not math.isfinite(value)
+    if isinstance(value, dict):
+        return any(_contains_non_finite_number(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_non_finite_number(item) for item in value)
+    return False
+
+
 def validate_github_path(path: str) -> None:
     if not isinstance(path, str) or not any(pattern.fullmatch(path) for pattern in _PATHS.values()):
         raise GitHubClientError("unsupported metadata path")
@@ -153,6 +163,8 @@ class ReadOnlyGitHubClient:
             payload = json.loads(raw, parse_constant=_reject_nonstandard_number)
         except (UnicodeError, json.JSONDecodeError, ValueError, RecursionError):
             return {}, CollectionStatus(False, 1, False, "invalid_json")
+        if _contains_non_finite_number(payload):
+            return {}, CollectionStatus(False, 1, False, "invalid_json")
         if not isinstance(payload, dict):
             return {}, CollectionStatus(False, 1, False, "expected_object")
         allowed = {
@@ -193,6 +205,8 @@ class ReadOnlyGitHubClient:
             try:
                 payload = json.loads(raw, parse_constant=_reject_nonstandard_number)
             except (UnicodeError, json.JSONDecodeError, ValueError, RecursionError):
+                return records, CollectionStatus(False, page, False, "invalid_json")
+            if _contains_non_finite_number(payload):
                 return records, CollectionStatus(False, page, False, "invalid_json")
             if not isinstance(payload, list):
                 return records, CollectionStatus(False, page, False, "expected_array")

@@ -68,6 +68,8 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：补齐 GitHub HTTP JSON 溢出数值边界：`1e999` 等解析为无穷浮点数的对象/数组响应现在统一降级为 `invalid_json`，不会在最终 schema 校验阶段冒出异常；新增两类负例。
+
 - 2026-09-12：收紧只读 HTTP transport 的凭证与请求头边界：token 和 User-Agent 现在拒绝全部 ASCII 控制字符（不只 CR/LF），避免 NUL、TAB 等字符进入认证或请求头；新增负例测试。
 
 - 2026-09-12：将 `init` 的 starter `continuity.json` 写入接入原子替换与失败清理边界；重复初始化保留用户配置，替换失败返回退出码 2 且不留下半成品，新增幂等与失败回归测试。

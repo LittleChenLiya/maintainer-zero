@@ -25,6 +25,27 @@ def test_report_explains_partial_metadata_counts(tmp_path):
     summary = {"source": "github-metadata", "read_only": True, "permissions": {"issues": True}, "fields": {"issues": 5000}, "unknown": [], "partial": ["issues"]}
     write_report(tmp_path, RepoSnapshot(".", "demo"), [DrillResult("demo", 80, "medium", [], {}, [], [])], summary)
     assert "counts are not complete" in (tmp_path / "report.md").read_text(encoding="utf-8")
+    payload = json.loads((tmp_path / "continuity.json").read_text(encoding="utf-8"))
+    assert payload["metadata_evidence"] == [
+        {"field": "issues", "observed": 5000, "source": "github metadata", "status": "partial"},
+    ]
+
+
+def test_metadata_evidence_preserves_unknown_without_copying_descriptor(tmp_path):
+    summary = {
+        "source": "github-metadata",
+        "read_only": True,
+        "permissions": {"repository": True, "reviews": False},
+        "fields": {"repository": {"default_branch": "main"}, "reviews": None},
+        "unknown": ["reviews"],
+    }
+    write_report(tmp_path, RepoSnapshot(".", "demo"), [DrillResult("demo", 80, "medium", [], {}, [], [])], summary)
+    payload = json.loads((tmp_path / "continuity.json").read_text(encoding="utf-8"))
+    assert payload["metadata_evidence"] == [
+        {"field": "repository", "observed": "present", "source": "github metadata", "status": "observed"},
+        {"field": "reviews", "observed": None, "source": "github metadata", "status": "unknown"},
+    ]
+    assert "Metadata evidence" in (tmp_path / "report.md").read_text(encoding="utf-8")
 
 
 def test_report_redacts_nested_credential_keys_in_metadata_summary(tmp_path):

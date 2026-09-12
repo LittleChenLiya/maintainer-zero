@@ -73,6 +73,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-12：把 GitHub 数组资源的隐私白名单下沉到离线快照与缓存校验层：issues、pull requests、reviews 和 releases 的未知字段、正文和嵌套用户对象现在直接拒绝，新增快照/缓存原始记录负例，防止绕过网络客户端重新保存原始内容。
 - 2026-09-12：收紧基线门禁的规则版本边界：不同 `rule_version` 产生的报告现在直接拒绝比较，避免规则变化被误报为分数回归或改进；新增跨版本负例并补充架构说明。
 - 2026-09-12：补齐场景生态的只读贡献入口：新增 `validate-registry PATH` CLI 命令，复用版本化注册表校验器并返回明确成功/输入错误状态；新增命令契约负例和贡献文档，不执行 entrypoint 或公式。
+- 2026-09-12：为 GitHub 元数据摘要增加独立 `metadata_evidence`：报告逐个记录资源的观测值及 `observed`/`partial`/`unknown` 状态，明确其只提供上下文、不改变本地评分，也不复制原始记录。
 - 2026-09-12：补齐内存注入快照的循环结构边界：`validate_metadata()` 现在检测 dict/list 自引用并返回受控 `MetadataError`，不会让调用方遇到未处理的 `RecursionError`；新增循环结构负例。
 
 - 2026-09-12：统一 GitHub 元数据快照的文件边界：普通 `--github-metadata` 输入现在与缓存一样拒绝符号链接、目录和其他非普通文件，并新增快照路径负例，避免隐私校验只覆盖缓存分支。

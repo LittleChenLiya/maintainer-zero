@@ -71,13 +71,31 @@ def _metadata_section(metadata_summary: dict | None) -> list[str]:
     fields = metadata_summary.get("fields", {})
     unknown = metadata_summary.get("unknown", [])
     partial = metadata_summary.get("partial", [])
-    lines = ["## GitHub metadata", "", "Read-only metadata was supplied by an external snapshot; unavailable fields remain unknown.", ""]
-    lines.extend(f"- **{_markdown_text(key)}**: {_display(value) if value is not None else 'unknown'}" for key, value in fields.items())
+    lines = ["## GitHub metadata", "", "Read-only metadata was supplied by an external snapshot; unavailable fields remain unknown. These observations provide context and do not change drill scores.", "", "### Metadata evidence", ""]
+    lines.extend(f"- **{_markdown_text(key)}**: {_markdown_text('unknown' if key in unknown or value is None else 'partial' if key in partial else 'observed')} — {_display(value) if value is not None else 'unknown'}" for key, value in sorted(fields.items()))
     if unknown:
         lines.extend(["", f"Unknown fields: `{', '.join(unknown)}`"] )
     if partial:
         lines.extend(["", f"Partially collected fields (page/item limit): `{', '.join(partial)}`; counts are not complete."])
     return lines + [""]
+
+
+def _metadata_evidence(metadata_summary: dict | None) -> list[dict[str, object]]:
+    """Turn the bounded metadata summary into auditable, non-raw observations."""
+    if metadata_summary is None:
+        return []
+    fields = metadata_summary.get("fields", {})
+    unknown = set(metadata_summary.get("unknown", []))
+    partial = set(metadata_summary.get("partial", []))
+    if not isinstance(fields, dict):
+        return []
+    evidence: list[dict[str, object]] = []
+    for key in sorted(fields):
+        value = fields[key]
+        status = "unknown" if key in unknown or value is None else "partial" if key in partial else "observed"
+        observed: object = value if isinstance(value, (str, int, float, bool)) or value is None else "present"
+        evidence.append({"source": "github metadata", "field": key, "observed": observed, "status": status})
+    return evidence
 
 def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None) -> str:
     lines = [f"# OSS Continuity Report: {_markdown_text(repo.name)}", "", "- **Rule version:** `0.2`", f"- Commits analyzed: **{repo.commits}**", f"- Contributors: **{len(repo.contributors)}**", f"- Dependencies found: **{len(repo.dependencies)}**", f"- Workflows found: **{len(repo.workflows)}**", "", "> This is an explainable heuristic drill, not a security certification.", ""]
@@ -107,6 +125,7 @@ def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], meta
     payload = _safe_value({"schema_version": 1, "rule_version": "0.2", "repository": repo.to_dict(), "results": [r.to_dict() for r in results]})
     if metadata_summary is not None:
         payload["github_metadata"] = _safe_value(metadata_summary)
+        payload["metadata_evidence"] = _metadata_evidence(metadata_summary)
     _atomic_write_text(out / "continuity.json", json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
     markdown = render_markdown(repo, results, metadata_summary)
     _atomic_write_text(out / "report.md", markdown)

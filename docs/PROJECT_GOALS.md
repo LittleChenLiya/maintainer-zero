@@ -36,11 +36,11 @@
 - [x] 增加离线 GitHub 元数据快照校验与权限降级摘要
 - [x] 注入式只读 GitHub 元数据客户端边界：分页、响应限制和错误降级
 - [x] CLI 接受已审阅的元数据快照并把脱敏摘要写入报告
-- 显式 opt-in 的 GitHub GET 采集命令已覆盖 issues、pull requests、releases，以及显式 `--include-repository` 的有限仓库描述；reviews 需指定单个 PR，分页截断会标记 `partial`，缓存、速率等待与真实写入仍由后续集成负责
-- 从报告生成 CODEOWNERS / Issue / Runbook 草稿
-- 维护者匿名化和组织级角色映射
-- PR 评论、分数回归门禁和 SARIF 输出
-- 每月定时演练与历史分数图
+- [x] 显式 opt-in 的 GitHub GET 采集命令已覆盖 issues、pull requests、releases，以及显式 `--include-repository` 的有限仓库描述；reviews 需指定单个 PR，分页截断会标记 `partial`；缓存、速率等待与真实写入仍由后续集成负责
+- [x] 从报告生成 CODEOWNERS / Issue / Runbook 草稿（均为本地、待审阅草稿）
+- [x] 维护者匿名化和稳定的组织内角色占位映射；组织身份解析仍需用户提供映射
+- [x] PR 评论、分数回归门禁和 SARIF 输出；PR 评论仍只生成本地草稿，不自动写 GitHub
+- [x] 每月定时演练 workflow 和同仓库历史摘要；真实远程 runner 与历史图表发布仍需外部验证
 
 ## v1.0 目标
 

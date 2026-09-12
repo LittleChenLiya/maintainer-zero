@@ -20,7 +20,9 @@ class BenchmarkError(ValueError):
 def _text(value: object, field: str) -> str:
     if not isinstance(value, str) or not value.strip() or len(value) > _MAX_TEXT:
         raise BenchmarkError(f"{field} must be a bounded non-empty string")
-    if any(ord(char) < 32 or ord(char) == 127 for char in value):
+    # ``isprintable`` also rejects Unicode line/paragraph separators and C1
+    # controls, which are not caught by an ASCII-only range check.
+    if any(not char.isprintable() for char in value):
         raise BenchmarkError(f"{field} contains control characters")
     return value
 

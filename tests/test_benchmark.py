@@ -64,6 +64,12 @@ def test_text_renderer_rejects_untrusted_control_characters():
             "overall_score": None,
             "scenarios": [],
         })
+    with pytest.raises(BenchmarkError, match="rule_version.*control"):
+        render_benchmark_text({
+            "rule_version": "0.2\u2028Injected",
+            "overall_score": None,
+            "scenarios": [],
+        })
 
 
 def test_export_benchmark_cli_writes_json_and_text(tmp_path: Path, capsys):

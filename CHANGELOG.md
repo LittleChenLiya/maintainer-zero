@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- 报告三文件现在采用可回滚的整套原子替换；中途失败会恢复旧的 JSON/Markdown/HTML 组合，不留下新旧报告混合状态。
 - 报告生成现在会在首次替换前预检 `continuity.json`、Markdown 和 HTML 三个目标，任一目标为符号链接、reparse point 或特殊文件时整体拒绝，避免留下半套报告。
 - 社区场景注册表与 data-only 场景加载器现在也拒绝 Windows junction/reparse point（不仅是 POSIX 符号链接），并增加跨平台路径模拟负例，避免贡献校验被重定向到未审阅目标。
 - 恢复工件现在会在移动任一暂存文件前预检整套目标，拒绝符号链接、reparse point 和特殊文件，避免多文件原子替换在冲突目标下留下半套输出。

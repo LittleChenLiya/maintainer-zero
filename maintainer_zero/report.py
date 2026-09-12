@@ -111,6 +111,60 @@ def _preflight_report_targets(out: Path) -> None:
         _safe_output_file(out / filename)
 
 
+def _report_backup_path(directory: Path, filename: str) -> Path:
+    handle = tempfile.NamedTemporaryFile(mode="wb", dir=directory, prefix=f".{filename}.", suffix=".bak", delete=False)
+    backup = Path(handle.name)
+    handle.close()
+    backup.unlink(missing_ok=True)
+    return backup
+
+
+def _atomic_write_report_set(out: Path, artefacts: dict[str, str]) -> None:
+    """Replace the report generation as one rollback-capable set."""
+    staged: dict[Path, Path] = {}
+    backups: dict[Path, Path] = {}
+    replaced: list[Path] = []
+    try:
+        for filename, content in artefacts.items():
+            target = out / filename
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", newline="", dir=out,
+                prefix=f".{target.name}.", suffix=".tmp", delete=False
+            ) as handle:
+                staged[target] = Path(handle.name)
+                handle.write(content)
+                handle.flush()
+                os.fsync(handle.fileno())
+
+        _preflight_report_targets(out)
+        for target, temporary in list(staged.items()):
+            if os.path.lexists(target):
+                backup = _report_backup_path(out, target.name)
+                os.replace(target, backup)
+                backups[target] = backup
+            os.replace(temporary, target)
+            replaced.append(target)
+            staged.pop(target, None)
+    except BaseException:
+        for target in reversed(replaced):
+            try:
+                target.unlink(missing_ok=True)
+            except OSError:
+                pass
+        for target, backup in backups.items():
+            if backup.exists() or os.path.lexists(backup):
+                try:
+                    os.rename(backup, target)
+                except OSError:
+                    pass
+        raise
+    finally:
+        for temporary in staged.values():
+            temporary.unlink(missing_ok=True)
+        for backup in backups.values():
+            backup.unlink(missing_ok=True)
+
+
 def _metadata_section(metadata_summary: dict | None) -> list[str]:
     if metadata_summary is None:
         return []
@@ -195,8 +249,13 @@ def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], meta
     if metadata_summary is not None:
         payload["github_metadata"] = _safe_value(metadata_summary)
         payload["metadata_evidence"] = _metadata_evidence(metadata_summary)
-    _atomic_write_text(out / "continuity.json", json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
     markdown = render_markdown(repo, results, metadata_summary, privacy_summary)
-    _atomic_write_text(out / "report.md", markdown)
     body = html.escape(markdown).replace("\n", "<br>")
-    _atomic_write_text(out / "report.html", f"<!doctype html><meta charset='utf-8'><title>Continuity Report</title><style>body{{font:16px system-ui;max-width:1000px;margin:40px auto;line-height:1.5}}</style><pre>{body}</pre>")
+    _atomic_write_report_set(
+        out,
+        {
+            "continuity.json": json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+            "report.md": markdown,
+            "report.html": f"<!doctype html><meta charset='utf-8'><title>Continuity Report</title><style>body{{font:16px system-ui;max-width:1000px;margin:40px auto;line-height:1.5}}</style><pre>{body}</pre>",
+        },
+    )

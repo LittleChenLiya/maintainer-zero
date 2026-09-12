@@ -68,6 +68,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：报告输出从逐文件原子替换提升为整套可回滚替换；模拟中途替换失败时，旧的 JSON/Markdown/HTML 组合保持不变，新增三文件回滚负例。
 - 2026-09-12：报告三文件输出新增整套目标预检；任一 `continuity.json`、`report.md` 或 `report.html` 目标冲突时，在首次替换前 fail-closed，新增半套报告防护负例。
 - 2026-09-12：补齐社区场景加载器的跨平台路径边界：注册表与 data-only 场景文件逐级拒绝 POSIX 符号链接、Windows junction/reparse point 和特殊文件，新增 reparse 模拟负例。
 - 2026-09-12：恢复工件原子替换新增整套目标预检；若 Runbook、CODEOWNERS、Issue 或 SARIF 任一目标是符号链接、reparse point 或特殊文件，写入会在首次替换前 fail-closed，避免留下半套恢复证据；新增回归负例。

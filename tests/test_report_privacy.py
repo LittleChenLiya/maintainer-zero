@@ -116,6 +116,31 @@ def test_report_preflights_all_targets_before_replacement(tmp_path):
     assert not list(outputs.glob(".*.tmp"))
 
 
+def test_report_set_failure_rolls_back_files_replaced_before_error(tmp_path, monkeypatch):
+    import maintainer_zero.report as report_module
+
+    outputs = tmp_path / "out"
+    outputs.mkdir()
+    filenames = ["continuity.json", "report.md", "report.html"]
+    for filename in filenames:
+        (outputs / filename).write_text(f"old {filename}\n", encoding="utf-8")
+    original_replace = report_module.os.replace
+    failed_target = outputs / "report.md"
+
+    def fail_mid_commit(source, target):
+        if Path(target) == failed_target and str(source).endswith(".tmp"):
+            raise OSError("simulated mid-set failure")
+        return original_replace(source, target)
+
+    monkeypatch.setattr(report_module.os, "replace", fail_mid_commit)
+    with pytest.raises(OSError, match="simulated mid-set failure"):
+        write_report(outputs, RepoSnapshot(".", "demo"), [result("safe")])
+    for filename in filenames:
+        assert (outputs / filename).read_text(encoding="utf-8") == f"old {filename}\n"
+    assert not list(outputs.glob(".*.tmp"))
+    assert not list(outputs.glob(".*.bak"))
+
+
 def test_report_records_privacy_boundary_without_raw_identity_values(tmp_path):
     outputs = tmp_path / "privacy-summary"
     repo = RepoSnapshot("<local-repository>", "repository-1234abcd5678", contributors={"contributor-1": 4})

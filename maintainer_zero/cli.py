@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import stat
 import tempfile
 from pathlib import Path
 from .analyzer import snapshot_repository
@@ -24,8 +25,7 @@ from . import __version__
 
 def _atomic_write_text(path: str | Path, content: str) -> None:
     """Replace one local output file atomically, leaving old data on failure."""
-    target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
+    target = _safe_output_file(path)
     temporary: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="", dir=target.parent, prefix=f".{target.name}.", suffix=".tmp", delete=False) as handle:
@@ -38,6 +38,31 @@ def _atomic_write_text(path: str | Path, content: str) -> None:
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
+
+
+def _safe_output_file(path: str | Path) -> Path:
+    """Return an absolute output path with non-symlinked parent components."""
+    target = Path(os.path.abspath(path))
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts[:-1]:
+        current /= part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            current.mkdir()
+            info = current.lstat()
+        if stat.S_ISLNK(info.st_mode):
+            raise ValueError(f"output path may not contain a symlink: {current}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValueError(f"output path parent is not a directory: {current}")
+    if os.path.lexists(target):
+        info = target.lstat()
+        if stat.S_ISLNK(info.st_mode):
+            raise ValueError(f"output file may not be a symlink: {target}")
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError(f"output path is not a regular file: {target}")
+    return target
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="maintainer-zero", description="Chaos engineering drills for open-source continuity")

@@ -79,3 +79,15 @@ def test_demo_cli_write_failure_preserves_existing_output(tmp_path, monkeypatch,
     assert output.read_text(encoding="utf-8") == "previous demo\n"
     assert not list(tmp_path.glob(".demo-results.json.*.tmp"))
     assert "cannot write demo output" in capsys.readouterr().out
+
+
+def test_demo_cli_rejects_symlinked_output_parent(tmp_path, monkeypatch, capsys):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    assert main(["demo", str(DEMO_PATH), "--format", "json", "--output", str(linked / "demo.json")]) == 2
+    assert "cannot write demo output" in capsys.readouterr().out

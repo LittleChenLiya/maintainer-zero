@@ -124,6 +124,26 @@ def test_cli_rejects_snapshot_cache_path_collision(tmp_path, monkeypatch):
     assert main(["collect-github", "acme/demo", "--allow-network", "--output", str(output), "--cache-output", str(output)]) == 2
 
 
+def test_cli_rejects_symlinked_snapshot_output_parent(tmp_path, monkeypatch):
+    class FakeTransport:
+        @classmethod
+        def from_environment(cls, *, allow_environment=False, **kwargs):
+            return cls()
+
+        def __call__(self, path, params, timeout):
+            return TransportResponse(200, b"[]", {})
+
+    monkeypatch.setattr("maintainer_zero.cli.GitHubHTTPTransport", FakeTransport)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    assert main(["collect-github", "acme/demo", "--allow-network", "--output", str(linked / "snapshot.json")]) == 2
+
+
 def test_cli_propagates_tighter_response_bound_to_transport_and_client(tmp_path, monkeypatch):
     seen = {}
 

@@ -85,6 +85,13 @@ the CLI never edits the analyzed repository, changes permissions, or submits Git
 Issues. Use `--recovery-output PATH` to choose another output directory. See
 [恢复工件说明](docs/RECOVERY_ARTIFACTS.md).
 
+Every simulation also writes `.continuity/artifact-manifest.json`, a local SHA-256 and size
+manifest for artifacts that were actually produced (including optional history and baseline
+sidecars). Verify it offline with `maintainer-zero verify-manifest .continuity/artifact-manifest.json`.
+The manifest uses relative paths, rejects links and special files, and excludes its own hash. It
+proves local artifact integrity only; it is not a digital signature and does not prove provenance.
+No artifact is uploaded by this command.
+
 ## What it inspects
 
 - Git commit authors (via `git log`)

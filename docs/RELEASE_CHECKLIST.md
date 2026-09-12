@@ -11,6 +11,7 @@ python -m pip install --no-deps --no-build-isolation --target D:\Codex\maintaine
 $env:PYTHONPATH='D:\Codex\maintainer-zero-wheel-install'
 python -m maintainer_zero validate-scenario examples/scenarios/security-advisory-flood.json
 python -m maintainer_zero demo --format json --fail-on-regression
+python -m maintainer_zero verify-manifest .continuity/artifact-manifest.json
 ```
 
 复合 GitHub Action 还必须通过本地契约和集成检查：
@@ -29,6 +30,9 @@ runner 上验证安装、GITHUB_OUTPUT 解析和矩阵行为。
 以及内置注册表可加载。验证目录是临时产物，不应提交到 Git。
 脚本会构建一个 wheel 和一个 sdist，在源码树外分别安装，并确认默认 `demo` 从包内
 fixture 读取、输出 3 个结果且通过回归门禁。输出目录是临时产物，不应提交到 Git。
+
+每次模拟还应验证 artifact manifest：它只记录本轮实际生成工件的相对路径、大小和 SHA-256，
+不包含自身摘要；这是完整性校验，不是签名或来源证明。manifest 校验必须离线完成，失败返回 2。
 
 ci.yml 的 release-smoke job 会在 Ubuntu/Python 3.12 runner 上重复执行同一发布验证脚本，
 构建 wheel 和 sdist，并在源码树外安装后运行打包后的 demo。该 job 只验证构建和安装，

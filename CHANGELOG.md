@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- 模拟输出新增本地 `artifact-manifest.json`，记录实际生成工件的相对路径、大小和 SHA-256；新增离线 `verify-manifest` 校验命令。manifest 拒绝路径逃逸、链接、特殊文件和超大输入，不包含自身 hash，也不被描述为数字签名或来源证明。
+
 本文件记录尚未发布的本地开发版本；项目当前没有公开远程仓库或已发布包。
 
 ## Unreleased

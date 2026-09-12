@@ -45,7 +45,7 @@ def test_manifest_rejects_missing_artifact_and_extra_fields(tmp_path: Path):
     payload = json.loads(manifest.read_text(encoding="utf-8"))
     payload["unexpected"] = True
     manifest.write_text(json.dumps(payload), encoding="utf-8")
-    with pytest.raises(ManifestError, match="unsupported"):
+    with pytest.raises(ManifestError, match="invalid"):
         load_manifest(manifest)
 
 

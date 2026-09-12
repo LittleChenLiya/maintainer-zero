@@ -58,6 +58,7 @@ def test_reusable_action_is_composite_and_keeps_inputs_bounded():
     assert "--no-build-isolation" in action
     for input_name in ("scenario", "days", "output", "fail-under", "baseline"):
         assert f"  {input_name}:" in action
+    assert "  fallback-plan:" in action
     assert "MZ_INPUT_PATH: ${{ github.workspace }}" in action
     assert "MZ_INPUT_METADATA: ${{ inputs.github-metadata }}" in action
     assert 'python "$MZ_ACTION_PATH/tools/action_entrypoint.py"' in action

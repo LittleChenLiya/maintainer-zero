@@ -31,7 +31,7 @@ def verify(root: Path, output: Path) -> None:
         # documented command repeatable without deleting arbitrary user files
         # below the caller-selected output directory.
         with tempfile.TemporaryDirectory(prefix="install-", dir=output) as target:
-            run([sys.executable, "-m", "pip", "install", "--no-deps", "--target", target, str(archive)])
+            run([sys.executable, "-m", "pip", "install", "--no-deps", "--no-build-isolation", "--target", target, str(archive)])
             env = os.environ.copy(); env["PYTHONPATH"] = target
             probe = "from pathlib import Path; import maintainer_zero; p=Path(maintainer_zero.__file__).resolve(); assert p.is_relative_to(Path(r'%s').resolve()); print(p)" % target
             run([sys.executable, "-c", probe], cwd=output, env=env)

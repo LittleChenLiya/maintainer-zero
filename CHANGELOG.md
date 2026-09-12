@@ -35,3 +35,5 @@
 ## 发布说明
 
 正式版本发布前应重新执行 [新颖性审计](docs/NOVELTY_AUDIT.md)、[发布清单](docs/RELEASE_CHECKLIST.md) 和跨平台 CI，并明确记录尚未验证的外部集成。
+- 自带 `continuity.yml` 现在上传完整恢复目录（SARIF、Runbook、CODEOWNERS 草稿和 Issue 草稿），避免只保留机器可读结果而丢失人工审阅工件。
+- 发布验证的 wheel/sdist 安装探针显式使用 `--no-build-isolation`，避免在离线或受限 runner 上为 sdist 隐式解析构建依赖。

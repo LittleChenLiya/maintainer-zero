@@ -42,6 +42,9 @@ jobs:
             .continuity/report.md
             .continuity/report.html
             .continuity/recovery/continuity.sarif
+            .continuity/recovery/runbook.md
+            .continuity/recovery/CODEOWNERS.draft
+            .continuity/recovery/issue-drafts.md
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14

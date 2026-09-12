@@ -71,3 +71,5 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     assert "uses: ./" in workflow
     assert "scenario: all" in workflow
     assert "output: .continuity" in workflow
+    for artifact in ("continuity.sarif", "runbook.md", "CODEOWNERS.draft", "issue-drafts.md"):
+        assert f".continuity/recovery/{artifact}" in workflow

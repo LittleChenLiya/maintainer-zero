@@ -26,6 +26,7 @@ performs GitHub writes; review the resulting JSON before passing it to `simulate
 | PR comment (opt-in) | pull-requests: write | Comment only |
 
 The adapter should accept GITHUB_TOKEN only through explicit opt-in, redact repository names and people in exported reports when configured, and fail closed when a permission is missing. `anonymize_repository` replaces the basename and absolute path with a stable short digest and `<local-repository>`; it does not send the original identity anywhere. It must never print tokens or upload raw prompts, repository files, or unredacted report payloads.
+The checked-in continuity workflow uploads the JSON, Markdown, HTML, SARIF, Runbook, CODEOWNERS draft, and Issue draft artifacts together; these are reviewable suggestions and are not written back to the repository or GitHub.
 
 ## PR 评论草稿边界
 

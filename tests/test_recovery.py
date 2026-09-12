@@ -38,6 +38,22 @@ def test_recovery_drafts_include_stable_finding_id_and_never_credentials():
     assert "<风险>" in runbook
 
 
+def test_runbook_exposes_simulated_queue_indicators_as_assumptions():
+    drill = _result()
+    drill.metrics.update({
+        "simulated_peak_backlog": 4.0,
+        "simulated_ending_backlog": 3.0,
+        "simulated_service_level": 0.5,
+        "simulated_recovery_day": 9,
+        "simulated_recovery_ending_backlog": 0.0,
+        "simulated_recovery_window_days": 7,
+    })
+    runbook = render_runbook(RepoSnapshot(path=".", name="demo"), [drill])
+    assert "## Simulated queue indicators" in runbook
+    assert "Incident peak backlog: 4.0" in runbook
+    assert "not observed recovery" in runbook
+
+
 def test_finding_without_id_gets_stable_slug():
     result = _result()
     result.findings[0].finding_id = ""

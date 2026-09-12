@@ -81,6 +81,24 @@ def render_runbook(repo: RepoSnapshot, results: list[DrillResult]) -> str:
         )
     if not finding_count:
         lines.extend(["No actionable findings were produced for the selected drills.", ""])
+    lines.extend(["## Simulated queue indicators", "", "> These are deterministic model outputs, not observed recovery or service guarantees.", ""])
+    for result in results:
+        metrics = result.metrics
+        if "simulated_peak_backlog" not in metrics:
+            continue
+        lines.extend(
+            [
+                f"### {_safe_text(result.scenario)}",
+                "",
+                f"- Incident peak backlog: {_safe_text(metrics.get('simulated_peak_backlog'))}",
+                f"- Incident ending backlog: {_safe_text(metrics.get('simulated_ending_backlog'))}",
+                f"- Simulated service level: {_safe_text(metrics.get('simulated_service_level'))}",
+                f"- First simulated recovery day: {_safe_text(metrics.get('simulated_recovery_day'))}",
+                f"- Recovery-window ending backlog: {_safe_text(metrics.get('simulated_recovery_ending_backlog'))}",
+                f"- Assumed recovery window: {_safe_text(metrics.get('simulated_recovery_window_days'))} days",
+                "",
+            ]
+        )
     lines.extend(
         [
             "## Recovery verification",

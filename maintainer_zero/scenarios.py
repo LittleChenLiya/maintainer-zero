@@ -19,6 +19,17 @@ def _empty_queue_metrics() -> dict[str, object]:
     }
 
 
+def _queue_evidence(metrics: dict[str, object], note: str) -> list[Evidence]:
+    """Expose every queue aggregate as a separately auditable observation."""
+    return [
+        Evidence("deterministic simulation", "peak_backlog", metrics["simulated_peak_backlog"], f"{note} Peak backlog during the incident window."),
+        Evidence("deterministic simulation", "ending_backlog", metrics["simulated_ending_backlog"], f"{note} Backlog at the end of the incident window."),
+        Evidence("deterministic simulation", "service_level", metrics["simulated_service_level"], f"{note} Demand serviced over the simulated horizon."),
+        Evidence("deterministic simulation", "recovery_day", metrics["simulated_recovery_day"], f"{note} First day on which backlog reaches zero under the assumed recovery capacity."),
+        Evidence("deterministic simulation", "recovery_ending_backlog", metrics["simulated_recovery_ending_backlog"], f"{note} Backlog at the end of the assumed recovery window."),
+    ]
+
+
 def _queue_metrics(
     *,
     incident_days: int,
@@ -97,8 +108,7 @@ def maintainer_zero(repo: RepoSnapshot, days: int = 90) -> DrillResult:
         Evidence("git snapshot", "contributor_count", len(repo.contributors), "Used to estimate maintainer redundancy."),
         Evidence("git snapshot", "top_contributor_share", round(share, 3), "Used by the single-point rule."),
         Evidence("drill parameters", "days", days, "The simulated unavailability window."),
-        Evidence("deterministic simulation", "ending_backlog", queue_metrics["simulated_ending_backlog"], "Queue result at the end of the unavailability window."),
-        Evidence("deterministic simulation", "recovery_day", queue_metrics["simulated_recovery_day"], "Day on which the queue first reaches zero under the assumed backup capacity."),
+        *_queue_evidence(queue_metrics, "Maintainer-unavailability model."),
     ]
     return DrillResult("maintainer-zero", max(0, min(100, score)), "medium" if repo.commits >= 10 else "low", ["使用提交历史近似工作容量；未连接 GitHub Issue API。", f"假设 {top_name} 在整个演练周期不可用。", "恢复窗口假设备用容量可在事故结束后立即达到基线的 2 倍；这不是已验证能力。"], metrics, findings, _timeline([(0, "核心维护者停止响应", "新 PR 和安全 Issue 开始积压"), (7, "审查队列增长", f"预计每周积压约 {backlog} 个工作单元"), (30, "发布压力出现", "若无备用发布人，修复无法可靠上线"), (days, "演练结束", "检查接班人和恢复 Runbook 是否可执行")], days), evidence)
 
@@ -133,7 +143,7 @@ def dependency_yanked(repo: RepoSnapshot, days: int = 30) -> DrillResult:
         Evidence("dependency manifests", "dependency_count", count, "Counted from supported local manifests."),
         Evidence("scenario applicability", "applicable", applicable, "The drill is not applicable when no supported dependency is present."),
         Evidence("drill parameters", "days", days, "The simulated recovery window."),
-        Evidence("deterministic simulation", "recovery_day", queue_metrics["simulated_recovery_day"], "Day on which the queue first reaches zero under the assumed fallback capacity."),
+        *_queue_evidence(queue_metrics, "Dependency-fallback model."),
     ]
     return DrillResult("dependency-yanked", score, "medium" if count else "low", ["按清单文件中的依赖数量估算；没有联网验证包可用性。", "恢复窗口假设备用依赖路径可在事故结束后立即达到基线的 2 倍；这不是已验证能力。"], metrics, findings, _timeline(events, days), evidence)
 
@@ -157,7 +167,7 @@ def ci_outage(repo: RepoSnapshot, days: int = 14) -> DrillResult:
         Evidence("repository files", "workflow_count", count, "Counted workflow files under .github/workflows."),
         Evidence("repository files", "release_path_detected", release, "Whether a supported release file was found."),
         Evidence("drill parameters", "days", days, "The simulated CI outage window."),
-        Evidence("deterministic simulation", "recovery_day", queue_metrics["simulated_recovery_day"], "Day on which the queue first reaches zero under the assumed fallback capacity."),
+        *_queue_evidence(queue_metrics, "CI-fallback model."),
     ]
     metrics = {"workflow_count": count, "release_path_detected": release, "days": days, **queue_metrics}
     return DrillResult("ci-outage", min(100, score), "medium" if count else "low", ["只从仓库文件推断流水线；未调用 GitHub 配额或 Secrets API。", "恢复窗口假设备用容量可在事故结束后立即达到基线的 2 倍；这不是已验证能力。"], metrics, [finding], _timeline([(0, "CI 服务不可用", "合并验证转为人工"), (3, "未验证变更堆积", "发布节奏开始下降"), (days, "演练结束", "检查本地 fallback 和凭证轮换文档")], days), evidence)

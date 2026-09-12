@@ -99,7 +99,7 @@ Issues. Use `--recovery-output PATH` to choose another output directory. See
 └── recovery/          # Runbook, CODEOWNERS, Issue drafts and SARIF
 ```
 
-With `--history`, the output also includes `history-summary.json`; see
+With `--history`, the output also includes `history-summary.json` and a path-free, human-reviewable `history-summary.md`; see
 [同仓库趋势历史](docs/TREND_HISTORY.md). History is local-only and is not a
 cross-project ranking.
 

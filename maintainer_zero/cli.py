@@ -351,7 +351,7 @@ def main(argv: list[str] | None = None) -> int:
             _atomic_write_text(history_summary_path, json.dumps(history_summary, indent=2, ensure_ascii=False) + "\n")
             history_markdown_path = Path(args.output) / "history-summary.md"
             _atomic_write_text(history_markdown_path, render_trend_markdown(history_summary))
-            print(f"History appended: {history_summary_path}")
+            print(f"History appended: {history_summary_path} and {history_markdown_path}")
     except (ValueError, MetadataError, MetadataCacheError, ScenarioSpecError, HistoryError, DemoError, json.JSONDecodeError) as exc:
         print(f"error: {exc}")
         return 2

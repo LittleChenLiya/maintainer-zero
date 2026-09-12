@@ -56,6 +56,9 @@ def test_registry_requires_safe_execution_contract():
     scenario = dict(registry["scenarios"][0], execution={"mode": "python", "entrypoint": "os:system"})
     with pytest.raises(ScenarioRegistryError, match="execution mode"):
         validate_scenario(scenario)
+    scenario = dict(registry["scenarios"][0], execution={"mode": "declarative", "entrypoint": "ignored:entrypoint"})
+    with pytest.raises(ScenarioRegistryError, match="must not declare"):
+        validate_scenario(scenario)
 
 
 def test_load_registry_bounds_untrusted_file(tmp_path):

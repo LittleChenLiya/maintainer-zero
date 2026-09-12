@@ -177,6 +177,8 @@ def _validate_registry_scenario(payload: Mapping[str, Any]) -> dict[str, Any]:
         entrypoint = _text(execution.get("entrypoint"), "scenario.execution.entrypoint", 200)
         if any(char in entrypoint for char in (";", "|", "&", "\n", "\r")):
             raise ScenarioRegistryError("scenario.execution.entrypoint contains unsafe characters")
+    elif "entrypoint" in execution:
+        raise ScenarioRegistryError("declarative scenarios must not declare an entrypoint")
     _reject_forbidden(scenario, allow_entrypoint=True)
     return copy.deepcopy(scenario)
 

@@ -97,6 +97,20 @@ def test_loaders_reject_directories_and_symlinks(tmp_path):
         load_registry(link)
 
 
+def test_loaders_reject_symlinked_parent_directory(tmp_path):
+    target_dir = tmp_path / "target"
+    target_dir.mkdir()
+    target = target_dir / "registry.json"
+    target.write_text(json.dumps(load_bundled_registry()), encoding="utf-8")
+    link_dir = tmp_path / "linked"
+    try:
+        link_dir.symlink_to(target_dir, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    with pytest.raises(ScenarioRegistryError, match="may not contain a symlink"):
+        load_registry(link_dir / "registry.json")
+
+
 def test_scenario_summary_is_stable_and_does_not_expose_entrypoint():
     summary = scenario_summary(load_bundled_registry()["scenarios"][0])
     assert summary["id"] == "ci-outage"

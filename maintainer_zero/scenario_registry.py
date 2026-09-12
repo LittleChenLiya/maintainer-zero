@@ -82,7 +82,15 @@ def _reject_forbidden(value: Any, path: str = "scenario", *, allow_entrypoint: b
 
 def _read_bounded_json(path: Path, max_bytes: int, error_type: type[ValueError], label: str) -> Any:
     """Read a scenario document without following links or accepting special files."""
+    target = path if path.is_absolute() else Path.cwd() / path
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
     try:
+        for part in parts:
+            current /= part
+            info = current.lstat()
+            if stat.S_ISLNK(info.st_mode):
+                raise error_type(f"{label} path may not contain a symlink")
         path_stat = path.lstat()
         if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
             raise error_type(f"{label} must be a regular file")

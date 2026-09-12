@@ -92,6 +92,11 @@ def _open_cache(path: Path):
         if not stat.S_ISREG(file_stat.st_mode):
             os.close(descriptor)
             raise MetadataCacheError("metadata cache must be a regular file")
+        if (getattr(path_stat, "st_dev", 0), getattr(path_stat, "st_ino", 0)) != (
+            getattr(file_stat, "st_dev", 0), getattr(file_stat, "st_ino", 0)
+        ):
+            os.close(descriptor)
+            raise MetadataCacheError("metadata cache changed during open")
         return os.fdopen(descriptor, "rb")
     except MetadataCacheError:
         raise

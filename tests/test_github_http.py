@@ -27,6 +27,8 @@ def test_transport_is_get_only_and_does_not_expose_token():
     assert calls[0][0].method == "GET"
     assert calls[0][0].get_header("Authorization") == "Bearer secret-token"
     assert "secret-token" not in repr(response)
+    assert "secret-token" not in repr(transport)
+    assert "token_present=True" in repr(transport)
     assert calls[0][1] == 2.5
 
 

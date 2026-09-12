@@ -68,6 +68,8 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：为只读 GitHub transport 增加安全 `repr`：调试输出只显示 `token_present`，不显示 token 内容；新增凭证泄露负例，避免异常诊断或日志意外暴露认证值。
+
 - 2026-09-12：扩展报告递归脱敏：metadata 数组记录或嵌套对象中的 `token`、`secret`、`password`、`api-key`、`authorization` 等凭证键现在统一替换值为 `[REDACTED]`，新增 JSON/Markdown/HTML 负例，避免仅靠顶层 schema 防护。
 
 - 2026-09-12：收紧本地分析器的符号链接边界：依赖清单、CODEOWNERS、工作流和发布文件只有在解析后仍位于仓库根目录内才会被读取或枚举；新增仓库外链接负例，避免扫描范围越界。

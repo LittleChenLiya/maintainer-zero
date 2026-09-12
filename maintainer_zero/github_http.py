@@ -81,6 +81,14 @@ class GitHubHTTPTransport:
         self.config = config
         self.opener = opener or _NO_REDIRECT_OPENER.open
 
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}(api_base={self.config.api_base!r}, "
+            f"user_agent={self.config.user_agent!r}, "
+            f"max_response_bytes={self.config.max_response_bytes!r}, "
+            f"token_present={self.token is not None!r})"
+        )
+
     @classmethod
     def from_environment(cls, *, allow_environment: bool = False, **kwargs: Any) -> "GitHubHTTPTransport":
         """Opt-in environment token loading; no environment is read by default."""

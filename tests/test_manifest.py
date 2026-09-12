@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -47,6 +48,30 @@ def test_manifest_rejects_missing_artifact_and_extra_fields(tmp_path: Path):
     manifest.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(ManifestError, match="invalid"):
         load_manifest(manifest)
+
+
+def test_manifest_rejects_descriptor_redirect_before_hashing(tmp_path: Path, monkeypatch):
+    """A path replacement between lstat/open must fail closed."""
+    artifacts = _artifacts(tmp_path)
+    manifest = write_manifest(tmp_path, artifacts)
+    target = tmp_path / "report.md"
+    expected = target.lstat()
+    original_fstat = __import__("os").fstat
+
+    def mismatched_fstat(fd):
+        info = original_fstat(fd)
+        return SimpleNamespace(
+            st_mode=info.st_mode,
+            st_file_attributes=getattr(info, "st_file_attributes", 0),
+            st_dev=info.st_dev,
+            st_ino=expected.st_ino + 1,
+            st_size=info.st_size,
+            st_mtime_ns=info.st_mtime_ns,
+        )
+
+    monkeypatch.setattr("maintainer_zero.manifest.os.fstat", mismatched_fstat)
+    with pytest.raises(ManifestError, match="changed before"):
+        verify_manifest(manifest)
 
 
 @pytest.mark.parametrize("artifact", [

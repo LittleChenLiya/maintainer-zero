@@ -43,6 +43,7 @@
 - 根目录 composite Action 改为通过有界环境变量适配器调用 CLI，暴露报告路径输出并支持本地元数据缓存输入；仍不联网、不写 GitHub。
 - composite Action 增加 Windows `pwsh` 分支，与 Unix `bash` 分支保持同一输入/输出契约。
 - composite Action 成功后同时暴露 JSON、Markdown、HTML 报告和恢复目录的绝对路径；失败门禁不会写入 `GITHUB_OUTPUT`。
+- 独立社区场景文档增加 1 MiB 大小上限，并拒绝 declarative 场景中的 entrypoint，保持场景生态为 data-only、不可执行契约。
 - 增加根级可复用 Composite Action：安装动作自身并对 checkout 工作区运行本地演练；输入通过环境变量和 shell 数组传递，保留只读权限与 fork 边界。
 
 ## 发布说明

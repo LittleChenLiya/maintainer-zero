@@ -84,6 +84,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-12：恢复目录改为整套工件暂存、原子替换并支持中途失败回滚；新增回归测试证明既有 Runbook、CODEOWNERS、Issue 和 SARIF 不会被半套更新覆盖。
 - 2026-09-12：自带 continuity workflow 扩展为 Ubuntu/Windows 矩阵，分别使用 bash/PowerShell 发布 Job Summary，并为每个 runner 上传完整且独立命名的报告与恢复工件；本地契约测试覆盖工作流结构，真实远程 runner 仍需实际执行确认。
 - 2026-09-12：连续性 workflow 的摘要与 artifact 发布改为 `always()`；分数或基线门禁失败时仍保留可审阅报告，初始化失败时使用 warning 避免 artifact 步骤掩盖原始错误；补充工作流契约断言。
+- 2026-09-12：社区场景独立 JSON 增加 1 MiB 大小上限；data-only declarative 场景若声明 entrypoint 直接拒绝，确保场景注册表不会演变成任意代码执行入口；新增安全负例。
 
 - 2026-09-12：收紧 GitHub 数组资源的隐私投影：issues、pull requests、reviews 和 releases 现在只保留固定的状态、编号、时间和计数字段，丢弃正文、用户/作者对象、标签、URL 与未知字段；新增原始记录投影负例，避免缓存保存不必要的 GitHub 内容。
 - 2026-09-12：为内置三类演练增加结构化 Evidence 链：每条结果现在记录来源、字段、观测值和说明，并在 Markdown 报告中单独展示；旧的 DrillResult 调用保持兼容，证据仍经过既有递归脱敏。

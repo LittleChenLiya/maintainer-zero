@@ -6,6 +6,9 @@ GitHub API 响应整理成 JSON，再交给 `load_metadata()` / `summarize_metad
 CLI 可以通过 `simulate --github-metadata PATH` 读取这个快照；报告只保存摘要和
 unknown 状态，不复制原始记录。该参数不会触发网络请求。
 
+普通快照文件和带 `cache` envelope 的缓存都只接受普通文件；读取时拒绝符号链接、
+目录和其他特殊文件，避免 `--github-metadata` 路径把分析重定向到未审阅目标。
+
 ## 本地缓存契约
 
 如果集成方需要重复使用采集结果，可以把已校验快照包装为本地缓存：

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import stat
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -17,6 +19,24 @@ _TOP_LEVEL_KEYS = frozenset(("schema_version", "permissions", "data", "collectio
 
 class MetadataError(ValueError):
     """Raised when a metadata snapshot violates the local envelope."""
+
+
+def _open_snapshot(path: Path):
+    """Open a snapshot without following links or accepting special files."""
+    try:
+        path_stat = path.lstat()
+        if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
+            raise MetadataError("metadata snapshot must be a regular file")
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        file_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(file_stat.st_mode):
+            os.close(descriptor)
+            raise MetadataError("metadata snapshot must be a regular file")
+        return os.fdopen(descriptor, "rb")
+    except MetadataError:
+        raise
+    except OSError as exc:
+        raise MetadataError(f"Invalid GitHub metadata snapshot: {path}") from exc
 
 
 def _reject_nonstandard_number(value: str) -> None:
@@ -38,7 +58,8 @@ def _validate_finite_numbers(value: Any, *, depth: int = 0) -> None:
 def load_metadata(path: str | Path) -> dict[str, Any]:
     path = Path(path)
     try:
-        raw = path.read_bytes()
+        with _open_snapshot(path) as handle:
+            raw = handle.read(MAX_METADATA_BYTES + 1)
         if len(raw) > MAX_METADATA_BYTES:
             raise MetadataError(f"metadata snapshot exceeds {MAX_METADATA_BYTES} bytes")
         payload = json.loads(raw, parse_constant=_reject_nonstandard_number)

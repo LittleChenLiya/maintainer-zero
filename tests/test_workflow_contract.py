@@ -77,7 +77,13 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     assert "output: .continuity" in workflow
     assert "Publish job summary (Unix)" in workflow
     assert "Publish job summary (Windows)" in workflow
-    assert "Get-Content .continuity/report.md | Out-File" in workflow
+    assert "if: always() && runner.os != 'Windows'" in workflow
+    assert "if: always() && runner.os == 'Windows'" in workflow
+    assert "if [[ -f .continuity/report.md ]]; then" in workflow
+    assert "Test-Path .continuity/report.md -PathType Leaf" in workflow
+    assert "Maintainer-Zero report was not generated" in workflow
     assert "name: continuity-report-${{ matrix.os }}" in workflow
+    assert "if: always()" in workflow
+    assert "if-no-files-found: warn" in workflow
     for artifact in ("continuity.sarif", "runbook.md", "CODEOWNERS.draft", "issue-drafts.md"):
         assert f".continuity/recovery/{artifact}" in workflow

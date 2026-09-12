@@ -36,14 +36,25 @@ jobs:
           scenario: all
           output: .continuity
       - name: Publish job summary (Unix)
-        if: runner.os != 'Windows'
+        if: always() && runner.os != 'Windows'
         shell: bash
-        run: cat .continuity/report.md >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          if [[ -f .continuity/report.md ]]; then
+            cat .continuity/report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Maintainer-Zero report was not generated. Inspect the drill/setup failure above." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Publish job summary (Windows)
-        if: runner.os == 'Windows'
+        if: always() && runner.os == 'Windows'
         shell: pwsh
-        run: Get-Content .continuity/report.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+        run: |
+          if (Test-Path .continuity/report.md -PathType Leaf) {
+            Get-Content .continuity/report.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          } else {
+            "Maintainer-Zero report was not generated. Inspect the drill/setup failure above." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: continuity-report-${{ matrix.os }}
           path: |
@@ -55,5 +66,5 @@ jobs:
             .continuity/recovery/CODEOWNERS.draft
             .continuity/recovery/issue-drafts.md
           include-hidden-files: true
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14

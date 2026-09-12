@@ -32,19 +32,48 @@ def _text(value: object, field: str) -> str:
     return value
 
 
-def load_fallback_plan(path: str | Path) -> dict[str, object]:
-    """Load a strict local plan; never executes commands or contacts indexes."""
-    target = Path(path)
+def _safe_plan_file(path: Path) -> tuple[Path, os.stat_result]:
+    target = Path(os.path.abspath(path))
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts[:-1]:
+        current /= part
+        try:
+            info = current.lstat()
+        except OSError as exc:
+            raise FallbackPlanError(f"cannot inspect fallback plan parent: {current}") from exc
+        if _link_like(info) or not stat.S_ISDIR(info.st_mode):
+            raise FallbackPlanError("fallback plan parent must be a real directory")
     try:
         info = target.lstat()
     except OSError as exc:
         raise FallbackPlanError(f"cannot inspect fallback plan: {target}") from exc
     if _link_like(info) or not stat.S_ISREG(info.st_mode):
         raise FallbackPlanError("fallback plan must be a regular file")
+    return target, info
+
+
+def load_fallback_plan(path: str | Path) -> dict[str, object]:
+    """Load a strict local plan; never executes commands or contacts indexes."""
+    target, info = _safe_plan_file(Path(path))
     if info.st_size > MAX_PLAN_BYTES:
         raise FallbackPlanError(f"fallback plan exceeds {MAX_PLAN_BYTES} bytes")
     try:
-        payload = json.loads(target.read_text(encoding="utf-8"))
+        with target.open("rb") as handle:
+            opened = os.fstat(handle.fileno())
+            if _link_like(opened) or not stat.S_ISREG(opened.st_mode):
+                raise FallbackPlanError("fallback plan descriptor is not a regular file")
+            if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+                raise FallbackPlanError("fallback plan changed before reading")
+            raw = handle.read(MAX_PLAN_BYTES + 1)
+        if len(raw) > MAX_PLAN_BYTES:
+            raise FallbackPlanError(f"fallback plan exceeds {MAX_PLAN_BYTES} bytes")
+        after = target.lstat()
+        if (after.st_dev, after.st_ino) != (info.st_dev, info.st_ino) or after.st_size != info.st_size:
+            raise FallbackPlanError("fallback plan changed during reading")
+        payload = json.loads(raw.decode("utf-8"))
+    except FallbackPlanError:
+        raise
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise FallbackPlanError("invalid fallback plan JSON") from exc
     if not isinstance(payload, dict) or set(payload) != {"schema_version", "dependencies"}:

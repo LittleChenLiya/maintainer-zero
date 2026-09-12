@@ -1,4 +1,6 @@
 from pathlib import Path
+from types import SimpleNamespace
+import os
 
 import pytest
 
@@ -40,3 +42,15 @@ def test_plan_rejects_symlink(tmp_path: Path):
         pytest.skip("symlinks unavailable")
     with pytest.raises(FallbackPlanError):
         load_fallback_plan(link)
+
+
+def test_plan_rejects_descriptor_redirect_before_parsing(tmp_path: Path, monkeypatch):
+    path = tmp_path / "fallback.json"
+    _write(path, "{\"schema_version\":1,\"dependencies\":[]}")
+    original_fstat = os.fstat
+    def mismatched(fd):
+        info = original_fstat(fd)
+        return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=getattr(info, "st_file_attributes", 0), st_dev=info.st_dev, st_ino=info.st_ino + 1, st_size=info.st_size)
+    monkeypatch.setattr("maintainer_zero.fallback.os.fstat", mismatched)
+    with pytest.raises(FallbackPlanError, match="changed before"):
+        load_fallback_plan(path)

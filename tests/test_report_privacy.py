@@ -81,6 +81,19 @@ def test_report_write_failure_keeps_existing_artifact_intact(tmp_path, monkeypat
     assert not list(outputs.glob(".continuity.json.*.tmp"))
 
 
+def test_report_rejects_symlinked_output_parent(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="symlink"):
+        write_report(linked, RepoSnapshot(".", "demo"), [result("safe")])
+    assert not list(outside.iterdir())
+
+
 def test_report_records_privacy_boundary_without_raw_identity_values(tmp_path):
     outputs = tmp_path / "privacy-summary"
     repo = RepoSnapshot("<local-repository>", "repository-1234abcd5678", contributors={"contributor-1": 4})

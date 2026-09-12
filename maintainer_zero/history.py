@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,11 +21,71 @@ from . import __version__
 HISTORY_SCHEMA_VERSION = 1
 MAX_HISTORY_ENTRIES = 1_000
 MAX_HISTORY_STRING = 512
+MAX_HISTORY_BYTES = 10_000_000
 _HISTORY_KEYS = frozenset({"schema_version", "repository", "repository_id", "rule_version", "tool_version", "entries"})
 
 
 class HistoryError(ValueError):
     """Raised when a history file is malformed or belongs to another repository."""
+
+
+def _is_link_like(info: os.stat_result) -> bool:
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
+
+
+def _prepare_history_path(path: str | Path, *, create_parents: bool) -> Path:
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts[:-1]:
+        current /= part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            if not create_parents:
+                break
+            current.mkdir()
+            info = current.lstat()
+        if _is_link_like(info):
+            raise HistoryError("history path may not contain a symlink or reparse point")
+        if not stat.S_ISDIR(info.st_mode):
+            raise HistoryError("history parent must be a directory")
+    try:
+        info = target.lstat()
+    except FileNotFoundError:
+        return target
+    if _is_link_like(info) or not stat.S_ISREG(info.st_mode):
+        raise HistoryError("history file must be a regular file")
+    return target
+
+
+def _read_history(path: Path) -> dict[str, Any]:
+    try:
+        info = path.lstat()
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        opened = os.fstat(descriptor)
+        if _is_link_like(info) or not stat.S_ISREG(info.st_mode) or not stat.S_ISREG(opened.st_mode):
+            os.close(descriptor)
+            raise HistoryError("history file must be a regular file")
+        if (getattr(info, "st_dev", 0), getattr(info, "st_ino", 0)) != (getattr(opened, "st_dev", 0), getattr(opened, "st_ino", 0)):
+            os.close(descriptor)
+            raise HistoryError("history file changed during open")
+        with os.fdopen(descriptor, "rb") as handle:
+            raw = handle.read(MAX_HISTORY_BYTES + 1)
+        if len(raw) > MAX_HISTORY_BYTES:
+            raise HistoryError(f"history file exceeds {MAX_HISTORY_BYTES} bytes")
+        payload = json.loads(raw)
+    except HistoryError:
+        raise
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
+        raise HistoryError(f"Invalid continuity history: {path}") from exc
+    if not isinstance(payload, dict):
+        raise HistoryError("continuity history must be a JSON object")
+    _validate_history(payload)
+    return payload
 
 
 def _repository(report: Mapping[str, Any]) -> dict[str, str]:
@@ -195,20 +256,13 @@ def _validate_history(payload: Mapping[str, Any]) -> None:
 
 
 def load_history(path: str | Path) -> dict[str, Any]:
-    history_path = Path(path)
-    try:
-        payload = json.loads(history_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise HistoryError(f"Invalid continuity history: {history_path}") from exc
-    if not isinstance(payload, dict):
-        raise HistoryError("continuity history must be a JSON object")
-    _validate_history(payload)
-    return payload
+    history_path = _prepare_history_path(path, create_parents=False)
+    return _read_history(history_path)
 
 
 def append_history(path: str | Path, report: Mapping[str, Any], *, recorded_at: str | None = None) -> dict[str, Any]:
     """Append a compact report aggregate and return the trend summary."""
-    path = Path(path)
+    path = _prepare_history_path(path, create_parents=True)
     summary = summarize_report(report)
     if path.exists():
         payload = load_history(path)
@@ -239,7 +293,6 @@ def append_history(path: str | Path, report: Mapping[str, Any], *, recorded_at: 
     if summary["tool_version"] is not None:
         entry["tool_version"] = summary["tool_version"]
     entries.append(entry)
-    path.parent.mkdir(parents=True, exist_ok=True)
     encoded = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
     temporary: Path | None = None
     try:

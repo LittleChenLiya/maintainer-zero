@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import json
 import os
+import stat
 import re
 import tempfile
 from pathlib import Path
@@ -51,8 +52,7 @@ def _markdown_text(value: object) -> str:
 
 def _atomic_write_text(path: str | Path, content: str) -> None:
     """Atomically replace one report artifact in its output directory."""
-    target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
+    target = _safe_output_file(path)
     temporary: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="", dir=target.parent, prefix=f".{target.name}.", suffix=".tmp", delete=False) as handle:
@@ -65,6 +65,44 @@ def _atomic_write_text(path: str | Path, content: str) -> None:
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
+
+
+def _is_link_like(info: os.stat_result) -> bool:
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
+
+
+def _safe_output_directory(path: str | Path) -> Path:
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts:
+        current /= part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            current.mkdir()
+            info = current.lstat()
+        if _is_link_like(info):
+            raise ValueError(f"report output path may not contain a symlink or reparse point: {current}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValueError(f"report output path is not a directory: {current}")
+    return target
+
+
+def _safe_output_file(path: str | Path) -> Path:
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
+    parent = _safe_output_directory(target.parent)
+    target = parent / target.name
+    if os.path.lexists(target):
+        info = target.lstat()
+        if _is_link_like(info) or not stat.S_ISREG(info.st_mode):
+            raise ValueError(f"report output file must be a regular file: {target}")
+    return target
 
 
 def _metadata_section(metadata_summary: dict | None) -> list[str]:
@@ -143,7 +181,7 @@ def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_sum
 
 def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None) -> None:
     privacy_summary = validate_snapshot_projection(repo, privacy_summary)
-    out.mkdir(parents=True, exist_ok=True)
+    out = _safe_output_directory(out)
     payload = _safe_value({"schema_version": 1, "tool": {"name": "Maintainer-Zero", "version": __version__}, "rule_version": "0.2", "repository": repo.to_dict(), "results": [r.to_dict() for r in results]})
     if privacy_summary is not None:
         payload["privacy"] = _safe_value(privacy_summary)

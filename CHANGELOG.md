@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- 报告与 history 输出现在复用逐级安全目录检查，拒绝父目录符号链接/reparse point、特殊文件和超大 history，避免趋势或报告证据被重定向。
 - 只读 GitHub HTTP transport 的默认 User-Agent 与包版本统一为 0.2.0，并增加请求头契约断言，便于外部审计日志追踪实际工具版本。
 - 缓存加载现在从同一次已校验读取判断 fresh/stale，避免并发原子替换时状态与返回载荷来自不同代文件。
 - 进一步收紧 GitHub metadata/cache 路径：Windows junction/reparse point 和未折叠的 `..` 路径组件现在同样 fail-closed；cache 写入也能拒绝 dangling symlink 目标。

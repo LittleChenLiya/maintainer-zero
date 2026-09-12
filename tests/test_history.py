@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from maintainer_zero.history import HistoryError, append_history, render_trend_markdown, summarize_report, trend_summary
+from maintainer_zero.history import MAX_HISTORY_BYTES, HistoryError, append_history, load_history, render_trend_markdown, summarize_report, trend_summary
 
 
 def report(path="D:/repo", score=80, scenario="demo", severity="low"):
@@ -114,6 +114,30 @@ def test_append_history_uses_atomic_same_directory_replacement(tmp_path):
     append_history(path, report(score=80), recorded_at="2026-01-01T00:00:00Z")
     assert not list(tmp_path.glob(".history.json.*.tmp"))
     assert json.loads(path.read_text(encoding="utf-8"))["entries"][0]["overall_score"] == 80
+
+
+def test_history_rejects_symlinked_parent_for_read_and_write(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    path = linked / "history.json"
+    with pytest.raises(HistoryError, match="symlink"):
+        append_history(path, report(), recorded_at="2026-01-01T00:00:00Z")
+    with pytest.raises(HistoryError, match="symlink"):
+        from maintainer_zero.history import load_history
+        load_history(path)
+    assert not list(outside.iterdir())
+
+
+def test_history_rejects_oversized_file_before_json_parse(tmp_path):
+    path = tmp_path / "oversized-history.json"
+    path.write_bytes(b"x" * (MAX_HISTORY_BYTES + 1))
+    with pytest.raises(HistoryError, match="exceeds"):
+        load_history(path)
 
 
 def test_trend_markdown_is_path_free_and_marks_unknown_values():

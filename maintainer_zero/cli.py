@@ -312,7 +312,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.history:
             history_summary = append_history(args.history, json.loads((Path(args.output) / "continuity.json").read_text(encoding="utf-8")))
             history_summary_path = Path(args.output) / "history-summary.json"
-            history_summary_path.write_text(json.dumps(history_summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            _atomic_write_text(history_summary_path, json.dumps(history_summary, indent=2, ensure_ascii=False) + "\n")
             print(f"History appended: {history_summary_path}")
     except (ValueError, MetadataError, MetadataCacheError, ScenarioSpecError, HistoryError, DemoError, json.JSONDecodeError) as exc:
         print(f"error: {exc}")
@@ -328,7 +328,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: {exc}")
             return 2
         comparison_path = Path(args.output) / "baseline-comparison.json"
-        comparison_path.write_text(json.dumps(comparison, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        _atomic_write_text(comparison_path, json.dumps(comparison, indent=2, ensure_ascii=False) + "\n")
         print(f"Baseline comparison: {comparison['status']} ({comparison_path})")
         # Preserve the historical default (any regression fails) while
         # allowing repositories to opt into explicit gate policies.

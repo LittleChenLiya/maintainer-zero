@@ -94,3 +94,20 @@ def test_offline_fixture_runs_analyze_report_recovery_and_baseline_gate(tmp_path
     comparison = json.loads((regressed_dir / "baseline-comparison.json").read_text(encoding="utf-8"))
     assert comparison["status"] == "regressed"
     assert comparison["gates"]["score_decreased"] is True
+
+
+def test_cli_history_and_baseline_sidecars_use_atomic_replacement(tmp_path: Path):
+    repo = _git_fixture(tmp_path)
+    first = tmp_path / "first"
+    history = tmp_path / "history.json"
+    assert main(["simulate", str(repo), "--days", "7", "--output", str(first), "--history", str(history)]) == 0
+
+    second = tmp_path / "second"
+    assert main([
+        "simulate", str(repo), "--days", "7", "--output", str(second),
+        "--baseline", str(first / "continuity.json"), "--history", str(history),
+    ]) == 0
+    assert (second / "history-summary.json").exists()
+    assert (second / "baseline-comparison.json").exists()
+    assert not list(second.glob(".history-summary.json.*.tmp"))
+    assert not list(second.glob(".baseline-comparison.json.*.tmp"))

@@ -65,3 +65,9 @@ def test_cache_write_failure_preserves_existing_file_and_cleans_temp(tmp_path, m
         save_metadata_cache(path, payload(), fetched_at=datetime(2026, 1, 2, tzinfo=timezone.utc), ttl_seconds=60)
     assert path.read_bytes() == original
     assert not list(tmp_path.glob(".cache.json.*.tmp"))
+
+
+def test_cache_rejects_credential_like_top_level_fields(tmp_path):
+    unsafe = dict(payload(), token="do-not-store", secret="also-do-not-store")
+    with pytest.raises(MetadataCacheError, match="payload is invalid"):
+        save_metadata_cache(tmp_path / "unsafe.json", unsafe)

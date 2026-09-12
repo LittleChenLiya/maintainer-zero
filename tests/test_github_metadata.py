@@ -43,9 +43,8 @@ def test_collection_status_is_bounded():
 def test_summary_does_not_expose_tokens():
     payload = snapshot()
     payload["token"] = "do-not-store"
-    summary = summarize_metadata(payload)
-    assert summary["read_only"] is True
-    assert "token" not in summary
+    with pytest.raises(MetadataError, match="top-level"):
+        summarize_metadata(payload)
 
 def test_repository_descriptor_is_scalar_and_summarized_without_raw_lists():
     payload = snapshot()

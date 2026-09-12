@@ -68,6 +68,8 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：收紧 GitHub 元数据顶层 schema，仅允许 schema_version、permissions、data、collection 和受限 cache envelope；token/secret 等任意凭证样字段会在快照校验和缓存保存阶段直接拒绝，而不是仅在摘要阶段隐藏；专项 34 项通过。
+
 - 2026-09-12：强化 GitHub 元数据缓存写入：改用同目录唯一临时文件、flush/fsync 与原子替换，避免并发运行共用固定 .tmp 文件；替换失败时保留旧缓存并清理临时文件，专项 33 项通过。
 
 - 2026-09-12：收紧 GitHub 元数据的 JSON 数值边界：拒绝 NaN/Infinity 等非标准 JSON 数值，HTTP 采集的对象/数组响应统一降级为 invalid_json，内存注入快照也执行有限数值校验；专项 35 项通过。

@@ -12,6 +12,7 @@ _MAX_ITEMS = 5000
 MAX_METADATA_BYTES = 10_000_000
 _RESOURCES = ("repository", "issues", "pull_requests", "reviews", "releases")
 _ARRAY_RESOURCES = frozenset(_RESOURCES) - {"repository"}
+_TOP_LEVEL_KEYS = frozenset(("schema_version", "permissions", "data", "collection", "cache"))
 
 class MetadataError(ValueError):
     """Raised when a metadata snapshot violates the local envelope."""
@@ -48,6 +49,12 @@ def validate_metadata(payload: Any) -> dict[str, Any]:
     _validate_finite_numbers(payload)
     if not isinstance(payload, dict):
         raise MetadataError("metadata snapshot must be a JSON object")
+    if set(payload) - _TOP_LEVEL_KEYS:
+        raise MetadataError("metadata snapshot contains unsupported top-level fields")
+    if "cache" in payload:
+        cache = payload["cache"]
+        if not isinstance(cache, dict) or set(cache) != {"schema_version", "source", "fetched_at", "expires_at", "ttl_seconds"}:
+            raise MetadataError("metadata cache envelope is malformed")
     if payload.get("schema_version") != SCHEMA_VERSION:
         raise MetadataError(f"unsupported metadata schema_version: {payload.get('schema_version')!r}")
     permissions = payload.get("permissions")

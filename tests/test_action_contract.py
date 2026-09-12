@@ -1,7 +1,7 @@
 from pathlib import Path
 import pytest
 
-from tools.action_entrypoint import build_argv
+from tools.action_entrypoint import build_argv, _write_outputs
 
 ROOT = Path(__file__).parents[1]
 
@@ -37,8 +37,6 @@ def test_action_adapter_keeps_untrusted_paths_as_single_argv_values():
     ]
 
 def test_action_adapter_emits_outputs_only_after_success(tmp_path, monkeypatch):
-    from tools.action_entrypoint import _write_outputs
-
     output_file = tmp_path / "github-output"
     _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(output_file)})
     lines = output_file.read_text(encoding="utf-8").splitlines()
@@ -46,9 +44,49 @@ def test_action_adapter_emits_outputs_only_after_success(tmp_path, monkeypatch):
     assert lines[1].endswith("continuity.json")
 
 
+def test_action_adapter_requires_runner_output_to_be_absolute_and_in_runner_temp(tmp_path):
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    output_file = runner_temp / "github-output"
+    _write_outputs({
+        "MZ_INPUT_OUTPUT": str(tmp_path / "reports"),
+        "GITHUB_OUTPUT": str(output_file),
+        "RUNNER_TEMP": str(runner_temp),
+    })
+    assert output_file.exists()
+    with pytest.raises(ValueError, match="inside RUNNER_TEMP"):
+        _write_outputs({
+            "MZ_INPUT_OUTPUT": str(tmp_path / "reports"),
+            "GITHUB_OUTPUT": str(tmp_path / "outside-output"),
+            "RUNNER_TEMP": str(runner_temp),
+        })
+    with pytest.raises(ValueError, match="absolute path"):
+        _write_outputs({
+            "MZ_INPUT_OUTPUT": str(tmp_path / "reports"),
+            "GITHUB_OUTPUT": "relative-output",
+        })
+
+
+def test_action_adapter_rejects_symlinked_github_output(tmp_path):
+    target = tmp_path / "target"
+    target.write_text("existing\n", encoding="utf-8")
+    link = tmp_path / "github-output"
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="symbolic link"):
+        _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(link)})
+
+
 def test_action_adapter_rejects_control_characters_before_output_boundary():
     with pytest.raises(ValueError, match="control characters"):
         build_argv({"MZ_INPUT_PATH": "repo" + chr(10) + "forged-output=true"})
+    with pytest.raises(ValueError, match="control characters"):
+        _write_outputs({
+            "MZ_INPUT_OUTPUT": "reports",
+            "GITHUB_OUTPUT": "output" + chr(10) + "forged=true",
+        })
 
 
 def test_action_adapter_keeps_repository_and_output_below_workspace(tmp_path):

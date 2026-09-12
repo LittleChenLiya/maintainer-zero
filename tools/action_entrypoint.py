@@ -58,12 +58,45 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
     env = os.environ if environ is None else environ
     _validate_environment(env)
     output = Path(env.get("MZ_INPUT_OUTPUT", ".continuity")).resolve()
-    output_file = env.get("GITHUB_OUTPUT")
-    if not output_file:
+    output_file_value = env.get("GITHUB_OUTPUT")
+    if not output_file_value:
         return
-    with open(output_file, "a", encoding="utf-8", newline="\n") as handle:
-        handle.write(f"report-directory={output}\n")
-        handle.write(f"report-json={output / 'continuity.json'}\n")
+    if any(char in _CONTROL_CHARS for char in output_file_value):
+        raise ValueError("GITHUB_OUTPUT contains control characters")
+    output_file = Path(output_file_value)
+    if not output_file.is_absolute():
+        raise ValueError("GITHUB_OUTPUT must be an absolute path")
+    runner_temp = env.get("RUNNER_TEMP", "")
+    if runner_temp:
+        if any(char in _CONTROL_CHARS for char in runner_temp):
+            raise ValueError("RUNNER_TEMP contains control characters")
+        runner_temp_path = Path(runner_temp).resolve()
+        try:
+            output_file.resolve().relative_to(runner_temp_path)
+        except ValueError as exc:
+            raise ValueError("GITHUB_OUTPUT must remain inside RUNNER_TEMP") from exc
+    if output_file.exists() and output_file.is_symlink():
+        raise ValueError("GITHUB_OUTPUT must not be a symbolic link")
+    if not output_file.parent.exists():
+        raise ValueError("GITHUB_OUTPUT parent directory does not exist")
+    payload = (
+        f"report-directory={output}\n"
+        f"report-json={output / 'continuity.json'}\n"
+    )
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(output_file, flags | nofollow, 0o600)
+    except OSError as exc:
+        raise OSError(f"could not open GITHUB_OUTPUT: {output_file}") from exc
+    try:
+        with os.fdopen(descriptor, "a", encoding="utf-8", newline="\n") as handle:
+            descriptor = -1
+            handle.write(payload)
+            handle.flush()
+    finally:
+        if descriptor != -1:
+            os.close(descriptor)
 
 def run(environ: dict[str, str] | None = None) -> int:
     try:
@@ -73,7 +106,11 @@ def run(environ: dict[str, str] | None = None) -> int:
         return 2
     code = main(argv)
     if code == 0:
-        _write_outputs(environ)
+        try:
+            _write_outputs(environ)
+        except (OSError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 2
     return code
 
 if __name__ == "__main__":

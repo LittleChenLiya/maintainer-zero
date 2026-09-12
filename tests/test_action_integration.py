@@ -73,6 +73,16 @@ def test_action_entrypoint_fail_under_returns_gate_failure_without_outputs(tmp_p
     assert not github_output.exists()
 
 
+def test_action_entrypoint_output_boundary_failure_is_clean(tmp_path: Path):
+    repo = _git_fixture(tmp_path)
+    output = tmp_path / "output"
+    github_output = tmp_path / "missing-parent" / "github-output"
+
+    assert run(_env(repo, output, github_output)) == 2
+    assert (output / "continuity.json").exists()
+    assert not github_output.parent.exists()
+
+
 def test_action_entrypoint_baseline_regression_returns_gate_failure(tmp_path: Path):
     repo = _git_fixture(tmp_path)
     baseline_output = tmp_path / "baseline"

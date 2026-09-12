@@ -69,3 +69,38 @@ def test_report_write_failure_keeps_existing_artifact_intact(tmp_path, monkeypat
         write_report(outputs, RepoSnapshot("C:/private/repo", "repo"), [result("safe")])
     assert existing.read_text(encoding="utf-8") == "old report\n"
     assert not list(outputs.glob(".continuity.json.*.tmp"))
+
+
+def test_report_records_privacy_boundary_without_raw_identity_values(tmp_path):
+    outputs = tmp_path / "privacy-summary"
+    repo = RepoSnapshot("<local-repository>", "repository-1234abcd", contributors={"contributor-1": 4})
+    summary = {
+        "anonymize_people": True,
+        "anonymize_repository": True,
+        "upload_repository_content": False,
+    }
+    write_report(outputs, repo, [result("safe")], privacy_summary=summary)
+
+    payload = json.loads((outputs / "continuity.json").read_text(encoding="utf-8"))
+    assert payload["privacy"] == summary
+    rendered = "\n".join(path.read_text(encoding="utf-8") for path in outputs.iterdir())
+    assert "Privacy boundary" in rendered
+    assert "anonymized" in rendered
+    assert "disabled" in rendered
+    assert "contributor-1" in rendered
+    assert "repository-1234abcd" in rendered
+    assert "<local-repository>" in rendered
+
+
+def test_report_privacy_summary_distinguishes_present_values(tmp_path):
+    outputs = tmp_path / "privacy-present"
+    summary = {
+        "anonymize_people": False,
+        "anonymize_repository": False,
+        "upload_repository_content": False,
+    }
+    write_report(outputs, RepoSnapshot(".", "demo"), [result("safe")], privacy_summary=summary)
+    markdown = (outputs / "report.md").read_text(encoding="utf-8")
+    assert "Contributor and CODEOWNERS identities: **present**" in markdown
+    assert "Repository name and path: **present**" in markdown
+    assert json.loads((outputs / "continuity.json").read_text(encoding="utf-8"))["privacy"] == summary

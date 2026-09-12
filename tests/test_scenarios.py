@@ -1,4 +1,5 @@
 import pytest
+import json
 import shutil
 import subprocess
 
@@ -125,6 +126,34 @@ def test_config_accepts_repository_anonymization(tmp_path):
         '{"privacy": {"anonymize_repository": true}}', encoding="utf-8"
     )
     assert _load_config(tmp_path)["privacy"]["anonymize_repository"] is True
+
+
+def test_cli_report_records_disabled_anonymization_configuration(tmp_path):
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "fixture@example.invalid"], cwd=repo_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Fixture Maintainer"], cwd=repo_path, check=True)
+    (repo_path / "README.md").write_text("fixture\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "--quiet", "-m", "fixture"], cwd=repo_path, check=True, capture_output=True)
+    (repo_path / "continuity.json").write_text(
+        '{"privacy": {"anonymize_people": false, "anonymize_repository": false, '
+        '"upload_repository_content": false}}',
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "output"
+    assert main(["simulate", str(repo_path), "--scenario", "ci-outage", "--output", str(output)]) == 0
+    report = json.loads((output / "continuity.json").read_text(encoding="utf-8"))
+    assert report["privacy"] == {
+        "anonymize_people": False,
+        "anonymize_repository": False,
+        "upload_repository_content": False,
+    }
+    markdown = (output / "report.md").read_text(encoding="utf-8")
+    assert "Contributor and CODEOWNERS identities: **present**" in markdown
+    assert "Repository name and path: **present**" in markdown
 
 
 def test_config_rejects_unsupported_uploads(tmp_path):

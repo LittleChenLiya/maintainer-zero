@@ -71,8 +71,9 @@ maintainer-zero simulate /path/to/repository --scenario maintainer-zero --days 9
 
 The starter config enables `privacy.anonymize_people` and `privacy.anonymize_repository`, so
 shareable reports do not include contributor identities, the repository basename, or the local
-absolute path. Dependency names and findings can still be repository-sensitive; review artifacts
-before publishing them.
+absolute path. The generated `continuity.json` also records a small `privacy` boundary summary
+and explicitly states that repository-content upload is disabled. Dependency names and findings
+can still be repository-sensitive; review artifacts before publishing them.
 
 Three offline before/after demos are available in [examples/demos](examples/demos/continuity-demos.json);
 they use data-only snapshots and never execute fixture paths or commands. See [demo guide](docs/DEMOS.md).

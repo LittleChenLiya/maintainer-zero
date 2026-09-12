@@ -43,6 +43,14 @@ def test_offline_fixture_runs_analyze_report_recovery_and_baseline_gate(tmp_path
     }
     assert report["repository"]["name"] != repo.name
     assert report["repository"]["path"] == "<local-repository>"
+    assert report["privacy"] == {
+        "anonymize_people": True,
+        "anonymize_repository": True,
+        "upload_repository_content": False,
+    }
+    report_markdown = (baseline_dir / "report.md").read_text(encoding="utf-8")
+    assert "## Privacy boundary" in report_markdown
+    assert "Repository content upload: **disabled**" in report_markdown
     assert (baseline_dir / "report.md").exists()
     assert (baseline_dir / "report.html").exists()
     assert (baseline_dir / "recovery" / "runbook.md").exists()

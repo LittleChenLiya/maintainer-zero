@@ -356,6 +356,11 @@ def main(argv: list[str] | None = None) -> int:
         if fail_under is not None and not 0 <= fail_under <= 100:
             raise ValueError("fail-under must be an integer from 0 to 100")
         privacy = config.get("privacy", {})
+        privacy_summary = {
+            "anonymize_people": privacy.get("anonymize_people", False) is True,
+            "anonymize_repository": privacy.get("anonymize_repository", False) is True,
+            "upload_repository_content": False,
+        }
         if privacy.get("anonymize_people", False) or privacy.get("anonymize_repository", False):
             repo = _anonymize_snapshot(
                 repo,
@@ -368,7 +373,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.github_metadata, allow_stale=args.allow_stale_github_metadata
             )
         results = [SCENARIOS[name](repo, days) for name in names]
-        write_report(Path(args.output), repo, results, metadata_summary)
+        write_report(Path(args.output), repo, results, metadata_summary, privacy_summary)
         recovery_output = Path(args.recovery_output) if args.recovery_output else Path(args.output) / "recovery"
         write_recovery_artifacts(recovery_output, repo, results)
         if args.history:

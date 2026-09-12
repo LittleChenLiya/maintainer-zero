@@ -97,7 +97,23 @@ def _metadata_evidence(metadata_summary: dict | None) -> list[dict[str, object]]
         evidence.append({"source": "github metadata", "field": key, "observed": observed, "status": status})
     return evidence
 
-def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None) -> str:
+def _privacy_section(privacy_summary: dict | None) -> list[str]:
+    if privacy_summary is None:
+        return []
+    people = privacy_summary.get("anonymize_people") is True
+    repository = privacy_summary.get("anonymize_repository") is True
+    people_state = "anonymized" if people else "present"
+    repository_state = "anonymized" if repository else "present"
+    return [
+        "## Privacy boundary", "",
+        f"- Contributor and CODEOWNERS identities: **{people_state}**",
+        f"- Repository name and path: **{repository_state}**",
+        "- Repository content upload: **disabled**",
+        "> This summary describes report handling; it does not reproduce the redacted identities or local path.", "",
+    ]
+
+
+def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None) -> str:
     lines = [f"# OSS Continuity Report: {_markdown_text(repo.name)}", "", "- **Rule version:** `0.2`", f"- Commits analyzed: **{repo.commits}**", f"- Contributors: **{len(repo.contributors)}**", f"- Dependencies found: **{len(repo.dependencies)}**", f"- Workflows found: **{len(repo.workflows)}**", "", "> This is an explainable heuristic drill, not a security certification.", ""]
     for result in results:
         lines += [f"## {_markdown_text(result.scenario)} — {result.score}/100", "", f"Confidence: `{_markdown_text(result.confidence)}`", "", "### Metrics", ""]
@@ -117,17 +133,20 @@ def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_sum
         lines.extend(f"    Day {e['day']} : {_markdown_text(e['event'])} : {_markdown_text(e['impact'])}" for e in result.timeline)
         lines += ["```", ""]
     lines += _metadata_section(metadata_summary)
+    lines += _privacy_section(privacy_summary)
     lines += ["## Suggested next steps", "", "1. Assign a backup owner for every critical path.", "2. Test a clean checkout and local release procedure.", "3. Re-run this drill monthly and track score changes in Git."]
     return "\n".join(lines) + "\n"
 
-def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None) -> None:
+def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None) -> None:
     out.mkdir(parents=True, exist_ok=True)
     payload = _safe_value({"schema_version": 1, "rule_version": "0.2", "repository": repo.to_dict(), "results": [r.to_dict() for r in results]})
+    if privacy_summary is not None:
+        payload["privacy"] = _safe_value(privacy_summary)
     if metadata_summary is not None:
         payload["github_metadata"] = _safe_value(metadata_summary)
         payload["metadata_evidence"] = _metadata_evidence(metadata_summary)
     _atomic_write_text(out / "continuity.json", json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
-    markdown = render_markdown(repo, results, metadata_summary)
+    markdown = render_markdown(repo, results, metadata_summary, privacy_summary)
     _atomic_write_text(out / "report.md", markdown)
     body = html.escape(markdown).replace("\n", "<br>")
     _atomic_write_text(out / "report.html", f"<!doctype html><meta charset='utf-8'><title>Continuity Report</title><style>body{{font:16px system-ui;max-width:1000px;margin:40px auto;line-height:1.5}}</style><pre>{body}</pre>")

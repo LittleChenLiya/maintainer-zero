@@ -1,5 +1,7 @@
 import json
+import stat
 from pathlib import Path
+from types import SimpleNamespace
 import pytest
 
 from maintainer_zero.models import DrillResult, Evidence, Finding, RepoSnapshot
@@ -92,6 +94,64 @@ def test_report_rejects_symlinked_output_parent(tmp_path):
     with pytest.raises(ValueError, match="symlink"):
         write_report(linked, RepoSnapshot(".", "demo"), [result("safe")])
     assert not list(outside.iterdir())
+
+
+def test_report_rejects_reparse_output_parent_without_following_it(tmp_path, monkeypatch):
+    output = tmp_path / "reparse-parent"
+    output.mkdir()
+    original_lstat = Path.lstat
+
+    def fake_lstat(self, *args, **kwargs):
+        if self == output:
+            return SimpleNamespace(st_mode=stat.S_IFDIR, st_file_attributes=0x400)
+        return original_lstat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(ValueError, match="reparse point"):
+        write_report(output, RepoSnapshot(".", "demo"), [result("safe")])
+    assert not (output / "continuity.json").exists()
+
+
+@pytest.mark.parametrize("kind", ["symlink", "reparse"])
+def test_report_rejects_redirected_dotdot_parent(tmp_path, monkeypatch, kind):
+    blocked = tmp_path / "blocked"
+    blocked.mkdir()
+    output = tmp_path / "output"
+    output.mkdir()
+    path = blocked / ".." / output.name
+    original_lstat = Path.lstat
+
+    def fake_lstat(self, *args, **kwargs):
+        if self == blocked:
+            return SimpleNamespace(
+                st_mode=stat.S_IFLNK if kind == "symlink" else stat.S_IFDIR,
+                st_file_attributes=0x400 if kind == "reparse" else 0,
+            )
+        return original_lstat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(ValueError, match="symlink or reparse point"):
+        write_report(path, RepoSnapshot(".", "demo"), [result("safe")])
+    assert not (output / "continuity.json").exists()
+
+
+def test_report_preflight_rejects_reparse_artifact_target(tmp_path, monkeypatch):
+    output = tmp_path / "out"
+    output.mkdir()
+    target = output / "report.md"
+    target.write_text("keep", encoding="utf-8")
+    original_lstat = Path.lstat
+
+    def fake_lstat(self, *args, **kwargs):
+        if self == target:
+            return SimpleNamespace(st_mode=stat.S_IFREG, st_file_attributes=0x400)
+        return original_lstat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(ValueError, match="regular file"):
+        write_report(output, RepoSnapshot(".", "demo"), [result("safe")])
+    assert target.read_text(encoding="utf-8") == "keep"
+    assert not (output / "report.html").exists()
 
 
 def test_report_preflights_all_targets_before_replacement(tmp_path):

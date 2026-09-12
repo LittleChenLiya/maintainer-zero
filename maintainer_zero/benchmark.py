@@ -219,6 +219,13 @@ def _bounded_count(value: object, field: str) -> int:
     return value
 
 
+def _integer_score(value: object, field: str) -> int:
+    """Validate the canonical integer score emitted by the exporter."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise BenchmarkError(f"{field} must be an integer score")
+    return _score(value, field)
+
+
 def _validate_resource_list(value: object, field: str) -> list[str]:
     if not isinstance(value, list) or len(value) > len(_KNOWN_METADATA):
         raise BenchmarkError(f"{field} must be a bounded array")
@@ -293,7 +300,7 @@ def validate_benchmark(summary: Mapping[str, Any]) -> dict[str, Any]:
             raise BenchmarkError("benchmark summary scenarios must be sorted")
         previous_id = scenario
         seen.add(scenario)
-        scores.append(_score(item.get("score"), f"summary scenario {index} score"))
+        scores.append(_integer_score(item.get("score"), f"summary scenario {index} score"))
         confidence = item.get("confidence")
         if not isinstance(confidence, str) or confidence not in _CONFIDENCES:
             raise BenchmarkError(f"summary scenario {index} confidence is invalid")
@@ -306,7 +313,7 @@ def validate_benchmark(summary: Mapping[str, Any]) -> dict[str, Any]:
     overall = summary.get("overall_score")
     if overall is not None:
         expected_overall = round(sum(scores) / len(scores)) if scores else None
-        if _score(overall, "overall_score") != expected_overall:
+        if _integer_score(overall, "overall_score") != expected_overall:
             raise BenchmarkError("benchmark overall_score does not match scenario scores")
     elif scores:
         raise BenchmarkError("benchmark overall_score is required when scenarios are present")

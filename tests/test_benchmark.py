@@ -82,6 +82,17 @@ def test_validate_benchmark_rejects_unknown_fields_and_noncanonical_metadata():
         validate_benchmark(summary)
 
 
+@pytest.mark.parametrize("field", ["overall_score", "scenario"])
+def test_validate_benchmark_rejects_fractional_canonical_scores(field):
+    summary = build_benchmark(report())
+    if field == "overall_score":
+        summary[field] = 70.4
+    else:
+        summary["scenarios"][0]["score"] = 80.4
+    with pytest.raises(BenchmarkError, match="integer score"):
+        validate_benchmark(summary)
+
+
 def test_benchmark_rejects_duplicate_and_invalid_scenarios():
     payload = report()
     payload["results"].append(payload["results"][0].copy())

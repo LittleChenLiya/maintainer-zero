@@ -9,6 +9,7 @@ from maintainer_zero.scenario_registry import (
     load_registry,
     load_scenario,
     scenario_ids,
+    scenario_summary,
     validate_registry,
     validate_scenario,
 )
@@ -64,3 +65,17 @@ def test_load_registry_bounds_untrusted_file(tmp_path):
     path.write_text("[]", encoding="utf-8")
     with pytest.raises(ScenarioRegistryError, match="JSON object"):
         load_registry(path)
+
+
+def test_scenario_summary_is_stable_and_does_not_expose_entrypoint():
+    summary = scenario_summary(load_bundled_registry()["scenarios"][0])
+    assert summary["id"] == "ci-outage"
+    assert summary["input_sources"] == {"release_files": "observed", "workflows": "observed"}
+    assert summary["execution_mode"] == "builtin"
+    assert "entrypoint" not in summary
+
+
+def test_legacy_scenario_summary_derives_bounded_trigger_and_actions():
+    summary = scenario_summary(load_scenario(EXAMPLES / "dependency-yanked.json"))
+    assert summary["trigger"] == {"type": "legacy-event-sequence", "duration_days": 1}
+    assert summary["recovery_actions"] == ["Verify a mirror, lock source, or tested replacement."]

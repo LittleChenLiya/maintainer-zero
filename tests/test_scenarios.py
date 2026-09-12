@@ -231,3 +231,13 @@ def test_validate_registry_command_is_read_only_and_reports_errors(tmp_path, cap
     invalid.write_text("{}", encoding="utf-8")
     assert main(["validate-registry", str(invalid)]) == 2
     assert "error:" in capsys.readouterr().out
+
+
+def test_describe_scenario_command_is_non_executable_and_supports_json(capsys):
+    assert main(["describe-scenario", "maintainer_zero/scenario_registry.json", "--format", "json"]) == 2
+    assert "error:" in capsys.readouterr().out
+    assert main(["describe-scenario", "examples/scenarios/dependency-yanked.json", "--format", "json"]) == 0
+    output = capsys.readouterr().out
+    assert '"input_sources"' in output
+    assert '"execution_mode": "declarative"' in output
+    assert "entrypoint" not in output

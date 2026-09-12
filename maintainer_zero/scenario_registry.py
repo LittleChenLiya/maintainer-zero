@@ -245,9 +245,46 @@ def scenario_ids(registry: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(sorted(item["id"] for item in validate_registry(registry)["scenarios"]))
 
 
+def scenario_summary(scenario: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a stable, non-executable review summary for one scenario."""
+    validated = validate_scenario(scenario)
+    trigger = validated.get("trigger", {})
+    execution = validated.get("execution", {})
+    inputs = validated.get("inputs", [])
+    if trigger:
+        trigger_summary = {
+            "type": trigger.get("type"),
+            "duration_days": trigger.get("duration_days"),
+        }
+    else:
+        events = validated.get("events", [])
+        trigger_summary = {
+            "type": "legacy-event-sequence",
+            "duration_days": max((event.get("day", 0) for event in events), default=None),
+        }
+    actions = list(validated.get("recovery_actions", []))
+    if not actions:
+        actions = [finding["action"] for finding in validated.get("findings", []) if isinstance(finding, Mapping) and isinstance(finding.get("action"), str)]
+    return {
+        "schema_version": validated["schema_version"],
+        "id": validated["id"],
+        "version": validated["version"],
+        "title": validated["title"],
+        "summary": validated.get("summary", validated.get("description", "")),
+        "trigger": trigger_summary,
+        "input_sources": {
+            item["name"]: item.get("source", "unknown")
+            for item in sorted(inputs, key=lambda item: item["name"])
+        },
+        "recovery_actions": actions,
+        "limitations": list(validated.get("limitations", [])),
+        "execution_mode": execution.get("mode", "declarative"),
+    }
+
+
 __all__ = [
     "MAX_REGISTRY_BYTES", "REGISTRY_SCHEMA_VERSION", "SCENARIO_SCHEMA_VERSION",
     "ScenarioRegistryError", "ScenarioSpecError", "bundled_registry_path",
     "load_bundled_registry", "load_registry", "load_scenario", "scenario_ids",
-    "validate_registry", "validate_scenario",
+    "scenario_summary", "validate_registry", "validate_scenario",
 ]

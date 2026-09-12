@@ -38,6 +38,8 @@ maintainer-zero validate-registry maintainer_zero/scenario_registry.json
 
 单个 data-only 场景仍可用 `validate-scenario PATH` 校验。校验失败返回退出码 2，成功只打印注册表身份、版本和场景数量。
 
+需要人工快速审阅场景契约时，可使用只读 `describe-scenario PATH`。它输出触发窗口、输入来源、恢复动作、限制和执行模式；不会输出 entrypoint，不会导入或执行任何代码。加上 `--format json` 可生成机器可读摘要。
+
 Each new scenario should include one blocking example, one negative example
 with a verified fallback, and tests showing that the scenario is deterministic.
 The registry intentionally does not claim to predict incident probability or

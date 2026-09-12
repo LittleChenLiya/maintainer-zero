@@ -13,6 +13,8 @@ maintainer-zero simulate . --scenario all --output .continuity
 查看 `.continuity/report.md`、`.continuity/report.html` 和 `.continuity/recovery/` 下的恢复草稿。CLI 默认只读取本地 Git，不上传仓库内容，也不会写入 GitHub。
 如需保存同仓库趋势，可增加 `--history .continuity/history.json`；输出目录会同时生成机器可读的 `history-summary.json` 和不含本地路径的 `history-summary.md`。未知值保持为 `unknown`，不代表零风险。
 
+贡献场景时可用 `maintainer-zero describe-scenario PATH --format json` 生成只读契约摘要，审阅输入来源、恢复动作和限制；它不会执行 entrypoint、公式或仓库代码。
+
 首次为其他仓库生成配置：
 
 ```powershell

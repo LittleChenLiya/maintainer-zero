@@ -17,7 +17,7 @@ from .github_cache import MetadataCacheError, cache_status, load_metadata_cache,
 from .github_client import DEFAULT_MAX_RESPONSE_BYTES, GitHubClientError
 from .github_collect import GitHubRepositoryError, collect_repository_metadata
 from .github_http import GitHubHTTPError, GitHubHTTPTransport, HTTPTransportConfig
-from .scenario_registry import ScenarioSpecError, load_registry, load_scenario
+from .scenario_registry import ScenarioSpecError, load_registry, load_scenario, scenario_summary
 from .history import HistoryError, append_history, render_trend_markdown
 from .demos import DemoError, load_demo_suite, run_demo_suite
 
@@ -45,6 +45,9 @@ def _build_parser() -> argparse.ArgumentParser:
     init.add_argument("path", nargs="?", default=".")
     validate = sub.add_parser("validate-scenario", help="validate a declarative scenario document without executing it")
     validate.add_argument("path")
+    describe = sub.add_parser("describe-scenario", help="show a validated, non-executable scenario summary")
+    describe.add_argument("path")
+    describe.add_argument("--format", choices=("text", "json"), default="text", dest="describe_format")
     validate_registry = sub.add_parser("validate-registry", help="validate a versioned scenario registry without executing it")
     validate_registry.add_argument("path")
     collect = sub.add_parser("collect-github", help="explicitly collect bounded, read-only GitHub metadata")
@@ -267,6 +270,29 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: {exc}")
             return 2
         print(f"Valid scenario: {scenario['id']} v{scenario['version']}")
+        return 0
+    if args.command == "describe-scenario":
+        try:
+            summary = scenario_summary(load_scenario(args.path))
+        except ScenarioSpecError as exc:
+            print(f"error: {exc}")
+            return 2
+        if args.describe_format == "json":
+            print(json.dumps(summary, indent=2, ensure_ascii=False))
+        else:
+            print(f"Scenario: {summary['id']} v{summary['version']}")
+            print(f"Title: {summary['title']}")
+            print(f"Trigger: {summary['trigger']['type']} ({summary['trigger']['duration_days']} days)")
+            print("Input sources:")
+            for name, source in summary["input_sources"].items():
+                print(f"  - {name}: {source}")
+            print("Recovery actions:")
+            for action in summary["recovery_actions"]:
+                print(f"  - {action}")
+            print("Limitations:")
+            for limitation in summary["limitations"]:
+                print(f"  - {limitation}")
+            print(f"Execution mode: {summary['execution_mode']}")
         return 0
     if args.command == "validate-registry":
         try:

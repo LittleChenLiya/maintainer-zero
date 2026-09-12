@@ -32,6 +32,29 @@ def test_append_history_and_trend_deltas(tmp_path):
     assert len(json.loads(path.read_text(encoding="utf-8"))["entries"]) == 2
 
 
+def test_history_records_tool_version_and_renders_it(tmp_path):
+    path = tmp_path / "versioned-history.json"
+    current = report(score=80)
+    current["tool"] = {"name": "Maintainer-Zero", "version": "0.2.0"}
+    summary = append_history(path, current, recorded_at="2026-01-01T00:00:00Z")
+    assert summary["tool_version"] == "0.2.0"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["tool_version"] == "0.2.0"
+    assert payload["entries"][0]["tool_version"] == "0.2.0"
+    assert "Tool version: 0.2.0" in render_trend_markdown(summary)
+
+
+def test_history_rejects_mixed_tool_versions(tmp_path):
+    path = tmp_path / "versioned-history.json"
+    first = report(score=80)
+    first["tool"] = {"name": "Maintainer-Zero", "version": "0.2.0"}
+    second = report(score=81)
+    second["tool"] = {"name": "Maintainer-Zero", "version": "0.3.0"}
+    append_history(path, first, recorded_at="2026-01-01T00:00:00Z")
+    with pytest.raises(HistoryError, match="different tool version"):
+        append_history(path, second, recorded_at="2026-02-01T00:00:00Z")
+
+
 def test_history_rejects_mixed_repository(tmp_path):
     path = tmp_path / "history.json"
     append_history(path, report(path="D:/repo-a"), recorded_at="2026-01-01T00:00:00Z")

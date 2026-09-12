@@ -15,10 +15,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from . import __version__
+
 HISTORY_SCHEMA_VERSION = 1
 MAX_HISTORY_ENTRIES = 1_000
 MAX_HISTORY_STRING = 512
-_HISTORY_KEYS = frozenset({"schema_version", "repository", "repository_id", "rule_version", "entries"})
+_HISTORY_KEYS = frozenset({"schema_version", "repository", "repository_id", "rule_version", "tool_version", "entries"})
 
 
 class HistoryError(ValueError):
@@ -57,6 +59,14 @@ def _rule_version(value: Any, *, required: bool = False) -> str | None:
     return value
 
 
+def _tool_version(value: Any, *, required: bool = False) -> str | None:
+    if value is None and not required:
+        return None
+    if not isinstance(value, str) or not value.strip() or len(value) > 64:
+        raise HistoryError("tool_version must be a non-empty string")
+    return value
+
+
 def _recorded_at(value: Any) -> datetime:
     if not isinstance(value, str) or not value or len(value) > 64:
         raise HistoryError("history recorded_at must be an ISO-8601 timestamp")
@@ -75,14 +85,18 @@ def _bounded_int(value: Any, *, minimum: int = 0, maximum: int | None = None) ->
     return maximum is None or value <= maximum
 
 
-def _validate_entry(entry: Mapping[str, Any], rule_version: str | None) -> None:
+def _validate_entry(entry: Mapping[str, Any], rule_version: str | None, tool_version: str | None) -> None:
     required = {"recorded_at", "rule_version", "overall_score", "scenarios", "finding_counts", "high_risk_findings"}
-    if set(entry) != required:
+    allowed = required | {"tool_version"}
+    if set(entry) not in (required, allowed):
         raise HistoryError("history entries are malformed")
     _recorded_at(entry["recorded_at"])
     entry_rule = _rule_version(entry["rule_version"], required=True)
     if rule_version is not None and entry_rule != rule_version:
         raise HistoryError("history entries use different rule versions")
+    entry_tool = _tool_version(entry.get("tool_version"))
+    if tool_version is not None and entry_tool is not None and entry_tool != tool_version:
+        raise HistoryError("history entries use different tool versions")
     score = entry["overall_score"]
     if score is not None and not _bounded_int(score, maximum=100):
         raise HistoryError("history overall_score must be an integer from 0 to 100 or null")
@@ -106,6 +120,12 @@ def summarize_report(report: Mapping[str, Any]) -> dict[str, Any]:
     """Extract trend-safe aggregates from a full continuity report."""
     repository = _repository(report)
     rule_version = _rule_version(report.get("rule_version"), required=True)
+    tool = report.get("tool")
+    tool_version = None
+    if tool is not None:
+        if not isinstance(tool, Mapping) or tool.get("name") != "Maintainer-Zero":
+            raise HistoryError("continuity report tool metadata is invalid")
+        tool_version = _tool_version(tool.get("version"), required=True)
     results = report.get("results")
     if not isinstance(results, list):
         raise HistoryError("continuity report results must be an array")
@@ -131,6 +151,7 @@ def summarize_report(report: Mapping[str, Any]) -> dict[str, Any]:
         "repository": repository,
         "repository_id": _identity(repository),
         "rule_version": rule_version,
+        "tool_version": tool_version,
         "overall_score": round(sum(scores) / len(scores)) if scores else None,
         "scenarios": scenarios,
         "finding_counts": finding_counts,
@@ -151,6 +172,7 @@ def _validate_history(payload: Mapping[str, Any]) -> None:
     if repository_id is not None and repository_id != expected_id:
         raise HistoryError("history repository_id does not match repository")
     rule_version = _rule_version(payload.get("rule_version"))
+    tool_version = _tool_version(payload.get("tool_version"))
     entries = payload.get("entries")
     if not isinstance(entries, list) or len(entries) > MAX_HISTORY_ENTRIES:
         raise HistoryError(f"history entries must be an array of at most {MAX_HISTORY_ENTRIES} items")
@@ -165,7 +187,7 @@ def _validate_history(payload: Mapping[str, Any]) -> None:
     for entry in entries:
         if not isinstance(entry, Mapping):
             raise HistoryError("history entries are malformed")
-        _validate_entry(entry, rule_version)
+        _validate_entry(entry, rule_version, tool_version)
         recorded_at = _recorded_at(entry["recorded_at"])
         if previous_at is not None and recorded_at < previous_at:
             raise HistoryError("history entries must be ordered by recorded_at")
@@ -194,14 +216,18 @@ def append_history(path: str | Path, report: Mapping[str, Any], *, recorded_at: 
         if owner.get("name") != summary["repository"]["name"] or owner.get("path") != summary["repository"]["path"]:
             raise HistoryError("history belongs to a different repository")
     else:
-        payload = {"schema_version": HISTORY_SCHEMA_VERSION, "repository": summary["repository"], "repository_id": summary["repository_id"], "rule_version": summary["rule_version"], "entries": []}
+        payload = {"schema_version": HISTORY_SCHEMA_VERSION, "repository": summary["repository"], "repository_id": summary["repository_id"], "rule_version": summary["rule_version"], "tool_version": summary["tool_version"], "entries": []}
     entries = payload["entries"]
     if len(entries) >= MAX_HISTORY_ENTRIES:
         raise HistoryError(f"history entries limit reached ({MAX_HISTORY_ENTRIES})")
     history_rule = payload.get("rule_version") or summary["rule_version"]
     if history_rule != summary["rule_version"]:
         raise HistoryError("history belongs to a different rule version")
+    history_tool = _tool_version(payload.get("tool_version"))
+    if history_tool is not None and summary["tool_version"] is not None and history_tool != summary["tool_version"]:
+        raise HistoryError("history belongs to a different tool version")
     payload["rule_version"] = history_rule
+    payload["tool_version"] = history_tool or summary["tool_version"]
     payload["repository_id"] = payload.get("repository_id") or summary["repository_id"]
     timestamp = recorded_at or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     if entries and _recorded_at(timestamp) < _recorded_at(entries[-1]["recorded_at"]):
@@ -210,6 +236,8 @@ def append_history(path: str | Path, report: Mapping[str, Any], *, recorded_at: 
         "recorded_at": timestamp,
         **{key: summary[key] for key in ("rule_version", "overall_score", "scenarios", "finding_counts", "high_risk_findings")},
     }
+    if summary["tool_version"] is not None:
+        entry["tool_version"] = summary["tool_version"]
     entries.append(entry)
     path.parent.mkdir(parents=True, exist_ok=True)
     encoded = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
@@ -273,6 +301,7 @@ def trend_summary(payload: Mapping[str, Any]) -> dict[str, Any]:
         "repository": payload["repository"],
         "repository_id": payload.get("repository_id") or _identity(payload["repository"]),
         "rule_version": payload.get("rule_version") or (latest or {}).get("rule_version"),
+        "tool_version": payload.get("tool_version") or (latest or {}).get("tool_version"),
         "runs": len(entries),
         "latest": latest,
         "delta_since_previous": delta(previous, latest, "overall_score"),
@@ -310,6 +339,7 @@ def render_trend_markdown(summary: Mapping[str, Any]) -> str:
         "# Continuity trend summary", "",
         f"- Repository: {_markdown_value(repository_name)}",
         f"- Rule version: {_markdown_value(summary.get('rule_version'))}",
+        f"- Tool version: {_markdown_value(summary.get('tool_version'))}",
         f"- Runs: {_markdown_value(summary.get('runs'))}",
         f"- Latest overall score: {_markdown_value(latest_score)}",
         f"- Change since previous: {_markdown_value(summary.get('delta_since_previous'))}",

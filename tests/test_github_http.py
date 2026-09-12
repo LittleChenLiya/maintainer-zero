@@ -7,7 +7,7 @@ from maintainer_zero.github_http import GitHubHTTPError, GitHubHTTPTransport, HT
 
 class FakeResponse:
     status = 200
-    headers = {"X-Test": "ok"}
+    headers = {"X-Test": "ignore", "Retry-After": "37"}
 
     def read(self, limit):
         assert limit > 0
@@ -30,6 +30,52 @@ def test_transport_is_get_only_and_does_not_expose_token():
     assert "secret-token" not in repr(transport)
     assert "token_present=True" in repr(transport)
     assert calls[0][1] == 2.5
+    assert response.headers == {"retry-after": "37"}
+
+
+def test_transport_projects_only_bounded_scheduling_headers():
+    class Response:
+        status = 429
+        headers = {
+            "Link": '<https://api.github.com/repos/acme/demo/issues?page=2>; rel="next"',
+            "Retry-After": "37",
+            "X-RateLimit-Reset": "1700000000",
+            "Authorization": "Bearer leaked",
+            "X-Secret": "should-not-be-retained",
+        }
+
+        def read(self, limit):
+            return b"{}"
+
+    response = GitHubHTTPTransport(opener=lambda *_args, **_kwargs: Response())(
+        "/repos/acme/demo/issues", {}, 1
+    )
+    assert response.headers == {
+        "link": '<https://api.github.com/repos/acme/demo/issues?page=2>; rel="next"',
+        "retry-after": "37",
+        "x-ratelimit-reset": "1700000000",
+    }
+
+
+def test_transport_rejects_non_bytes_or_unreadable_response_body():
+    class BadResponse:
+        status = 200
+        headers = {}
+
+        def read(self, limit):
+            return "not-bytes"
+
+    transport = GitHubHTTPTransport(opener=lambda *_args, **_kwargs: BadResponse())
+    with pytest.raises(GitHubHTTPError, match="body must be bytes"):
+        transport("/repos/acme/demo/issues", {}, 1)
+
+    class BrokenResponse(BadResponse):
+        def read(self, limit):
+            raise OSError("network detail")
+
+    transport = GitHubHTTPTransport(opener=lambda *_args, **_kwargs: BrokenResponse())
+    with pytest.raises(GitHubHTTPError, match="could not be read"):
+        transport("/repos/acme/demo/issues", {}, 1)
 
 
 def test_transport_rejects_unapproved_paths_and_unsafe_config():

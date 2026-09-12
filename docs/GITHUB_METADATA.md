@@ -128,4 +128,5 @@ repository descriptor 只有传入 `--include-repository` 才会请求。reviews
 对象不会联网。环境变量 `GITHUB_TOKEN` 只有在 `from_environment(allow_environment=True)`
 时才读取；默认不读取 token。HTTP 429/403 的响应和 `Retry-After` 头会交给上层只读
 客户端处理，transport 不自动重试或隐藏等待。测试使用 fake opener，项目不在 CI 中访问
-真实 GitHub。
+真实 GitHub。transport 只向上层保留 Link、Retry-After 和 X-RateLimit-Reset 三类分页/调度响应头，
+并限制其长度；认证、任意自定义响应头和响应体读取异常不会进入快照或报告。

@@ -15,6 +15,8 @@ DEFAULT_USER_AGENT = "maintainer-zero-read-only/0.1"
 DEFAULT_MAX_RESPONSE_BYTES = 1_000_000
 DEFAULT_MAX_TIMEOUT_SECONDS = 60.0
 _CONTROL_CHARS = frozenset(chr(code) for code in range(32)) | {chr(127)}
+_RESPONSE_HEADERS = frozenset(("link", "retry-after", "x-ratelimit-reset"))
+_MAX_RESPONSE_HEADER_VALUE = 4096
 class _RejectRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, *args, **kwargs):
         return None
@@ -127,12 +129,25 @@ class GitHubHTTPTransport:
         return self._response(getattr(response, "status", 200), response)
 
     def _response(self, status: int, response: Any) -> TransportResponse:
-        body = response.read(self.config.max_response_bytes + 1)
+        try:
+            body = response.read(self.config.max_response_bytes + 1)
+        except Exception as exc:
+            raise GitHubHTTPError("HTTP response could not be read") from exc
         if not isinstance(body, bytes):
-            body = bytes(body)
+            raise GitHubHTTPError("HTTP response body must be bytes")
         if len(body) > self.config.max_response_bytes:
             body = body[: self.config.max_response_bytes + 1]
-        headers = {str(key): str(value) for key, value in getattr(response, "headers", {}).items()}
+        try:
+            raw_headers = getattr(response, "headers", {}) or {}
+            headers = {
+                str(key).lower(): value
+                for key, value in raw_headers.items()
+                if str(key).lower() in _RESPONSE_HEADERS
+                and isinstance(value, str)
+                and len(value) <= _MAX_RESPONSE_HEADER_VALUE
+            }
+        except Exception as exc:
+            raise GitHubHTTPError("HTTP response headers are invalid") from exc
         return TransportResponse(int(status), body, headers)
 
 

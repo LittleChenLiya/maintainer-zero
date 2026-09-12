@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import stat
 from pathlib import Path
@@ -105,6 +106,20 @@ def _validate_report(report: Mapping[str, Any]) -> None:
         raise BaselineError("continuity report repository must be an object")
     if not isinstance(report.get("results"), list):
         raise BaselineError("continuity report results must be an array")
+    for index, result in enumerate(report["results"]):
+        if not isinstance(result, Mapping):
+            raise BaselineError(f"continuity report result {index} must be an object")
+        if "score" not in result:
+            continue
+        value = result["score"]
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise BaselineError(f"continuity report result {index} score is invalid")
+        try:
+            numeric = float(value)
+        except (OverflowError, ValueError):
+            raise BaselineError(f"continuity report result {index} score is invalid") from None
+        if not math.isfinite(numeric) or not 0 <= numeric <= 100:
+            raise BaselineError(f"continuity report result {index} score is invalid")
     tool = report.get("tool")
     if tool is not None and (
         not isinstance(tool, Mapping)
@@ -127,7 +142,13 @@ def _score(result: Mapping[str, Any] | None) -> int | None:
     value = result.get("score") if result is not None else None
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    return round(float(value))
+    try:
+        numeric = float(value)
+    except (OverflowError, ValueError):
+        return None
+    if not math.isfinite(numeric) or not 0 <= numeric <= 100:
+        return None
+    return round(numeric)
 
 
 def _finding_key(finding: Mapping[str, Any]) -> str:

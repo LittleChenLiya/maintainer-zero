@@ -140,6 +140,16 @@ def test_compare_reports_rejects_mixed_rule_versions():
         compare_reports(baseline, current)
 
 
+@pytest.mark.parametrize("score", [10**1000, float("nan"), 100.5, -0.5])
+def test_load_report_rejects_invalid_scores(score, tmp_path):
+    payload = report(score=80)
+    payload["results"][0]["score"] = score
+    path = tmp_path / "invalid-score.json"
+    path.write_text(json.dumps(payload, allow_nan=True), encoding="utf-8")
+    with pytest.raises(ValueError, match="score|non-standard"):
+        load_report(path)
+
+
 def test_compare_reports_rejects_mixed_tool_versions():
     baseline = report(score=80)
     current = report(score=80)

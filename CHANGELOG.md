@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- baseline 报告 schema 现在验证每个结果的分数必须是有限且位于 0..100 的数值；非法超大整数、NaN/Infinity 与小数越界均 fail-closed，避免比较门禁泄漏异常或误读异常分数。
 - benchmark 与 baseline 输入现在拒绝重复 JSON key、NaN/Infinity 和无法安全转换的超大整数；benchmark 文本渲染器也独立校验场景、分数、置信度与 Unicode 控制字符，避免不可信映射绕过 CLI 产生歧义或注入输出。
 - 模拟输出新增本地 `artifact-manifest.json`，记录实际生成工件的相对路径、大小和 SHA-256；新增离线 `verify-manifest` 校验命令。manifest 拒绝路径逃逸、链接、特殊文件和超大输入，不包含自身 hash，也不被描述为数字签名或来源证明。
 - composite Action 与 continuity workflow 现在暴露并上传 `artifact-manifest.json`；manifest 读取/哈希过程增加 descriptor 身份复核，路径替换竞态 fail-closed。

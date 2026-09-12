@@ -110,7 +110,7 @@ repository descriptor 只有传入 `--include-repository` 才会请求。reviews
 客户端具备以下可测试约束：
 
 - 每个资源最多读取有限页数，支持 GitHub `Link: rel="next"` 分页提示；
-- 限制单页大小、单响应字节数和总记录数；
+- 限制单页大小、单响应字节数和总记录数；响应 JSON 也限制为 64 层嵌套，深层或循环结构降级为 invalid_json，避免恶意响应触发未处理递归异常；
 - 401/403/404/429、非 200、超时/传输异常、非法 JSON 均降级为不可用并保留原因；
 - repository descriptor 只保留默认分支、可见性、归档和计数等标量字段，不复制 owner、URL 或原始仓库对象；
 - issues、pull requests、reviews 和 releases 也会在快照写入前做固定字段投影，只保留状态、编号、时间和计数等连续性所需标量；正文、用户/作者对象、标签、URL 和未知字段不会进入快照或缓存；

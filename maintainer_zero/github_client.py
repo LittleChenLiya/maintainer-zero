@@ -16,6 +16,7 @@ DEFAULT_PAGE_SIZE = 100
 DEFAULT_MAX_RESPONSE_BYTES = 1_000_000
 DEFAULT_TIMEOUT_SECONDS = 5.0
 MAX_COLLECTION_BYTES = 10_000_000
+MAX_RESPONSE_NESTING = 64
 _REPOSITORY_PATH = r"/repos/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}"
 _PATHS = {
     "repository": re.compile(_REPOSITORY_PATH),
@@ -55,13 +56,23 @@ def _reject_nonstandard_number(value: str) -> None:
     raise ValueError(f"non-standard JSON number: {value}")
 
 
-def _contains_non_finite_number(value: Any) -> bool:
+def _contains_non_finite_number(value: Any, *, depth: int = 0, active: set[int] | None = None) -> bool:
+    if depth > MAX_RESPONSE_NESTING:
+        raise ValueError(f"response nesting exceeds {MAX_RESPONSE_NESTING} levels")
+    if active is None:
+        active = set()
     if isinstance(value, float):
         return not math.isfinite(value)
-    if isinstance(value, dict):
-        return any(_contains_non_finite_number(item) for item in value.values())
-    if isinstance(value, list):
-        return any(_contains_non_finite_number(item) for item in value)
+    if isinstance(value, (dict, list)):
+        identity = id(value)
+        if identity in active:
+            raise ValueError("response contains a cyclic structure")
+        active.add(identity)
+        try:
+            nested = value.values() if isinstance(value, dict) else value
+            return any(_contains_non_finite_number(item, depth=depth + 1, active=active) for item in nested)
+        finally:
+            active.remove(identity)
     return False
 
 
@@ -181,7 +192,11 @@ class ReadOnlyGitHubClient:
             payload = json.loads(raw, parse_constant=_reject_nonstandard_number)
         except (UnicodeError, json.JSONDecodeError, ValueError, RecursionError):
             return {}, CollectionStatus(False, 1, False, "invalid_json")
-        if _contains_non_finite_number(payload):
+        try:
+            invalid_number = _contains_non_finite_number(payload)
+        except (ValueError, RecursionError):
+            return {}, CollectionStatus(False, 1, False, "invalid_json")
+        if invalid_number:
             return {}, CollectionStatus(False, 1, False, "invalid_json")
         if not isinstance(payload, dict):
             return {}, CollectionStatus(False, 1, False, "expected_object")
@@ -224,7 +239,11 @@ class ReadOnlyGitHubClient:
                 payload = json.loads(raw, parse_constant=_reject_nonstandard_number)
             except (UnicodeError, json.JSONDecodeError, ValueError, RecursionError):
                 return records, CollectionStatus(False, page, False, "invalid_json")
-            if _contains_non_finite_number(payload):
+            try:
+                invalid_number = _contains_non_finite_number(payload)
+            except (ValueError, RecursionError):
+                return records, CollectionStatus(False, page, False, "invalid_json")
+            if invalid_number:
                 return records, CollectionStatus(False, page, False, "invalid_json")
             if not isinstance(payload, list):
                 return records, CollectionStatus(False, page, False, "expected_array")

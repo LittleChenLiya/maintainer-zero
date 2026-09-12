@@ -35,7 +35,9 @@ def _is_link_like(info: os.stat_result) -> bool:
 
 def _reject_symlinked_parents(path: Path) -> Path:
     """Return an absolute path after checking existing parent components."""
-    target = Path(os.path.abspath(path))
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts[:-1]:

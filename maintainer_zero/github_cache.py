@@ -31,7 +31,9 @@ def _is_link_like(info: os.stat_result) -> bool:
 
 def _prepare_cache_target(path: Path, *, create_parents: bool) -> Path:
     """Return an absolute cache path with non-symlinked parent components."""
-    target = Path(os.path.abspath(path))
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts[:-1]:

@@ -21,13 +21,14 @@ def snapshot():
 
 
 @pytest.mark.parametrize("kind", ["symlink", "reparse"])
-def test_parent_redirection_rejected_before_read_or_write(tmp_path, monkeypatch, kind):
+@pytest.mark.parametrize("dotdot", [False, True])
+def test_parent_redirection_rejected_before_read_or_write(tmp_path, monkeypatch, kind, dotdot):
     blocked = tmp_path / "blocked"
     blocked.mkdir()
-    target = blocked / "cache.json"
+    target = tmp_path / "cache.json" if dotdot else blocked / "cache.json"
     save_metadata_cache(target, snapshot())
     original = target.read_bytes()
-    path = target
+    path = blocked / ".." / target.name if dotdot else target
     lstat = Path.lstat
 
     def fake_lstat(self, *args, **kwargs):

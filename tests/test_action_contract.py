@@ -23,6 +23,8 @@ def test_composite_action_exposes_bounded_local_contract():
     assert 'no-build-isolation "$env:MZ_ACTION_PATH"' in action
     assert "id: drill_unix" in action and "id: drill_windows" in action
     assert "steps.drill-unix" not in action and "steps.drill-windows" not in action
+    for output_name in ("report-directory", "report-json", "report-markdown", "report-html", "recovery-directory"):
+        assert f"outputs['{output_name}']" in action
 
 def test_action_adapter_keeps_untrusted_paths_as_single_argv_values():
     argv = build_argv({

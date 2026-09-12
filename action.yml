@@ -50,19 +50,19 @@ inputs:
 outputs:
   report-directory:
     description: Absolute path to the generated report directory
-    value: ${{ steps.drill_unix.outputs.report-directory || steps.drill_windows.outputs.report-directory }}
+    value: ${{ steps.drill_unix.outputs['report-directory'] || steps.drill_windows.outputs['report-directory'] }}
   report-json:
     description: Absolute path to continuity.json
-    value: ${{ steps.drill_unix.outputs.report-json || steps.drill_windows.outputs.report-json }}
+    value: ${{ steps.drill_unix.outputs['report-json'] || steps.drill_windows.outputs['report-json'] }}
   report-markdown:
     description: Absolute path to report.md
-    value: ${{ steps.drill_unix.outputs.report-markdown || steps.drill_windows.outputs.report-markdown }}
+    value: ${{ steps.drill_unix.outputs['report-markdown'] || steps.drill_windows.outputs['report-markdown'] }}
   report-html:
     description: Absolute path to report.html
-    value: ${{ steps.drill_unix.outputs.report-html || steps.drill_windows.outputs.report-html }}
+    value: ${{ steps.drill_unix.outputs['report-html'] || steps.drill_windows.outputs['report-html'] }}
   recovery-directory:
     description: Absolute path to generated recovery drafts
-    value: ${{ steps.drill_unix.outputs.recovery-directory || steps.drill_windows.outputs.recovery-directory }}
+    value: ${{ steps.drill_unix.outputs['recovery-directory'] || steps.drill_windows.outputs['recovery-directory'] }}
 
 runs:
   using: composite

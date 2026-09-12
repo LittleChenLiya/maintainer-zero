@@ -61,6 +61,7 @@ jobs:
             .continuity/continuity.json
             .continuity/report.md
             .continuity/report.html
+            .continuity/artifact-manifest.json
             .continuity/recovery/continuity.sarif
             .continuity/recovery/runbook.md
             .continuity/recovery/CODEOWNERS.draft

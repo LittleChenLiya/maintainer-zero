@@ -63,6 +63,9 @@ outputs:
   recovery-directory:
     description: Absolute path to generated recovery drafts
     value: ${{ steps.drill_unix.outputs['recovery-directory'] || steps.drill_windows.outputs['recovery-directory'] }}
+  artifact-manifest:
+    description: Absolute path to the local artifact integrity manifest
+    value: ${{ steps.drill_unix.outputs['artifact-manifest'] || steps.drill_windows.outputs['artifact-manifest'] }}
 
 runs:
   using: composite

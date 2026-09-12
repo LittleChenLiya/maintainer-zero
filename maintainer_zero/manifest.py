@@ -19,6 +19,47 @@ class ManifestError(ValueError):
 def _link(info):
     return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400))
 
+
+def _identity(info: os.stat_result) -> tuple[int, int]:
+    """Return the stable device/inode identity used for race checks."""
+    return (int(getattr(info, "st_dev", -1)), int(getattr(info, "st_ino", -1)))
+
+
+def _same_file(left: os.stat_result, right: os.stat_result) -> bool:
+    return _identity(left) == _identity(right)
+
+
+def _read_digest(target: Path, rel: str, expected: os.stat_result | None = None) -> tuple[int, str]:
+    """Hash one descriptor while ensuring the path cannot redirect mid-read."""
+    if expected is None:
+        expected = target.lstat()
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        with target.open("rb") as handle:
+            opened = os.fstat(handle.fileno())
+            if _link(opened) or not stat.S_ISREG(opened.st_mode):
+                raise ManifestError(f"artifact is not regular: {rel}")
+            if not _same_file(expected, opened):
+                raise ManifestError(f"artifact changed before verification: {rel}")
+            for chunk in iter(lambda: handle.read(_CHUNK), b""):
+                total += len(chunk)
+                if total > MAX_ARTIFACT_BYTES:
+                    raise ManifestError(f"artifact exceeds size limit: {rel}")
+                digest.update(chunk)
+            finished = os.fstat(handle.fileno())
+    except OSError as exc:
+        raise ManifestError(f"cannot read artifact: {rel}") from exc
+    try:
+        current = target.lstat()
+    except OSError as exc:
+        raise ManifestError(f"cannot inspect artifact after verification: {rel}") from exc
+    if not _same_file(expected, finished) or not _same_file(expected, current):
+        raise ManifestError(f"artifact changed during verification: {rel}")
+    if expected.st_size != finished.st_size or expected.st_mtime_ns != finished.st_mtime_ns:
+        raise ManifestError(f"artifact changed during verification: {rel}")
+    return total, digest.hexdigest()
+
 def _directory(path: Path) -> Path:
     path = Path(os.path.abspath(path))
     current = Path(path.anchor) if path.anchor else Path()
@@ -65,13 +106,10 @@ def _entry(root: Path, item: str | Path):
     # producing an incomplete integrity claim.
     rel = _relative(rel)
     if rel == "artifact-manifest.json": return None
-    target = _artifact(root, rel); digest = hashlib.sha256(); total = 0
-    with target.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(_CHUNK), b""):
-            total += len(chunk)
-            if total > MAX_ARTIFACT_BYTES: raise ManifestError(f"artifact exceeds size limit: {rel}")
-            digest.update(chunk)
-    return {"path": rel, "size": total, "sha256": digest.hexdigest()}
+    target = _artifact(root, rel)
+    expected = target.lstat()
+    total, digest = _read_digest(target, rel, expected)
+    return {"path": rel, "size": total, "sha256": digest}
 
 def _write(path: Path, text: str):
     parent = _directory(path.parent)
@@ -133,18 +171,11 @@ def load_manifest(path: str | Path) -> dict:
 def verify_manifest(path: str | Path) -> dict:
     manifest = Path(path); payload = load_manifest(manifest); root = _directory(manifest.parent); checked = []
     for item in payload["artifacts"]:
-        rel = item["path"]; target = _artifact(root, rel); before = target.lstat(); digest = hashlib.sha256(); total = 0
-        try:
-            with target.open("rb") as handle:
-                opened = os.fstat(handle.fileno())
-                if _link(opened) or not stat.S_ISREG(opened.st_mode): raise ManifestError(f"artifact is not regular: {rel}")
-                for chunk in iter(lambda: handle.read(_CHUNK), b""):
-                    total += len(chunk); digest.update(chunk)
-                    if total > MAX_ARTIFACT_BYTES: raise ManifestError(f"artifact exceeds size limit: {rel}")
-        except OSError as exc: raise ManifestError(f"cannot read artifact: {rel}") from exc
-        after = target.lstat()
-        if before.st_size != after.st_size or before.st_mtime_ns != after.st_mtime_ns: raise ManifestError(f"artifact changed during verification: {rel}")
+        rel = item["path"]
+        target = _artifact(root, rel)
+        before = target.lstat()
+        total, digest = _read_digest(target, rel, before)
         if total != item["size"]: raise ManifestError(f"artifact size mismatch: {rel}")
-        if digest.hexdigest() != item["sha256"]: raise ManifestError(f"artifact hash mismatch: {rel}")
+        if digest != item["sha256"]: raise ManifestError(f"artifact hash mismatch: {rel}")
         checked.append(rel)
     return {"verified": len(checked), "artifacts": checked, "manifest": str(manifest)}

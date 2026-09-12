@@ -85,5 +85,6 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     assert "name: continuity-report-${{ matrix.os }}" in workflow
     assert "if: always()" in workflow
     assert "if-no-files-found: warn" in workflow
+    assert ".continuity/artifact-manifest.json" in workflow
     for artifact in ("continuity.sarif", "runbook.md", "CODEOWNERS.draft", "issue-drafts.md"):
         assert f".continuity/recovery/{artifact}" in workflow

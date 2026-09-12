@@ -10,7 +10,7 @@ ROOT = Path(__file__).parents[1]
 def test_composite_action_exposes_bounded_local_contract():
     action = (ROOT / "action.yml").read_text(encoding="utf-8")
     assert "using: composite" in action
-    assert all(name in action for name in ("report-directory:", "report-json:", "report-markdown:", "report-html:", "recovery-directory:"))
+    assert all(name in action for name in ("report-directory:", "report-json:", "report-markdown:", "report-html:", "recovery-directory:", "artifact-manifest:"))
     assert "MZ_INPUT_PATH: ${{ github.workspace }}/${{ inputs.path }}" in action
     assert "MZ_INPUT_METADATA: ${{ inputs.github-metadata }}" in action
     assert "GITHUB_TOKEN" not in action
@@ -25,7 +25,7 @@ def test_composite_action_exposes_bounded_local_contract():
     assert 'no-build-isolation "$env:MZ_ACTION_PATH"' in action
     assert "id: drill_unix" in action and "id: drill_windows" in action
     assert "steps.drill-unix" not in action and "steps.drill-windows" not in action
-    for output_name in ("report-directory", "report-json", "report-markdown", "report-html", "recovery-directory"):
+    for output_name in ("report-directory", "report-json", "report-markdown", "report-html", "recovery-directory", "artifact-manifest"):
         assert f"outputs['{output_name}']" in action
 
 def test_action_adapter_keeps_untrusted_paths_as_single_argv_values():

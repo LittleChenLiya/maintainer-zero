@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 from pathlib import Path
 from typing import Any, Mapping
 
 REPORT_SCHEMA_VERSION = 1
+MAX_REPORT_BYTES = 8 * 1024 * 1024
 EXPECTED_REPOSITORY_FIELDS = ("commits", "contributors", "dependencies", "workflows", "codeowners", "release_files")
 
 
@@ -14,11 +17,56 @@ class BaselineError(ValueError):
     """Raised when a baseline or comparison report is unusable."""
 
 
-def load_report(path: str | Path) -> dict[str, Any]:
-    report_path = Path(path)
+def _link_like(info: os.stat_result) -> bool:
+    return stat.S_ISLNK(info.st_mode) or bool(
+        getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    )
+
+
+def _safe_report_file(path: Path) -> tuple[Path, os.stat_result]:
+    target = Path(os.path.abspath(path))
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts[:-1]:
+        current /= part
+        try:
+            info = current.lstat()
+        except OSError as exc:
+            raise BaselineError(f"cannot inspect report parent: {current}") from exc
+        if _link_like(info) or not stat.S_ISDIR(info.st_mode):
+            raise BaselineError("report parent must be a real directory")
     try:
-        payload = json.loads(report_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        info = target.lstat()
+    except OSError as exc:
+        raise BaselineError(f"cannot inspect continuity report: {target}") from exc
+    if _link_like(info) or not stat.S_ISREG(info.st_mode):
+        raise BaselineError("continuity report must be a regular file")
+    return target, info
+
+
+def load_report(path: str | Path) -> dict[str, Any]:
+    report_path, info = _safe_report_file(Path(path))
+    if info.st_size > MAX_REPORT_BYTES:
+        raise BaselineError("continuity report exceeds size limit")
+    try:
+        with report_path.open("rb") as handle:
+            opened = os.fstat(handle.fileno())
+            if _link_like(opened) or not stat.S_ISREG(opened.st_mode):
+                raise BaselineError("continuity report descriptor is not a regular file")
+            if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+                raise BaselineError("continuity report changed before reading")
+            raw = handle.read(MAX_REPORT_BYTES + 1)
+        if len(raw) > MAX_REPORT_BYTES:
+            raise BaselineError("continuity report exceeds size limit")
+        after = report_path.lstat()
+        if (after.st_dev, after.st_ino) != (info.st_dev, info.st_ino) or after.st_size != info.st_size:
+            raise BaselineError("continuity report changed during reading")
+        if getattr(after, "st_mtime_ns", None) != getattr(info, "st_mtime_ns", None):
+            raise BaselineError("continuity report changed during reading")
+        payload = json.loads(raw.decode("utf-8"))
+    except BaselineError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise BaselineError(f"Invalid continuity report: {report_path}") from exc
     if not isinstance(payload, dict):
         raise BaselineError("continuity report must be a JSON object")

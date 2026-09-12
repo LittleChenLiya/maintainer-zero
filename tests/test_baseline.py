@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -92,6 +94,27 @@ def test_load_report_rejects_future_schema_and_bad_envelope(tmp_path):
 
     path.write_text("[]", encoding="utf-8")
     with pytest.raises(ValueError, match="JSON object"):
+        load_report(path)
+
+
+def test_load_report_rejects_descriptor_redirect_before_parsing(tmp_path, monkeypatch):
+    path = tmp_path / "report.json"
+    path.write_text(json.dumps(report(score=80)), encoding="utf-8")
+    original_fstat = os.fstat
+
+    def mismatched_fstat(fd):
+        info = original_fstat(fd)
+        return SimpleNamespace(
+            st_mode=info.st_mode,
+            st_file_attributes=getattr(info, "st_file_attributes", 0),
+            st_dev=info.st_dev,
+            st_ino=info.st_ino + 1,
+            st_size=info.st_size,
+            st_mtime_ns=info.st_mtime_ns,
+        )
+
+    monkeypatch.setattr("maintainer_zero.baseline.os.fstat", mismatched_fstat)
+    with pytest.raises(ValueError, match="changed before"):
         load_report(path)
 
 

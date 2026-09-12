@@ -6,6 +6,7 @@
 - composite Action 与 continuity workflow 现在暴露并上传 `artifact-manifest.json`；manifest 读取/哈希过程增加 descriptor 身份复核，路径替换竞态 fail-closed。
 - 新增 `--fallback-plan` data-only 依赖替代/冷构建计划：严格校验来源、状态和重复项，并在 JSON/Markdown 报告中明确该计划未执行；不联网、不执行仓库命令。
 - `verify-manifest` 读取 manifest 本身时现在也逐级拒绝链接/reparse 父目录，并复核打开描述符的身份、大小和修改时间；manifest 被替换或并发修改时 fail-closed。
+- baseline 报告加载现在限制为有界普通文件，逐级拒绝链接/reparse 路径并复核打开描述符；报告被重定向、替换或超限时不会进入比较逻辑。
 
 本文件记录尚未发布的本地开发版本；项目当前没有公开远程仓库或已发布包。
 

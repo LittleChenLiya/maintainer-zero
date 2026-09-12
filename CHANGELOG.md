@@ -51,6 +51,7 @@
 - 标准库 GitHub transport 现在只投影分页/限流响应头，并将非 bytes 或不可读响应体转换为受控错误，避免凭证与远端诊断细节传播。
 - CLI 原子输出现在拒绝文件及父目录符号链接，覆盖 collect-github、demo、history 和 baseline 工件，避免本地结果被重定向到未审阅目标。
 - GitHub client 对响应 JSON 增加 64 层嵌套和循环结构边界，异常结构统一降级为 invalid_json。
+- Composite Action 的 GITHUB_OUTPUT 现在同时拒绝文件和父目录符号链接，避免 runner 输出被重定向到未审阅位置。
 - 增加根级可复用 Composite Action：安装动作自身并对 checkout 工作区运行本地演练；输入通过环境变量和 shell 数组传递，保留只读权限与 fork 边界。
 
 ## 发布说明

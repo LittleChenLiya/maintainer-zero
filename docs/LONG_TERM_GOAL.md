@@ -92,6 +92,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-12：标准库只读 GitHub transport 收紧响应头白名单与响应体类型边界，认证/任意自定义头不会进入传输结果；新增凭证传播和异常响应负例。
 - 2026-09-12：CLI 原子输出增加文件及全路径符号链接边界，覆盖 GitHub 快照、demo、history 与 baseline 输出；新增重定向负例。
 - 2026-09-12：GitHub client 增加响应 JSON 的 64 层嵌套与循环结构边界，深层/循环响应 fail-closed 为 invalid_json；新增负例。
+- 2026-09-12：Composite Action 的 GITHUB_OUTPUT 增加父目录符号链接边界，避免 runner 输出被重定向；新增 Action 路径安全负例。
 
 - 2026-09-12：收紧 GitHub 数组资源的隐私投影：issues、pull requests、reviews 和 releases 现在只保留固定的状态、编号、时间和计数字段，丢弃正文、用户/作者对象、标签、URL 与未知字段；新增原始记录投影负例，避免缓存保存不必要的 GitHub 内容。
 - 2026-09-12：为内置三类演练增加结构化 Evidence 链：每条结果现在记录来源、字段、观测值和说明，并在 Markdown 报告中单独展示；旧的 DrillResult 调用保持兼容，证据仍经过既有递归脱敏。

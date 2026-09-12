@@ -79,6 +79,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-12：新增离线 `normalize_metadata()` canonical mapping 契约，覆盖 GitLab project/merge request 与 Forgejo/GitHub 常用别名；未知键、别名冲突、嵌套值和身份/凭证字段均 fail-closed。该增量仍不提供 GitLab/Forgejo 网络客户端。
 - 2026-09-12：新增注入式 GitLab/Forgejo 只读 provider client：固定 API 路径、数字 project id/OWNER-REPOSITORY 标识、分页/响应/超时上限和有界限流提示；所有记录先做字段投影再 canonical 校验。GitLab reviews 仍保持 unknown，客户端不读取 token、不自动重试、不执行或写入远端。
 - 2026-09-12：加固 provider adapter 的数值边界：canonical 标量拒绝超出 64 位的整数，限流头先做长度检查再转换；新增超大整数与恶意超长 header 负例。
+- 2026-09-12：新增 GitLab/Forgejo 显式 opt-in HTTPS GET transport：固定 provider 路径、HTTPS-only、禁止重定向、响应/超时/响应头边界和环境 token opt-in；fake opener 回归不连接真实平台。
 - 2026-09-12：基线比较新增结果分数 schema 校验与有限数值边界，非法超大整数、NaN/Infinity 及原始范围外小数在读取阶段拒绝；新增 4 项负例并通过专项测试。
 - 2026-09-12：benchmark 导出与 baseline 报告读取新增歧义输入防护：重复 JSON key、非标准数值（NaN/Infinity）和超大整数均 fail-closed；分数先验证原始范围再做确定性舍入，独立文本渲染也校验场景/置信度及 Unicode 控制字符。专项与全量回归通过。
 - 2026-09-12：补齐 composite Action 输出边界的 reparse point 模拟测试，覆盖 `GITHUB_OUTPUT` 父目录与最终文件；路径校验现在有 Unix 符号链接、硬链接和 Windows reparse 负例证据。

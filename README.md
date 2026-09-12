@@ -19,6 +19,8 @@ The M3 metadata boundary validates reviewed snapshots and preserves missing perm
 `--allow-environment-token`; it never writes to GitHub. See [GitHub metadata](docs/GITHUB_METADATA.md).
 Provider-neutral adapters can use the injected GitLab/Forgejo client and canonical mapping, but
 these APIs perform no network I/O by themselves and do not load tokens or perform write operations.
+An optional `ProviderHTTPTransport` supplies the same bounded HTTPS GET boundary for GitLab and
+Forgejo; it requires an explicit API base and never performs writes or implicit token loading.
 
 ## Quick start
 

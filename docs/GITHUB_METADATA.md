@@ -133,6 +133,13 @@ repository descriptor 只有传入 `--include-repository` 才会请求。reviews
 自动等待、重试或把任意响应头复制到快照，无法解析或超出范围的值会被丢弃。
 这些字段会随 `collection` 状态进入机器可读演练报告；Markdown 报告仍只展示未知和部分采集提示。
 
+若需要把上述注入式客户端连接到 HTTPS，可使用 `ProviderHTTPTransport`：构造时必须显式
+提供 GitLab 或 Forgejo 的 HTTPS `api_base`，默认拒绝重定向，仅允许固定 provider 路径和
+GET，请求体/响应体、超时、User-Agent 与 token 均有界。环境 token 只有调用
+`from_environment(..., allow_environment=True)` 才会读取（GitLab 使用 `GITLAB_TOKEN`，
+Forgejo 使用 `FORGEJO_TOKEN`）；transport 不写入快照、不自动重试，也不保存任意响应头。
+项目测试只使用 fake opener，不连接真实平台。
+
 响应体上限默认是 1,000,000 字节。需要更严格的网络边界时，可以显式传入
 --max-response-bytes N（范围为 1 到 1,000,000）；该值同时约束 HTTP transport
 和注入式客户端，不能通过 CLI 放宽全局上限。无此参数时保持默认上限。

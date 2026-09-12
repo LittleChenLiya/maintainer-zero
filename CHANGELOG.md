@@ -7,6 +7,7 @@
 - Added offline `normalize_metadata()` mapping for reviewed GitHub, GitLab, and Forgejo adapter snapshots; explicit aliases map provider resources to canonical names while ambiguous, nested, unknown, or credential-like fields fail closed. This is not a network client.
 - Added an injected, read-only GitLab/Forgejo provider client with explicit endpoint allowlists, bounded pagination, response sizes, timeout, rate-limit hints, and canonical projection; it performs no network I/O unless the caller supplies a transport and does not support writes or token loading.
 - Provider adapter hardening now bounds integer projections and checks rate-limit header lengths before conversion, preventing oversized numeric inputs from crossing the canonical or scheduling boundaries.
+- Added an opt-in stdlib HTTPS GET transport for GitLab and Forgejo with fixed provider paths, no redirects, bounded responses/timeouts/headers, and explicit `GITLAB_TOKEN`/`FORGEJO_TOKEN` environment opt-in.
 - GitHub 只读采集器现在在规范化快照中显式写入 `provider: github`，与 provider-neutral 离线协议建立可审计连接；旧快照仍兼容默认 GitHub 语义。
 - metadata cache 读取现在与普通快照一致拒绝重复 JSON key 与 NaN/Infinity，避免缓存 envelope 在校验前静默丢失字段或传播非标准数值。
 - 新增 provider-neutral 离线元数据快照契约：可选 provider 为 github、gitlab 或 forgejo，沿用同一资源白名单、unknown/partial 语义和只读边界；新增 validate-metadata 命令。该增量不提供 GitLab/Forgejo 网络客户端，适配器仍需由调用方生成经过审阅的快照。

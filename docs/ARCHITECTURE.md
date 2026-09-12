@@ -28,6 +28,7 @@ CLI 参数
 | `github_metadata.py` | 校验并摘要 provider-neutral 的只读元数据快照 | 允许 github/gitlab/forgejo provider；共用规范化资源白名单与 unknown/partial 语义；不联网、不认证、不执行适配器 |
 | `metadata_mapping.py` | 将经审阅的 provider 原始数据映射为 canonical 快照 | 仅使用显式资源/字段别名和标量白名单；冲突、未知键、嵌套值与凭证 fail-closed；不联网、不认证、不执行代码 |
 | `metadata_provider.py` | 通过调用方注入的 GET transport 采集 GitLab/Forgejo 有界元数据 | 仅生成显式白名单路径；限制项目标识、分页、超时、响应大小和限流提示；输出先投影再 canonical 校验；不内置网络、token 或写操作 |
+| `provider_http.py` | 为 GitLab/Forgejo 提供显式 opt-in 的 HTTPS GET transport | 仅 HTTPS、固定路径、GET、无重定向和白名单响应头；token 仅显式环境 opt-in；不自动重试、不执行或写入远端 |
 | `.github/workflows/continuity.yml` | 在本项目 CI 中运行并上传报告 | 默认只读仓库权限 |
 
 数据流必须保持单向：采集层不能为获得好看的分数补造事实，报告层不能把未知状态改写成“安全”。GitHub 元数据证据只作为上下文，除非场景明确声明输入契约，否则不参与分数计算。

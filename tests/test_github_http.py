@@ -3,7 +3,7 @@ from urllib.error import URLError
 
 import pytest
 
-from maintainer_zero.github_http import GitHubHTTPError, GitHubHTTPTransport, HTTPTransportConfig
+from maintainer_zero.github_http import DEFAULT_USER_AGENT, GitHubHTTPError, GitHubHTTPTransport, HTTPTransportConfig
 
 
 class FakeResponse:
@@ -26,6 +26,7 @@ def test_transport_is_get_only_and_does_not_expose_token():
     response = transport("/repos/acme/demo/issues", {"page": "1"}, 2.5)
     assert response.status_code == 200
     assert calls[0][0].method == "GET"
+    assert calls[0][0].get_header("User-agent") == DEFAULT_USER_AGENT
     assert calls[0][0].get_header("Authorization") == "Bearer secret-token"
     assert "secret-token" not in repr(response)
     assert "secret-token" not in repr(transport)

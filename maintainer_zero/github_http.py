@@ -11,7 +11,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from .github_client import GitHubClientError, TransportResponse, validate_github_path
 
 DEFAULT_API_BASE = "https://api.github.com"
-DEFAULT_USER_AGENT = "maintainer-zero-read-only/0.1"
+DEFAULT_USER_AGENT = "maintainer-zero-read-only/0.2.0"
 DEFAULT_MAX_RESPONSE_BYTES = 1_000_000
 DEFAULT_MAX_TIMEOUT_SECONDS = 60.0
 _CONTROL_CHARS = frozenset(chr(code) for code in range(32)) | {chr(127)}

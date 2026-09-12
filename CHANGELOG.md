@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- 只读 GitHub HTTP transport 的默认 User-Agent 与包版本统一为 0.2.0，并增加请求头契约断言，便于外部审计日志追踪实际工具版本。
 - 缓存加载现在从同一次已校验读取判断 fresh/stale，避免并发原子替换时状态与返回载荷来自不同代文件。
 - 进一步收紧 GitHub metadata/cache 路径：Windows junction/reparse point 和未折叠的 `..` 路径组件现在同样 fail-closed；cache 写入也能拒绝 dangling symlink 目标。
 - 收紧 GitHub 元数据快照与缓存的路径边界：读取拒绝文件及已有父目录符号链接，缓存写入逐级安全创建普通目录；新增读写两侧路径重定向负例。

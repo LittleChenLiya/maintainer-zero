@@ -1,4 +1,6 @@
 import pytest
+import shutil
+import subprocess
 
 from maintainer_zero.analyzer import snapshot_repository
 from maintainer_zero.cli import _anonymize_snapshot, _build_parser, _load_config, main
@@ -33,6 +35,24 @@ def test_ci_drill_detects_release_path():
 def test_snapshot_rejects_non_git_directory(tmp_path):
     with pytest.raises(ValueError, match="Not a Git repository"):
         snapshot_repository(tmp_path)
+
+
+def test_snapshot_does_not_follow_repository_symlink_outside_root(tmp_path):
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo_path, check=True, capture_output=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "requirements.txt").write_text("outside-package==1\n", encoding="utf-8")
+    try:
+        (repo_path / "requirements.txt").symlink_to(outside / "requirements.txt")
+        (repo_path / ".github").mkdir()
+        (repo_path / ".github" / "workflows").symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    snapshot = snapshot_repository(repo_path)
+    assert "outside-package" not in snapshot.dependencies
+    assert snapshot.workflows == []
 
 
 def test_config_is_validated_and_people_can_be_anonymized(tmp_path):

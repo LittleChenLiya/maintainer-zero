@@ -8,6 +8,16 @@ from pathlib import Path
 
 from .models import RepoSnapshot
 
+
+def _safe_repo_path(root: Path, relative: str) -> Path | None:
+    """Resolve a repository-relative path without following it outside root."""
+    candidate = root / relative
+    try:
+        candidate.resolve().relative_to(root)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return candidate
+
 def _run_git(path: Path, *args: str) -> str:
     try:
         return subprocess.run(["git", "-C", str(path), *args], check=True, capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
@@ -26,8 +36,8 @@ def _parse_codeowners(path: Path) -> dict[str, list[str]]:
 
 def _read_dependencies(path: Path) -> list[str]:
     found: set[str] = set()
-    package = path / "package.json"
-    if package.exists():
+    package = _safe_repo_path(path, "package.json")
+    if package is not None and package.is_file():
         try:
             data = json.loads(package.read_text(encoding="utf-8"))
             for key in ("dependencies", "devDependencies", "peerDependencies"):
@@ -35,8 +45,8 @@ def _read_dependencies(path: Path) -> list[str]:
         except (OSError, json.JSONDecodeError):
             pass
     for filename in ("requirements.txt", "requirements-dev.txt"):
-        req = path / filename
-        if req.exists():
+        req = _safe_repo_path(path, filename)
+        if req is not None and req.is_file():
             for line in req.read_text(encoding="utf-8", errors="replace").splitlines():
                 match = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9_.-]*)", line)
                 if match and not line.lstrip().startswith("#"):
@@ -73,11 +83,12 @@ def snapshot_repository(repo_path: str | Path) -> RepoSnapshot:
             contributors[name] += 1
             commits += 1
     codeowners = {}
-    for candidate in (path / ".github/CODEOWNERS", path / "CODEOWNERS", path / "docs/CODEOWNERS"):
-        if candidate.exists():
+    for relative in (".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"):
+        candidate = _safe_repo_path(path, relative)
+        if candidate is not None and candidate.is_file():
             codeowners = _parse_codeowners(candidate)
             break
-    workflows_dir = path / ".github/workflows"
-    workflows = sorted(p.name for p in workflows_dir.glob("*.y*ml")) if workflows_dir.exists() else []
-    release_files = [p for p in (".npmrc", ".pypirc", "release.config.js", ".github/workflows/release.yml", ".github/workflows/publish.yml") if (path / p).exists()]
+    workflows_dir = _safe_repo_path(path, ".github/workflows")
+    workflows = sorted(p.name for p in workflows_dir.glob("*.y*ml") if _safe_repo_path(path, str(p.relative_to(path))) is not None) if workflows_dir is not None and workflows_dir.is_dir() else []
+    release_files = [relative for relative in (".npmrc", ".pypirc", "release.config.js", ".github/workflows/release.yml", ".github/workflows/publish.yml") if (candidate := _safe_repo_path(path, relative)) is not None and candidate.is_file()]
     return RepoSnapshot(str(path), path.name, commits, dict(contributors), _read_dependencies(path), workflows, codeowners, release_files)

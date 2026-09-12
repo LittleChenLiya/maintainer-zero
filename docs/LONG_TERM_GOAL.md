@@ -71,6 +71,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：benchmark 导出与 baseline 报告读取新增歧义输入防护：重复 JSON key、非标准数值（NaN/Infinity）和超大整数均 fail-closed；分数先验证原始范围再做确定性舍入，独立文本渲染也校验场景/置信度及 Unicode 控制字符。专项与全量回归通过。
 - 2026-09-12：补齐 composite Action 输出边界的 reparse point 模拟测试，覆盖 `GITHUB_OUTPUT` 父目录与最终文件；路径校验现在有 Unix 符号链接、硬链接和 Windows reparse 负例证据。
 - 2026-09-12：报告输出从逐文件原子替换提升为整套可回滚替换；模拟中途替换失败时，旧的 JSON/Markdown/HTML 组合保持不变，新增三文件回滚负例。
 - 2026-09-12：报告三文件输出新增整套目标预检；任一 `continuity.json`、`report.md` 或 `report.html` 目标冲突时，在首次替换前 fail-closed，新增半套报告防护负例。

@@ -36,7 +36,7 @@ The checked-in continuity workflow uploads the JSON, Markdown, HTML, SARIF, Runb
 
 ## Reusable composite Action (local contract)
 
-仓库可以在审阅后引用根目录的 `action.yml` 作为 composite Action。它只安装当前 checkout 中的包并运行本地 `simulate`；输入通过环境变量转成参数列表，不拼接 shell 命令。Action 不读取 token、不启用网络、不写 GitHub，成功后输出 `report-directory`、`report-json`、`report-markdown`、`report-html` 和 `recovery-directory` 的绝对路径。调用方仍负责 checkout、Python 环境和最小权限：
+仓库可以在审阅后引用根目录的 `action.yml` 作为 composite Action。它只安装当前 checkout 中的包并运行本地 `simulate`；输入通过环境变量转成参数列表，不拼接 shell 命令。Action 不读取 token、不启用网络、不写 GitHub，成功后输出 `report-directory`、`report-json`、`report-markdown`、`report-html`、`recovery-directory` 和 `artifact-manifest` 的绝对路径。调用方仍负责 checkout、Python 环境和最小权限：
 
 ```yaml
 permissions:
@@ -55,7 +55,7 @@ steps:
 
 ## Setup for a repository
 
-The repository now includes a reusable composite Action at its root. After a reviewed release is tagged, a consuming repository can call it from a pinned ref after checkout:
+The repository now includes a reusable composite Action at its root. After a reviewed release is tagged, a consuming repository can call it from a pinned ref after checkout. On success it also exposes `artifact-manifest`, an absolute path to the local integrity manifest; verify it offline with `maintainer-zero verify-manifest` before sharing artifacts:
 
 ```yaml
 - uses: actions/checkout@v4

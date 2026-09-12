@@ -83,6 +83,21 @@ def test_load_scenario_bounds_untrusted_file(tmp_path):
         load_scenario(path, max_bytes=1)
 
 
+def test_scenario_validation_rejects_deep_and_cyclic_values():
+    registry = load_bundled_registry()
+    deep = registry["scenarios"][0]
+    cursor = deep
+    for _ in range(70):
+        cursor = {"nested": cursor}
+    with pytest.raises(ScenarioRegistryError, match="nesting exceeds"):
+        validate_registry({"schema_version": 1, "id": "test", "version": "1.0.0", "scenarios": [cursor]})
+    cyclic = dict(registry["scenarios"][0])
+    cyclic["assumptions"] = []
+    cyclic["assumptions"].append(cyclic["assumptions"])
+    with pytest.raises(ScenarioRegistryError, match="cyclic"):
+        validate_scenario(cyclic)
+
+
 def test_loaders_reject_directories_and_symlinks(tmp_path):
     with pytest.raises(ScenarioRegistryError, match="regular file"):
         load_registry(tmp_path)

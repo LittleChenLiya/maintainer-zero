@@ -52,6 +52,7 @@
 - CLI 原子输出现在拒绝文件及父目录符号链接，覆盖 collect-github、demo、history 和 baseline 工件，避免本地结果被重定向到未审阅目标。
 - GitHub client 对响应 JSON 增加 64 层嵌套和循环结构边界，异常结构统一降级为 invalid_json。
 - Composite Action 的 GITHUB_OUTPUT 现在同时拒绝文件和父目录符号链接，避免 runner 输出被重定向到未审阅位置。
+- 场景注册表校验增加 64 层嵌套和循环结构边界，避免内存注入数据触发未处理递归异常。
 - 增加根级可复用 Composite Action：安装动作自身并对 checkout 工作区运行本地演练；输入通过环境变量和 shell 数组传递，保留只读权限与 fork 边界。
 
 ## 发布说明

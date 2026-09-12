@@ -30,6 +30,8 @@ but are not loaded as executable plugins.
   could resolve them.
 - Registry and standalone loaders accept only regular files and reject symlinked
   path components, so validation cannot be redirected to an unexpected target.
+- In-memory validation also rejects cyclic values and limits nested JSON-like
+  structures to 64 levels before recursive copying or field validation.
 
 Validate a contribution before opening a pull request:
 

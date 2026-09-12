@@ -14,6 +14,7 @@ REGISTRY_SCHEMA_VERSION = 1
 SCENARIO_SCHEMA_VERSION = 1
 MAX_REGISTRY_BYTES = 1_048_576
 MAX_SCENARIO_BYTES = 1_048_576
+MAX_SCENARIO_NESTING = 64
 MAX_SCENARIOS = 100
 _ID_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
 _LEGACY_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -59,6 +60,34 @@ def _texts(value: Any, label: str) -> list[str]:
     if not isinstance(value, list) or not value or len(value) > 100:
         raise ScenarioRegistryError(f"{label} must be a non-empty bounded list")
     return [_text(item, f"{label}[{index}]", 2000) for index, item in enumerate(value)]
+
+
+def _check_nesting(value: Any, path: str, error_type: type[ValueError], depth: int = 0, active: set[int] | None = None) -> None:
+    """Reject deeply nested in-memory values before recursive validation/copying."""
+    if active is None:
+        active = set()
+    if depth > MAX_SCENARIO_NESTING:
+        raise error_type(f"{path} nesting exceeds {MAX_SCENARIO_NESTING} levels")
+    if isinstance(value, Mapping):
+        identity = id(value)
+        if identity in active:
+            raise error_type(f"{path} contains a cyclic structure")
+        active.add(identity)
+        try:
+            for key, child in value.items():
+                _check_nesting(child, f"{path}.{key}", error_type, depth + 1, active)
+        finally:
+            active.remove(identity)
+    elif isinstance(value, list):
+        identity = id(value)
+        if identity in active:
+            raise error_type(f"{path} contains a cyclic structure")
+        active.add(identity)
+        try:
+            for index, child in enumerate(value):
+                _check_nesting(child, f"{path}[{index}]", error_type, depth + 1, active)
+        finally:
+            active.remove(identity)
 
 
 def _semver(value: Any, label: str) -> str:
@@ -232,6 +261,8 @@ def _validate_registry_scenario(payload: Mapping[str, Any]) -> dict[str, Any]:
 def validate_scenario(payload: Mapping[str, Any]) -> dict[str, Any]:
     """Validate either the legacy standalone or registry scenario format."""
     scenario = _obj(payload, "scenario")
+    error_type = ScenarioRegistryError if "description" not in scenario or "summary" in scenario else ScenarioSpecError
+    _check_nesting(scenario, "scenario", error_type)
     if "description" in scenario and "summary" not in scenario:
         return _validate_legacy_scenario(scenario)
     return _validate_registry_scenario(scenario)
@@ -247,6 +278,7 @@ def load_scenario(path: str | Path, *, max_bytes: int = MAX_SCENARIO_BYTES) -> d
 
 def validate_registry(payload: Mapping[str, Any]) -> dict[str, Any]:
     registry = _obj(payload, "registry")
+    _check_nesting(registry, "registry", ScenarioRegistryError)
     if registry.get("schema_version") != REGISTRY_SCHEMA_VERSION:
         raise ScenarioRegistryError(f"unsupported registry schema_version: {registry.get('schema_version')!r}")
     _text(registry.get("id"), "registry.id", 64)
@@ -324,7 +356,8 @@ def scenario_summary(scenario: Mapping[str, Any]) -> dict[str, Any]:
 
 
 __all__ = [
-    "MAX_REGISTRY_BYTES", "MAX_SCENARIO_BYTES", "REGISTRY_SCHEMA_VERSION", "SCENARIO_SCHEMA_VERSION",
+    "MAX_REGISTRY_BYTES", "MAX_SCENARIO_BYTES", "MAX_SCENARIO_NESTING",
+    "REGISTRY_SCHEMA_VERSION", "SCENARIO_SCHEMA_VERSION",
     "ScenarioRegistryError", "ScenarioSpecError", "bundled_registry_path",
     "load_bundled_registry", "load_registry", "load_scenario", "scenario_ids",
     "scenario_summary", "validate_registry", "validate_scenario",

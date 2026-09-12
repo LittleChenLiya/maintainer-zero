@@ -24,7 +24,8 @@ fresh = load_metadata_cache("github-cache.json")
 缓存只增加 `cache` 元数据（来源、抓取时间、过期时间和 TTL），不改变原始
 快照的 schema。TTL 必须在 1 秒到 30 天之间，时间戳必须带时区，过期时间必须
 与抓取时间和 TTL 精确一致；文件大小继续受 10 MB 上限约束，并通过临时文件
-替换写入。`cache_status()` 会返回 `missing`、`invalid`、`fresh` 或 `stale`。
+替换写入。缓存读取和更新只接受普通文件，拒绝符号链接、目录和其他非普通文件；
+`cache_status()` 会返回 `missing`、`invalid`、`fresh` 或 `stale`。
 过期缓存默认被 `load_metadata_cache()` 拒绝，只有离线审阅确实需要旧数据时才
 显式传入 `allow_stale=True`。该模块不会自动刷新、联网、读取 token 或把 stale
 计数解释成当前事实。

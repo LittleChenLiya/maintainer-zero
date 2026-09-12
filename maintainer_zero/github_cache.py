@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -79,9 +80,29 @@ def _validate_cache_block(cache: Any) -> dict[str, Any]:
             "ttl_seconds": ttl}
 
 
+def _open_cache(path: Path):
+    """Open a cache without following a symlink or accepting special files."""
+    try:
+        path_stat = path.lstat()
+        if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
+            raise MetadataCacheError("metadata cache must be a regular file")
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(path, flags)
+        file_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(file_stat.st_mode):
+            os.close(descriptor)
+            raise MetadataCacheError("metadata cache must be a regular file")
+        return os.fdopen(descriptor, "rb")
+    except MetadataCacheError:
+        raise
+    except OSError as exc:
+        raise MetadataCacheError(f"invalid metadata cache: {path}") from exc
+
+
 def _read(path: Path) -> dict[str, Any]:
     try:
-        raw = path.read_bytes()
+        with _open_cache(path) as handle:
+            raw = handle.read(MAX_METADATA_BYTES + 1)
         if len(raw) > MAX_METADATA_BYTES:
             raise MetadataCacheError(f"metadata cache exceeds {MAX_METADATA_BYTES} bytes")
         payload = json.loads(raw)
@@ -121,6 +142,13 @@ def save_metadata_cache(path: str | Path, payload: Mapping[str, Any], *,
     if len(encoded) > MAX_METADATA_BYTES:
         raise MetadataCacheError(f"metadata cache exceeds {MAX_METADATA_BYTES} bytes")
     target = Path(path)
+    if target.exists():
+        try:
+            target_stat = target.lstat()
+        except OSError as exc:
+            raise MetadataCacheError(f"could not inspect metadata cache: {target}") from exc
+        if stat.S_ISLNK(target_stat.st_mode) or not stat.S_ISREG(target_stat.st_mode):
+            raise MetadataCacheError("metadata cache target must be a regular file")
     temporary: Path | None = None
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -148,8 +176,12 @@ def save_metadata_cache(path: str | Path, payload: Mapping[str, Any], *,
 def cache_status(path: str | Path, *, now: datetime | None = None) -> CacheStatus:
     """Inspect a cache without treating stale data as current."""
     target = Path(path)
-    if not target.exists():
+    try:
+        target.lstat()
+    except FileNotFoundError:
         return CacheStatus("missing", reason="not_found")
+    except OSError:
+        return CacheStatus("invalid", reason="not_found")
     try:
         payload = _read(target)
     except MetadataCacheError as exc:

@@ -1,4 +1,6 @@
 import json
+import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -90,6 +92,36 @@ def test_load_metadata_rejects_symlinked_parent(tmp_path):
         pytest.skip("symlink creation unavailable")
     with pytest.raises(MetadataError, match="symlink"):
         load_metadata(parent / "github.json")
+
+
+def test_load_metadata_rejects_descriptor_redirect_before_parsing(tmp_path, monkeypatch):
+    path = tmp_path / "github.json"
+    path.write_text(json.dumps(snapshot()), encoding="utf-8")
+    original_fstat = os.fstat
+
+    def mismatched_fstat(fd):
+        info = original_fstat(fd)
+        return SimpleNamespace(
+            st_mode=info.st_mode,
+            st_file_attributes=getattr(info, "st_file_attributes", 0),
+            st_dev=info.st_dev,
+            st_ino=info.st_ino + 1,
+            st_size=info.st_size,
+        )
+
+    monkeypatch.setattr("maintainer_zero.github_metadata.os.fstat", mismatched_fstat)
+    with pytest.raises(MetadataError, match="changed during open"):
+        load_metadata(path)
+
+
+def test_load_metadata_rejects_duplicate_json_keys(tmp_path):
+    path = tmp_path / "duplicate.json"
+    path.write_text(
+        '{"schema_version":1,"schema_version":1,"permissions":{},"data":{}}',
+        encoding="utf-8",
+    )
+    with pytest.raises(MetadataError, match="duplicate"):
+        load_metadata(path)
 
 def test_collection_status_is_bounded():
     payload = {**snapshot(), "collection": {"issues": {"available": True, "pages": 51, "truncated": False}}}

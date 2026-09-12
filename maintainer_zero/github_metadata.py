@@ -72,7 +72,7 @@ def _open_snapshot(path: Path):
         ):
             os.close(descriptor)
             raise MetadataError("metadata snapshot changed during open")
-        return os.fdopen(descriptor, "rb")
+        return os.fdopen(descriptor, "rb"), path, path_stat
     except MetadataError:
         raise
     except OSError as exc:
@@ -81,6 +81,16 @@ def _open_snapshot(path: Path):
 
 def _reject_nonstandard_number(value: str) -> None:
     raise MetadataError(f"metadata contains non-standard JSON number: {value}")
+
+
+def _reject_duplicate_object_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject ambiguous JSON objects instead of silently keeping the last key."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise MetadataError(f"metadata contains duplicate object key: {key}")
+        result[key] = value
+    return result
 
 
 def _validate_finite_numbers(value: Any, *, depth: int = 0, active: set[int] | None = None) -> None:
@@ -106,11 +116,27 @@ def _validate_finite_numbers(value: Any, *, depth: int = 0, active: set[int] | N
 def load_metadata(path: str | Path) -> dict[str, Any]:
     path = Path(path)
     try:
-        with _open_snapshot(path) as handle:
+        handle, target, initial = _open_snapshot(path)
+        with handle:
             raw = handle.read(MAX_METADATA_BYTES + 1)
         if len(raw) > MAX_METADATA_BYTES:
             raise MetadataError(f"metadata snapshot exceeds {MAX_METADATA_BYTES} bytes")
-        payload = json.loads(raw, parse_constant=_reject_nonstandard_number)
+        after = target.lstat()
+        identity = (getattr(initial, "st_dev", 0), getattr(initial, "st_ino", 0))
+        after_identity = (getattr(after, "st_dev", 0), getattr(after, "st_ino", 0))
+        if (
+            _is_link_like(after)
+            or not stat.S_ISREG(after.st_mode)
+            or after_identity != identity
+            or after.st_size != initial.st_size
+            or getattr(after, "st_mtime_ns", None) != getattr(initial, "st_mtime_ns", None)
+        ):
+            raise MetadataError("metadata snapshot changed during reading")
+        payload = json.loads(
+            raw,
+            object_pairs_hook=_reject_duplicate_object_keys,
+            parse_constant=_reject_nonstandard_number,
+        )
     except MetadataError:
         raise
     except (OSError, json.JSONDecodeError, RecursionError) as exc:

@@ -1,4 +1,7 @@
 import json
+import stat
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -131,6 +134,38 @@ def test_history_rejects_symlinked_parent_for_read_and_write(tmp_path):
         from maintainer_zero.history import load_history
         load_history(path)
     assert not list(outside.iterdir())
+
+
+def test_history_rejects_reparse_parent_without_following_it(tmp_path, monkeypatch):
+    parent = tmp_path / "reparse-parent"
+    parent.mkdir()
+    target = parent / "history.json"
+    original_lstat = Path.lstat
+
+    def fake_lstat(self, *args, **kwargs):
+        if self == parent:
+            return SimpleNamespace(st_mode=stat.S_IFDIR, st_file_attributes=0x400)
+        return original_lstat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(HistoryError, match="symlink"):
+        append_history(target, report(), recorded_at="2026-01-01T00:00:00Z")
+    assert not target.exists()
+
+
+def test_history_rejects_dangling_symlink_target(tmp_path, monkeypatch):
+    target = tmp_path / "history.json"
+    original_lstat = Path.lstat
+
+    def fake_lstat(self, *args, **kwargs):
+        if self == target:
+            return SimpleNamespace(st_mode=stat.S_IFLNK, st_file_attributes=0)
+        return original_lstat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(HistoryError, match="regular file"):
+        append_history(target, report(), recorded_at="2026-01-01T00:00:00Z")
+    assert not target.exists()
 
 
 def test_history_rejects_oversized_file_before_json_parse(tmp_path):

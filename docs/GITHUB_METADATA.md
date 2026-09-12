@@ -38,6 +38,8 @@ junction/reparse point、目录和其他非普通文件；
 过期缓存默认被 `load_metadata_cache()` 拒绝，只有离线审阅确实需要旧数据时才
 显式传入 `allow_stale=True`。该模块不会自动刷新、联网、读取 token 或把 stale
 计数解释成当前事实。
+读取和 freshness 判断使用同一份已打开的缓存载荷，避免缓存原子替换恰好发生在
+状态检查与返回结果之间时，把两代数据混合到一次演练中。
 
 `simulate --github-metadata` 会自动识别带 `cache` envelope 的快照，并把缓存来源、
 抓取时间、过期时间和 `fresh`/`stale` 状态写入报告摘要。过期缓存默认让演练以

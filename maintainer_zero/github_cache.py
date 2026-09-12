@@ -236,12 +236,20 @@ def cache_status(path: str | Path, *, now: datetime | None = None) -> CacheStatu
                        None if state == "fresh" else "expired")
 
 
+def _cache_status_for_payload(payload: Mapping[str, Any], *, now: datetime | None = None) -> CacheStatus:
+    cache = payload["cache"]
+    current = _normalise_time(now or datetime.now(timezone.utc), label="now")
+    state = "fresh" if current < _parse_timestamp(cache["expires_at"], label="expires_at") else "stale"
+    return CacheStatus(state, cache["source"], cache["fetched_at"], cache["expires_at"],
+                       None if state == "fresh" else "expired")
+
+
 def load_metadata_cache(path: str | Path, *, now: datetime | None = None,
                         allow_stale: bool = False) -> dict[str, Any]:
     """Load a validated cache; stale data requires explicit opt-in."""
     target = Path(path)
     payload = _read(target)
-    status = cache_status(target, now=now)
+    status = _cache_status_for_payload(payload, now=now)
     if status.state == "stale" and not allow_stale:
         raise MetadataCacheError("metadata cache is stale; pass allow_stale=True to inspect it")
     return payload

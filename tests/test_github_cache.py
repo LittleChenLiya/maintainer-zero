@@ -79,6 +79,20 @@ def test_cache_read_converts_deep_json_recursion_to_cache_error(tmp_path):
         load_metadata_cache(path)
 
 
+def test_load_cache_evaluates_freshness_from_same_read(monkeypatch, tmp_path):
+    path = tmp_path / "cache.json"
+    fetched = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    save_metadata_cache(path, payload(), fetched_at=fetched, ttl_seconds=60)
+    original = path.read_bytes()
+
+    def unexpected_second_status(*args, **kwargs):
+        raise AssertionError("load must not reread cache for freshness")
+
+    monkeypatch.setattr("maintainer_zero.github_cache.cache_status", unexpected_second_status)
+    assert load_metadata_cache(path, now=fetched)["cache"]["fetched_at"] == "2026-01-01T00:00:00Z"
+    assert path.read_bytes() == original
+
+
 def test_cache_rejects_credential_like_top_level_fields(tmp_path):
     unsafe = dict(payload(), token="do-not-store", secret="also-do-not-store")
     with pytest.raises(MetadataCacheError, match="payload is invalid"):

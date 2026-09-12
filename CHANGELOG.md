@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- 缓存加载现在从同一次已校验读取判断 fresh/stale，避免并发原子替换时状态与返回载荷来自不同代文件。
 - 进一步收紧 GitHub metadata/cache 路径：Windows junction/reparse point 和未折叠的 `..` 路径组件现在同样 fail-closed；cache 写入也能拒绝 dangling symlink 目标。
 - 收紧 GitHub 元数据快照与缓存的路径边界：读取拒绝文件及已有父目录符号链接，缓存写入逐级安全创建普通目录；新增读写两侧路径重定向负例。
 - 报告 JSON 与 SARIF 现在记录工具发行版本 0.2.0，与规则版本 0.2 分离，便于长期趋势和恢复工件追溯。

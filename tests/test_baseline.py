@@ -93,3 +93,11 @@ def test_load_report_rejects_future_schema_and_bad_envelope(tmp_path):
     path.write_text("[]", encoding="utf-8")
     with pytest.raises(ValueError, match="JSON object"):
         load_report(path)
+
+
+def test_compare_reports_rejects_mixed_rule_versions():
+    baseline = report(score=80)
+    current = report(score=80)
+    current["rule_version"] = "0.3"
+    with pytest.raises(ValueError, match="different rule versions"):
+        compare_reports(baseline, current)

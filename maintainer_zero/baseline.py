@@ -81,6 +81,8 @@ def _coverage(report: Mapping[str, Any]) -> dict[str, Any]:
 def compare_reports(baseline: Mapping[str, Any], current: Mapping[str, Any]) -> dict[str, Any]:
     _validate_report(baseline)
     _validate_report(current)
+    if baseline["rule_version"] != current["rule_version"]:
+        raise BaselineError("cannot compare reports produced by different rule versions")
     old_results, new_results = _results(baseline), _results(current)
     scenarios: list[dict[str, Any]] = []
     added_findings: list[dict[str, Any]] = []

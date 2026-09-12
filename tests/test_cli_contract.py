@@ -31,3 +31,9 @@ def test_validate_fallback_plan_parser_is_read_only():
     args = _build_parser().parse_args(["validate-fallback-plan", "fallback.json", "--format", "json"])
     assert args.command == "validate-fallback-plan"
     assert args.fallback_format == "json"
+
+
+def test_export_benchmark_parser_requires_output():
+    args = _build_parser().parse_args(["export-benchmark", "report.json", "--output", "benchmark.json"])
+    assert args.command == "export-benchmark"
+    assert args.benchmark_format == "json"

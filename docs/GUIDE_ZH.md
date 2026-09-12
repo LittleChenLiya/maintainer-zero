@@ -60,6 +60,8 @@ maintainer-zero simulate . --github-metadata github-metadata.json --output .cont
 
 依赖替代/冷构建计划可以先单独校验，再注入演练报告：`maintainer-zero validate-fallback-plan fallback.json --format json`。该命令只读取并验证 data-only JSON，输出会明确 `execution: not-run`，不会执行命令、安装依赖或联网。
 
+如需参与隐私保护的公开基准，可将已审阅的报告导出为摘要：`maintainer-zero export-benchmark .continuity/continuity.json --output benchmark.json`。导出只保留场景分数、置信度、Finding 严重级别计数和元数据可用性；仓库身份、贡献者、依赖名、Finding 文本及原始记录均省略，且摘要明确不是排名。发布前仍需人工复核。
+
 只有额外传入 `--allow-environment-token` 才会读取 `GITHUB_TOKEN`；命令只执行 GET，不执行 GitHub 写操作。
 
 ## 隐私与安全边界

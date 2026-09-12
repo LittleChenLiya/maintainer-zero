@@ -56,6 +56,8 @@ maintainer-zero simulate . --history .continuity/history.json
 maintainer-zero simulate . --fallback-plan fallback.json
 # Validate the plan alone before attaching it to a report (still never executes it)
 maintainer-zero validate-fallback-plan fallback.json --format json
+# Export a privacy-preserving summary for an explicitly reviewed benchmark
+maintainer-zero export-benchmark .continuity/continuity.json --output benchmark.json
 # Validate a declarative community scenario without executing code
 maintainer-zero validate-scenario examples/scenarios/dependency-yanked.json
 # Print a validated, non-executable scenario contract for review

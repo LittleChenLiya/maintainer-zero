@@ -10,6 +10,7 @@
 - 新增只读 `validate-fallback-plan` 命令，可在注入演练报告前单独校验 data-only 依赖替代/冷构建计划；输出明确 `execution: not-run`，不会执行命令或联网。
 - GitHub 离线快照读取后现在复核身份、大小与修改时间，并拒绝重复 JSON key，避免同一次元数据读取混入被替换或含歧义的声明。
 - 修复同一输出目录的 baseline 演练：CLI 现在在替换新报告前加载并保留旧 baseline，避免 `--baseline OUTPUT/continuity.json` 被新报告覆盖后错误显示为 unchanged。
+- 新增隐私保护 `export-benchmark`：从已验证报告生成不含仓库/人员身份、依赖名、Finding 文本或原始记录的固定摘要，并明确该摘要不是跨项目排名。
 
 本文件记录尚未发布的本地开发版本；项目当前没有公开远程仓库或已发布包。
 

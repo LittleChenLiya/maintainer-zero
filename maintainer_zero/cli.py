@@ -23,6 +23,7 @@ from .history import HistoryError, append_history, render_trend_markdown
 from .demos import DemoError, load_demo_suite, run_demo_suite
 from .manifest import ManifestError, verify_manifest, write_manifest
 from .fallback import FallbackPlanError, load_fallback_plan, summarize_fallback_plan
+from .benchmark import BenchmarkError, build_benchmark, render_benchmark_text
 from . import __version__
 
 def _atomic_write_text(path: str | Path, content: str) -> None:
@@ -93,6 +94,10 @@ def _build_parser() -> argparse.ArgumentParser:
     validate_fallback = sub.add_parser("validate-fallback-plan", help="validate a data-only dependency fallback plan without executing it")
     validate_fallback.add_argument("path")
     validate_fallback.add_argument("--format", choices=("text", "json"), default="text", dest="fallback_format")
+    benchmark = sub.add_parser("export-benchmark", help="export a privacy-preserving benchmark summary from a report")
+    benchmark.add_argument("report", metavar="REPORT")
+    benchmark.add_argument("--output", required=True, metavar="PATH")
+    benchmark.add_argument("--format", choices=("json", "text"), default="json", dest="benchmark_format")
     verify = sub.add_parser("verify-manifest", help="verify a local artifact manifest without executing repository code")
     verify.add_argument("path")
     verify.add_argument("--format", choices=("text", "json"), default="text", dest="manifest_format")
@@ -364,6 +369,20 @@ def main(argv: list[str] | None = None) -> int:
             )
             for status, count in summary["cold_build_status_counts"].items():
                 print(f"  cold-build {status}: {count}")
+        return 0
+    if args.command == "export-benchmark":
+        try:
+            summary = build_benchmark(load_report(args.report))
+            rendered = (
+                json.dumps(summary, indent=2, ensure_ascii=False) + "\n"
+                if args.benchmark_format == "json"
+                else render_benchmark_text(summary)
+            )
+            _atomic_write_text(args.output, rendered)
+        except (BaselineError, BenchmarkError, OSError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 2
+        print(f"Benchmark summary written to {Path(args.output).resolve()}")
         return 0
     if args.command == "verify-manifest":
         try:

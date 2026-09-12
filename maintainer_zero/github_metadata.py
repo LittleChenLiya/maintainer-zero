@@ -43,17 +43,25 @@ def _reject_nonstandard_number(value: str) -> None:
     raise MetadataError(f"metadata contains non-standard JSON number: {value}")
 
 
-def _validate_finite_numbers(value: Any, *, depth: int = 0) -> None:
+def _validate_finite_numbers(value: Any, *, depth: int = 0, active: set[int] | None = None) -> None:
+    if active is None:
+        active = set()
     if depth > MAX_METADATA_NESTING:
         raise MetadataError(f"metadata nesting exceeds {MAX_METADATA_NESTING} levels")
     if isinstance(value, float) and not math.isfinite(value):
         raise MetadataError("metadata contains a non-finite number")
-    if isinstance(value, dict):
-        for nested in value.values():
-            _validate_finite_numbers(nested, depth=depth + 1)
-    elif isinstance(value, list):
-        for nested in value:
-            _validate_finite_numbers(nested, depth=depth + 1)
+    if not isinstance(value, (dict, list)):
+        return
+    identity = id(value)
+    if identity in active:
+        raise MetadataError("metadata contains a cyclic structure")
+    active.add(identity)
+    try:
+        nested_values = value.values() if isinstance(value, dict) else value
+        for nested in nested_values:
+            _validate_finite_numbers(nested, depth=depth + 1, active=active)
+    finally:
+        active.remove(identity)
 
 def load_metadata(path: str | Path) -> dict[str, Any]:
     path = Path(path)

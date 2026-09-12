@@ -104,6 +104,13 @@ def test_metadata_rejects_unbounded_collection_scheduling_hints():
         validate_metadata({**snapshot(), "collection": {"issues": {"available": False, "pages": 0, "truncated": False, "retry_after_seconds": 86401}}})
 
 
+def test_metadata_rejects_cyclic_in_memory_values():
+    payload = snapshot()
+    payload["data"]["issues"][0]["self"] = payload["data"]["issues"][0]
+    with pytest.raises(MetadataError, match="cyclic"):
+        validate_metadata(payload)
+
+
 def test_metadata_rejects_excessive_nesting_without_recursion_error(tmp_path):
     nested = "[" * 70 + "0" + "]" * 70
     payload = (

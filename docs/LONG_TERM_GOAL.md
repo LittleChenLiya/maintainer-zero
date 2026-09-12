@@ -68,6 +68,8 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：继续收紧 composite Action 的 `GITHUB_OUTPUT` 边界：仅拒绝路径符号链接不足以防止硬链接重定向；现在对已打开描述符校验普通文件与单链接计数，并在写入后 `fsync`，新增硬链接负例且保留失败时目标文件不变的证据。
+
 - 2026-09-12：收紧 `continuity.json` 配置 schema：未知顶层字段和未知 `privacy` 选项现在明确拒绝，避免未来/拼写错误配置被静默忽略；新增配置负例。
 
 - 2026-09-12：修复损坏 `package.json` 被静默视为“无依赖”的问题；JSON、顶层类型或 dependencies/devDependencies/peerDependencies 字段类型不合法时，分析器现在返回受控输入错误，避免错误的低风险结论，新增 3 类负例。

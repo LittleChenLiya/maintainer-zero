@@ -44,7 +44,7 @@ ci.yml 的 release-smoke job 会在 Ubuntu/Python 3.12 runner 上重复执行同
 - `collect-github --max-response-bytes N` 只能把单响应上限收紧到 `1..1,000,000` 字节；越界输入必须以退出码 2 拒绝，超大响应必须降级为 `response_too_large`，不能解析截断 JSON。
 - Unix 与 Windows 适配器都只运行本地 CLI，不读取 `GITHUB_TOKEN`、不启用网络、不执行 GitHub 写入；默认只写配置的报告目录。
 - 成功运行才写入 `GITHUB_OUTPUT`；`report-directory` 与 `report-json` 必须指向同一输出目录下的绝对路径。
-- `GITHUB_OUTPUT` 必须是绝对路径；在 GitHub runner 提供 `RUNNER_TEMP` 时，输出文件必须位于该临时目录内，拒绝控制字符、符号链接和缺失父目录，避免通过输出文件重定向写入任意路径。
+- `GITHUB_OUTPUT` 必须是绝对路径；在 GitHub runner 提供 `RUNNER_TEMP` 时，输出文件必须位于该临时目录内，拒绝控制字符、符号链接、硬链接、非普通文件和缺失父目录，打开后还要校验文件身份并 `fsync`，避免通过输出文件重定向写入任意路径或留下半写入结果。
 - 本地契约测试覆盖成功产物、`--fail-under`/基线门禁失败、过期元数据默认拒绝及显式允许、以及含空格路径。真实 GitHub-hosted runner（Ubuntu/Windows 和 Python 矩阵）仍需在 CI 中验证，不能用本地测试替代。
 - `init` 创建的 starter `continuity.json` 必须原子替换；重复运行不得覆盖用户配置，写入失败不得留下半成品或临时文件。
 

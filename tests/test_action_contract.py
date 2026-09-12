@@ -79,6 +79,19 @@ def test_action_adapter_rejects_symlinked_github_output(tmp_path):
         _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(link)})
 
 
+def test_action_adapter_rejects_hardlinked_github_output(tmp_path):
+    target = tmp_path / "target"
+    target.write_text("keep-me\n", encoding="utf-8")
+    link = tmp_path / "github-output"
+    try:
+        link.hardlink_to(target)
+    except (OSError, NotImplementedError):
+        pytest.skip("hard links unavailable")
+    with pytest.raises(ValueError, match="hard link"):
+        _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(link)})
+    assert target.read_text(encoding="utf-8") == "keep-me\n"
+
+
 def test_action_adapter_rejects_control_characters_before_output_boundary():
     with pytest.raises(ValueError, match="control characters"):
         build_argv({"MZ_INPUT_PATH": "repo" + chr(10) + "forged-output=true"})

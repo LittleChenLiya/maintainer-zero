@@ -5,6 +5,7 @@ Inputs arrive through the action environment rather than shell interpolation.
 from __future__ import annotations
 
 import os
+import stat
 from pathlib import Path
 
 from maintainer_zero.cli import main
@@ -90,10 +91,20 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
     except OSError as exc:
         raise OSError(f"could not open GITHUB_OUTPUT: {output_file}") from exc
     try:
+        # O_NOFOLLOW prevents a final-component symlink on platforms that
+        # implement it, but it does not prevent a hard link to another file.
+        # Inspect the opened descriptor so a concurrent replacement cannot
+        # redirect the write between validation and open.
+        file_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(file_stat.st_mode):
+            raise ValueError("GITHUB_OUTPUT must be a regular file")
+        if file_stat.st_nlink != 1:
+            raise ValueError("GITHUB_OUTPUT must not be a hard link")
         with os.fdopen(descriptor, "a", encoding="utf-8", newline="\n") as handle:
             descriptor = -1
             handle.write(payload)
             handle.flush()
+            os.fsync(handle.fileno())
     finally:
         if descriptor != -1:
             os.close(descriptor)

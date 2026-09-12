@@ -115,3 +115,21 @@ def test_cache_rejects_symlink(tmp_path):
         load_metadata_cache(link)
     with pytest.raises(MetadataCacheError, match="regular file"):
         save_metadata_cache(link, payload())
+
+
+def test_cache_rejects_symlinked_parent_for_read_and_write(tmp_path):
+    real = tmp_path / "real-parent"
+    real.mkdir()
+    target = real / "cache.json"
+    save_metadata_cache(target, payload())
+    parent = tmp_path / "linked-parent"
+    try:
+        parent.symlink_to(real, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    linked = parent / "cache.json"
+    assert cache_status(linked).state == "invalid"
+    with pytest.raises(MetadataCacheError, match="symlink"):
+        load_metadata_cache(linked)
+    with pytest.raises(MetadataCacheError, match="symlink"):
+        save_metadata_cache(linked, payload())

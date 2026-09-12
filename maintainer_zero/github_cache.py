@@ -23,6 +23,32 @@ class MetadataCacheError(ValueError):
     """Raised when a local metadata cache is missing, invalid, or stale."""
 
 
+def _prepare_cache_target(path: Path, *, create_parents: bool) -> Path:
+    """Return an absolute cache path with non-symlinked parent components."""
+    target = Path(os.path.abspath(path))
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts[:-1]:
+        current /= part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            if not create_parents:
+                break
+            try:
+                current.mkdir()
+                info = current.lstat()
+            except OSError as exc:
+                raise MetadataCacheError(f"could not create metadata cache directory: {current}") from exc
+        except OSError as exc:
+            raise MetadataCacheError(f"could not inspect metadata cache path: {current}") from exc
+        if stat.S_ISLNK(info.st_mode):
+            raise MetadataCacheError("metadata cache path may not contain a symlink")
+        if not stat.S_ISDIR(info.st_mode):
+            raise MetadataCacheError("metadata cache parent must be a directory")
+    return target
+
+
 @dataclass(frozen=True)
 class CacheStatus:
     state: str
@@ -82,6 +108,7 @@ def _validate_cache_block(cache: Any) -> dict[str, Any]:
 
 def _open_cache(path: Path):
     """Open a cache without following a symlink or accepting special files."""
+    path = _prepare_cache_target(path, create_parents=False)
     try:
         path_stat = path.lstat()
         if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
@@ -146,7 +173,7 @@ def save_metadata_cache(path: str | Path, payload: Mapping[str, Any], *,
     encoded = (json.dumps(result, indent=2, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
     if len(encoded) > MAX_METADATA_BYTES:
         raise MetadataCacheError(f"metadata cache exceeds {MAX_METADATA_BYTES} bytes")
-    target = Path(path)
+    target = _prepare_cache_target(Path(path), create_parents=True)
     if target.exists():
         try:
             target_stat = target.lstat()
@@ -156,7 +183,6 @@ def save_metadata_cache(path: str | Path, payload: Mapping[str, Any], *,
             raise MetadataCacheError("metadata cache target must be a regular file")
     temporary: Path | None = None
     try:
-        target.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
             mode="wb",
             dir=target.parent,

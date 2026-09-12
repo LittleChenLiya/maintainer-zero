@@ -27,8 +27,29 @@ class MetadataError(ValueError):
     """Raised when a metadata snapshot violates the local envelope."""
 
 
+def _reject_symlinked_parents(path: Path) -> Path:
+    """Return an absolute path after checking existing parent components."""
+    target = Path(os.path.abspath(path))
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts[:-1]:
+        current /= part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            break
+        except OSError as exc:
+            raise MetadataError(f"could not inspect metadata snapshot path: {current}") from exc
+        if stat.S_ISLNK(info.st_mode):
+            raise MetadataError("metadata snapshot path may not contain a symlink")
+        if not stat.S_ISDIR(info.st_mode):
+            raise MetadataError("metadata snapshot parent must be a directory")
+    return target
+
+
 def _open_snapshot(path: Path):
     """Open a snapshot without following links or accepting special files."""
+    path = _reject_symlinked_parents(path)
     try:
         path_stat = path.lstat()
         if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):

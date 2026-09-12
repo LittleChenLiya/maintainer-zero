@@ -78,6 +78,19 @@ def test_load_metadata_rejects_symlink(tmp_path):
     with pytest.raises(MetadataError, match="regular file"):
         load_metadata(link)
 
+
+def test_load_metadata_rejects_symlinked_parent(tmp_path):
+    real = tmp_path / "real-parent"
+    real.mkdir()
+    (real / "github.json").write_text(json.dumps(snapshot()), encoding="utf-8")
+    parent = tmp_path / "linked-parent"
+    try:
+        parent.symlink_to(real, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    with pytest.raises(MetadataError, match="symlink"):
+        load_metadata(parent / "github.json")
+
 def test_collection_status_is_bounded():
     payload = {**snapshot(), "collection": {"issues": {"available": True, "pages": 51, "truncated": False}}}
     with pytest.raises(MetadataError, match="pages"):

@@ -68,6 +68,8 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：收紧只读 HTTP transport 的凭证与请求头边界：token 和 User-Agent 现在拒绝全部 ASCII 控制字符（不只 CR/LF），避免 NUL、TAB 等字符进入认证或请求头；新增负例测试。
+
 - 2026-09-12：将 `init` 的 starter `continuity.json` 写入接入原子替换与失败清理边界；重复初始化保留用户配置，替换失败返回退出码 2 且不留下半成品，新增幂等与失败回归测试。
 
 - 2026-09-12：收紧 GitHub 元数据顶层 schema，仅允许 schema_version、permissions、data、collection 和受限 cache envelope；token/secret 等任意凭证样字段会在快照校验和缓存保存阶段直接拒绝，而不是仅在摘要阶段隐藏；专项 34 项通过。

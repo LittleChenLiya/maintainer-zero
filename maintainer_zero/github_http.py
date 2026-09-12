@@ -14,6 +14,7 @@ DEFAULT_API_BASE = "https://api.github.com"
 DEFAULT_USER_AGENT = "maintainer-zero-read-only/0.1"
 DEFAULT_MAX_RESPONSE_BYTES = 1_000_000
 DEFAULT_MAX_TIMEOUT_SECONDS = 60.0
+_CONTROL_CHARS = frozenset(chr(code) for code in range(32)) | {chr(127)}
 class _RejectRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, *args, **kwargs):
         return None
@@ -36,7 +37,7 @@ class HTTPTransportConfig:
 def _validate_token(token: str | None) -> str | None:
     if token is None:
         return None
-    if not isinstance(token, str) or not token or len(token) > 512 or any(char in token for char in ("\r", "\n")):
+    if not isinstance(token, str) or not token or len(token) > 512 or any(char in _CONTROL_CHARS for char in token):
         raise GitHubHTTPError("token must be a bounded single-line string")
     return token
 
@@ -67,7 +68,8 @@ class GitHubHTTPTransport:
             or config.api_base.endswith("/")
         ):
             raise GitHubHTTPError("api_base must be an https URL without a trailing slash")
-        if not isinstance(config.user_agent, str) or not config.user_agent.strip() or "\r" in config.user_agent or "\n" in config.user_agent:
+        if (not isinstance(config.user_agent, str) or not config.user_agent.strip()
+                or any(char in _CONTROL_CHARS for char in config.user_agent)):
             raise GitHubHTTPError("user_agent must be a non-empty single-line string")
         if (isinstance(config.max_response_bytes, bool)
                 or not isinstance(config.max_response_bytes, int)

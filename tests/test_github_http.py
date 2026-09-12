@@ -37,6 +37,10 @@ def test_transport_rejects_unapproved_paths_and_unsafe_config():
         GitHubHTTPTransport(config=type("Config", (), {"api_base": "http://localhost", "user_agent": "x", "max_response_bytes": 1})())
     with pytest.raises(GitHubHTTPError, match="single-line"):
         GitHubHTTPTransport(token="bad\nsecret")
+    with pytest.raises(GitHubHTTPError, match="single-line"):
+        GitHubHTTPTransport(token="bad\x00secret")
+    with pytest.raises(GitHubHTTPError, match="single-line"):
+        GitHubHTTPTransport(config=HTTPTransportConfig(user_agent="maintainer-zero\tclient"))
     with pytest.raises(GitHubHTTPError, match="non-whitelisted"):
         GitHubHTTPTransport()("/repos/../secret/issues", {}, 1)
     for base in ("https://user:pass@api.github.com", "https://api.github.com?token=leak", "https://[bad"):

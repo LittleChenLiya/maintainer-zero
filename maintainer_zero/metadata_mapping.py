@@ -183,6 +183,34 @@ def _map_record(provider: str, resource: str, record: Any) -> dict[str, Any]:
     return {key: result[key] for key in sorted(result)}
 
 
+def project_provider_record(provider: str, resource: str, record: Mapping[str, Any]) -> dict[str, Any]:
+    """Project an API record to the provider-owned input accepted by the mapper.
+
+    Provider APIs return many fields that are outside the continuity contract.
+    They are intentionally omitted here; fields that are known to the contract
+    must still be scalar.  The stricter :func:`normalize_metadata` call remains
+    the final validation boundary.
+    """
+    if not isinstance(provider, str) or provider not in SUPPORTED_PROVIDERS:
+        raise MetadataError("metadata provider is unsupported")
+    if not isinstance(resource, str):
+        raise MetadataError("metadata resource is unsupported")
+    canonical_resource = _RESOURCE_ALIASES[provider].get(resource)
+    if canonical_resource is None or canonical_resource not in _FIELD_ALIASES[provider]:
+        raise MetadataError("metadata resource is unsupported")
+    if not isinstance(record, Mapping):
+        raise MetadataError(f"metadata {resource} record must be an object")
+    projected: dict[str, Any] = {}
+    for source in _FIELD_ALIASES[provider][canonical_resource]:
+        if source not in record:
+            continue
+        value = record[source]
+        if not _scalar(value):
+            raise MetadataError(f"metadata {resource} fields must be scalar")
+        projected[source] = value
+    return {key: projected[key] for key in sorted(projected)}
+
+
 def _map_data(provider: str, data: Any) -> dict[str, Any]:
     mapped = _map_resources(provider, data, label="data")
     result: dict[str, Any] = {}
@@ -240,4 +268,4 @@ def normalize_metadata(provider: str, raw_snapshot: Mapping[str, Any]) -> dict[s
     return validate_metadata(result)
 
 
-__all__ = ["normalize_metadata"]
+__all__ = ["normalize_metadata", "project_provider_record"]

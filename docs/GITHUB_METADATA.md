@@ -28,6 +28,13 @@ GitLab `project` → `repository`、`merge_requests` → `pull_requests`），�
 嵌套值、身份/URL/凭证字段和未知键，且不会发起网络请求或执行代码。该函数是映射契约，
 不是 GitLab/Forgejo 客户端；调用方仍需自行实现经过审阅的只读采集器。
 
+对于需要统一分页行为的集成方，`ReadOnlyProviderClient` 提供 GitLab（数字 project id）
+和 Forgejo（`OWNER/REPOSITORY`）的注入式只读边界。它只生成固定的 `/api/v4/projects/...`
+或 `/api/v1/repos/...` 路径，限制页数、每页条目、响应大小和 60 秒内超时，并仅保留
+`Link`、`Retry-After`、`X-RateLimit-Reset` 的有界提示。调用方负责提供 GET transport；
+客户端不读取 token、不自动重试、不跟随重定向，也不执行平台返回的数据。GitLab reviews
+暂不映射，需由适配器明确声明 unknown。
+
 可用 `validate-metadata PATH --format json` 在注入演练前离线检查快照；该命令不执行
 仓库代码、不联网、不读取 token，也不修改快照。
 

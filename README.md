@@ -17,6 +17,8 @@ For shareable reports, the starter config anonymizes contributor identities and 
 The M3 metadata boundary validates reviewed snapshots and preserves missing permissions as
 `unknown`. Network collection requires both `--allow-network` and, for environment credentials,
 `--allow-environment-token`; it never writes to GitHub. See [GitHub metadata](docs/GITHUB_METADATA.md).
+Provider-neutral adapters can use the injected GitLab/Forgejo client and canonical mapping, but
+these APIs perform no network I/O by themselves and do not load tokens or perform write operations.
 
 ## Quick start
 

@@ -140,6 +140,31 @@ def test_recovery_write_failure_keeps_existing_artifact_intact(tmp_path: Path, m
     assert not list(out.glob(".runbook.md.*.tmp"))
 
 
+def test_recovery_set_failure_rolls_back_files_replaced_before_error(tmp_path: Path, monkeypatch):
+    import maintainer_zero.recovery as recovery_module
+
+    out = tmp_path / "artifacts"
+    out.mkdir()
+    filenames = ["runbook.md", "CODEOWNERS.draft", "issue-drafts.md", "continuity.sarif"]
+    for filename in filenames:
+        (out / filename).write_text(f"old {filename}\n", encoding="utf-8")
+    original_replace = recovery_module.os.replace
+    failed_target = out / "issue-drafts.md"
+
+    def fail_mid_commit(source, target):
+        if Path(target) == failed_target and str(source).endswith(".tmp"):
+            raise OSError("simulated mid-set failure")
+        return original_replace(source, target)
+
+    monkeypatch.setattr(recovery_module.os, "replace", fail_mid_commit)
+    with pytest.raises(OSError, match="simulated mid-set failure"):
+        write_recovery_artifacts(out, RepoSnapshot(path=".", name="demo"), [_result()])
+    for filename in filenames:
+        assert (out / filename).read_text(encoding="utf-8") == f"old {filename}\n"
+    assert not list(out.glob(".*.tmp"))
+    assert not list(out.glob(".*.bak"))
+
+
 def test_recovery_rejects_symlinked_output_directory(tmp_path: Path):
     outside = tmp_path / "outside"
     outside.mkdir()

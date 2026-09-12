@@ -283,6 +283,67 @@ def _safe_output_directory(path: str | Path) -> Path:
     return target
 
 
+def _artifact_backup_path(directory: Path, filename: str) -> Path:
+    """Reserve a unique same-directory path for one rollback backup."""
+    handle = tempfile.NamedTemporaryFile(
+        mode="wb", dir=directory, prefix=f".{filename}.", suffix=".bak", delete=False
+    )
+    path = Path(handle.name)
+    handle.close()
+    path.unlink(missing_ok=True)
+    return path
+
+
+def _atomic_write_artifacts(out: Path, artefacts: dict[str, str]) -> list[Path]:
+    """Replace all recovery artifacts as one rollback-capable generation."""
+    staged: dict[Path, Path] = {}
+    backups: dict[Path, Path] = {}
+    replaced: list[Path] = []
+    try:
+        for filename, content in artefacts.items():
+            target = out / filename
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", newline="", dir=out,
+                prefix=f".{target.name}.", suffix=".tmp", delete=False
+            ) as handle:
+                staged[target] = Path(handle.name)
+                handle.write(content)
+                handle.flush()
+                os.fsync(handle.fileno())
+
+        for target, temporary in list(staged.items()):
+            if os.path.lexists(target):
+                backup = _artifact_backup_path(out, target.name)
+                os.replace(target, backup)
+                backups[target] = backup
+            os.replace(temporary, target)
+            replaced.append(target)
+            staged.pop(target, None)
+        return [out / filename for filename in artefacts]
+    except BaseException:
+        for target in reversed(replaced):
+            try:
+                target.unlink(missing_ok=True)
+            except OSError:
+                pass
+        for target, backup in backups.items():
+            if backup.exists() or os.path.lexists(backup):
+                try:
+                    # Rollback intentionally uses rename rather than the
+                    # replace hook used for the forward commit.  This keeps
+                    # an injected replacement failure from also preventing
+                    # restoration of the previous generation.
+                    os.rename(backup, target)
+                except OSError:
+                    pass
+        raise
+    finally:
+        for temporary in staged.values():
+            temporary.unlink(missing_ok=True)
+        for backup in backups.values():
+            backup.unlink(missing_ok=True)
+
+
 def write_recovery_artifacts(out: Path, repo: RepoSnapshot, results: list[DrillResult]) -> list[Path]:
     """Write recovery drafts below *out* and return paths in stable order."""
     out = _safe_output_directory(out)
@@ -292,9 +353,4 @@ def write_recovery_artifacts(out: Path, repo: RepoSnapshot, results: list[DrillR
         "issue-drafts.md": render_issue_drafts(repo, results),
         "continuity.sarif": render_sarif(repo, results),
     }
-    paths: list[Path] = []
-    for filename, content in artefacts.items():
-        path = out / filename
-        _atomic_write_text(path, content)
-        paths.append(path)
-    return paths
+    return _atomic_write_artifacts(out, artefacts)

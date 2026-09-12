@@ -5,6 +5,7 @@
 ## Unreleased
 
 - Harden recovery artifact output: reject symlinked or non-directory path components before writing drafts.
+- 恢复工件改为整套暂存后可回滚提交；中途替换失败会恢复旧一代，避免输出目录留下半套新旧混合草稿。
 
 - 报告现在包含可审计的 `privacy` 摘要：明确贡献者/CODEOWNERS 与仓库身份是否匿名化，并固定声明仓库内容上传为禁用；摘要不复制原始身份或路径。
 - 报告写入层现在也拒绝 `upload_repository_content: true`，防止绕过 CLI 的调用产生自相矛盾的隐私证据。

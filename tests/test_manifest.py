@@ -101,6 +101,12 @@ def test_manifest_writer_rejects_casefold_duplicate_instead_of_dropping_one(tmp_
         write_manifest(tmp_path, [tmp_path / "report.md", upper])
 
 
+def test_manifest_writer_wraps_non_path_items_as_manifest_error(tmp_path: Path):
+    _artifacts(tmp_path)
+    with pytest.raises(ManifestError, match="filesystem path"):
+        write_manifest(tmp_path, [tmp_path / "report.md", None])
+
+
 @pytest.mark.parametrize("path", ["/absolute.txt", "../escape.txt", "recovery/../escape.txt"])
 def test_manifest_rejects_unsafe_paths(tmp_path: Path, path: str):
     _artifacts(tmp_path)

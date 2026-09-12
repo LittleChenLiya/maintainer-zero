@@ -96,7 +96,11 @@ def _artifact(root: Path, rel: str) -> Path:
     return current
 
 def _entry(root: Path, item: str | Path):
-    path = Path(item); path = path if path.is_absolute() else root / path
+    try:
+        path = Path(item)
+    except (TypeError, ValueError, OSError) as exc:
+        raise ManifestError("artifact path must be a filesystem path") from exc
+    path = path if path.is_absolute() else root / path
     try:
         rel = Path(os.path.relpath(path, root)).as_posix()
     except ValueError as exc:

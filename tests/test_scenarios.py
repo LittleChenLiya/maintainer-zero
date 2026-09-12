@@ -198,3 +198,16 @@ def test_validate_scenario_command_is_read_only():
     parser = _build_parser()
     args = parser.parse_args(["validate-scenario", "examples/scenarios/dependency-yanked.json"])
     assert args.command == "validate-scenario"
+
+
+def test_validate_registry_command_is_read_only_and_reports_errors(tmp_path, capsys):
+    parser = _build_parser()
+    args = parser.parse_args(["validate-registry", "maintainer_zero/scenario_registry.json"])
+    assert args.command == "validate-registry"
+    assert main(["validate-registry", "maintainer_zero/scenario_registry.json"]) == 0
+    assert "Valid registry" in capsys.readouterr().out
+
+    invalid = tmp_path / "registry.json"
+    invalid.write_text("{}", encoding="utf-8")
+    assert main(["validate-registry", str(invalid)]) == 2
+    assert "error:" in capsys.readouterr().out

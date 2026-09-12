@@ -30,6 +30,14 @@ Validate a contribution before opening a pull request:
     from maintainer_zero.scenario_registry import load_registry
     load_registry("path/to/registry.json")
 
+也可以通过只读 CLI 校验完整注册表；该命令只读取 JSON，不执行任何 entrypoint、公式或仓库代码：
+
+```powershell
+maintainer-zero validate-registry maintainer_zero/scenario_registry.json
+```
+
+单个 data-only 场景仍可用 `validate-scenario PATH` 校验。校验失败返回退出码 2，成功只打印注册表身份、版本和场景数量。
+
 Each new scenario should include one blocking example, one negative example
 with a verified fallback, and tests showing that the scenario is deterministic.
 The registry intentionally does not claim to predict incident probability or

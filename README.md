@@ -53,6 +53,8 @@ maintainer-zero simulate . --github-metadata .continuity/github-cache.json --all
 maintainer-zero simulate . --history .continuity/history.json
 # Validate a declarative community scenario without executing code
 maintainer-zero validate-scenario examples/scenarios/dependency-yanked.json
+# Validate the complete versioned registry without executing code
+maintainer-zero validate-registry maintainer_zero/scenario_registry.json
 # Run the checked-in, offline before/after demo suite (no GitHub access)
 maintainer-zero demo
 maintainer-zero demo --format json --output .continuity/demo.json

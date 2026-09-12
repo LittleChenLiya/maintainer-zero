@@ -17,7 +17,7 @@ from .github_cache import MetadataCacheError, cache_status, load_metadata_cache,
 from .github_client import DEFAULT_MAX_RESPONSE_BYTES, GitHubClientError
 from .github_collect import GitHubRepositoryError, collect_repository_metadata
 from .github_http import GitHubHTTPError, GitHubHTTPTransport, HTTPTransportConfig
-from .scenario_registry import ScenarioSpecError, load_scenario
+from .scenario_registry import ScenarioSpecError, load_registry, load_scenario
 from .history import HistoryError, append_history
 from .demos import DemoError, load_demo_suite, run_demo_suite
 
@@ -45,6 +45,8 @@ def _build_parser() -> argparse.ArgumentParser:
     init.add_argument("path", nargs="?", default=".")
     validate = sub.add_parser("validate-scenario", help="validate a declarative scenario document without executing it")
     validate.add_argument("path")
+    validate_registry = sub.add_parser("validate-registry", help="validate a versioned scenario registry without executing it")
+    validate_registry.add_argument("path")
     collect = sub.add_parser("collect-github", help="explicitly collect bounded, read-only GitHub metadata")
     collect.add_argument("repository", metavar="OWNER/REPOSITORY")
     collect.add_argument("--output", default="github-metadata.json", metavar="PATH")
@@ -265,6 +267,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: {exc}")
             return 2
         print(f"Valid scenario: {scenario['id']} v{scenario['version']}")
+        return 0
+    if args.command == "validate-registry":
+        try:
+            registry = load_registry(args.path)
+        except ScenarioSpecError as exc:
+            print(f"error: {exc}")
+            return 2
+        print(f"Valid registry: {registry['id']} v{registry['version']} ({len(registry['scenarios'])} scenarios)")
         return 0
     if args.command in {"demo", "demos"}:
         try:

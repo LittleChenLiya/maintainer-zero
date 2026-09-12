@@ -74,6 +74,26 @@ def test_manifest_rejects_descriptor_redirect_before_hashing(tmp_path: Path, mon
         verify_manifest(manifest)
 
 
+def test_manifest_loader_rejects_descriptor_redirect_before_parsing(tmp_path: Path, monkeypatch):
+    manifest = write_manifest(tmp_path, _artifacts(tmp_path))
+    original_fstat = __import__("os").fstat
+
+    def mismatched_fstat(fd):
+        info = original_fstat(fd)
+        return SimpleNamespace(
+            st_mode=info.st_mode,
+            st_file_attributes=getattr(info, "st_file_attributes", 0),
+            st_dev=info.st_dev,
+            st_ino=info.st_ino + 1,
+            st_size=info.st_size,
+            st_mtime_ns=info.st_mtime_ns,
+        )
+
+    monkeypatch.setattr("maintainer_zero.manifest.os.fstat", mismatched_fstat)
+    with pytest.raises(ManifestError, match="changed before"):
+        load_manifest(manifest)
+
+
 @pytest.mark.parametrize("artifact", [
     "missing.txt",
     "../outside.txt",

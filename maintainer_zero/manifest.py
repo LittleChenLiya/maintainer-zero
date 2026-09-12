@@ -146,14 +146,52 @@ def write_manifest(output: str | Path, artifacts: Iterable[str | Path]) -> Path:
     if len(text.encode("utf-8")) > MAX_MANIFEST_BYTES: raise ManifestError("manifest exceeds size limit")
     target = root / "artifact-manifest.json"; _write(target, text); return target
 
+def _safe_manifest_file(path: Path) -> tuple[Path, os.stat_result]:
+    """Resolve a manifest only through real, existing parent directories."""
+    target = Path(os.path.abspath(path))
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts[:-1]:
+        current /= part
+        try:
+            parent = current.lstat()
+        except OSError as exc:
+            raise ManifestError(f"cannot inspect manifest parent: {current}") from exc
+        if _link(parent) or not stat.S_ISDIR(parent.st_mode):
+            raise ManifestError("manifest parent must be a real directory")
+    try:
+        info = target.lstat()
+    except OSError as exc:
+        raise ManifestError(f"cannot inspect manifest: {target}") from exc
+    if _link(info) or not stat.S_ISREG(info.st_mode):
+        raise ManifestError("manifest must be a regular file")
+    return target, info
+
+
 def load_manifest(path: str | Path) -> dict:
-    target = Path(path)
-    try: info = target.lstat()
-    except OSError as exc: raise ManifestError(f"cannot inspect manifest: {target}") from exc
-    if _link(info) or not stat.S_ISREG(info.st_mode): raise ManifestError("manifest must be a regular file")
-    if info.st_size > MAX_MANIFEST_BYTES: raise ManifestError("manifest exceeds size limit")
-    try: payload = json.loads(target.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc: raise ManifestError("invalid manifest JSON") from exc
+    target, info = _safe_manifest_file(Path(path))
+    if info.st_size > MAX_MANIFEST_BYTES:
+        raise ManifestError("manifest exceeds size limit")
+    try:
+        with target.open("rb") as handle:
+            opened = os.fstat(handle.fileno())
+            if _link(opened) or not stat.S_ISREG(opened.st_mode):
+                raise ManifestError("manifest descriptor is not a regular file")
+            if not _same_file(info, opened):
+                raise ManifestError("manifest changed before reading")
+            raw = handle.read(MAX_MANIFEST_BYTES + 1)
+        if len(raw) > MAX_MANIFEST_BYTES:
+            raise ManifestError("manifest exceeds size limit")
+        after = target.lstat()
+        if not _same_file(info, after) or after.st_size != info.st_size:
+            raise ManifestError("manifest changed during reading")
+        if getattr(after, "st_mtime_ns", None) != getattr(info, "st_mtime_ns", None):
+            raise ManifestError("manifest changed during reading")
+        payload = json.loads(raw.decode("utf-8"))
+    except ManifestError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ManifestError("invalid manifest JSON") from exc
     if not isinstance(payload, dict) or set(payload) != {"schema_version", "tool", "rule_version", "artifacts"}: raise ManifestError("manifest fields are invalid")
     if payload["schema_version"] != SCHEMA_VERSION: raise ManifestError("unsupported manifest schema version")
     tool = payload["tool"]

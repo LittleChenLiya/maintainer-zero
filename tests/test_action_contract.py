@@ -86,6 +86,18 @@ def test_action_adapter_rejects_symlinked_github_output(tmp_path):
         _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(link)})
 
 
+def test_action_adapter_rejects_symlinked_github_output_parent(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="parent path"):
+        _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(linked / "github-output")})
+
+
 def test_action_adapter_rejects_hardlinked_github_output(tmp_path):
     target = tmp_path / "target"
     target.write_text("keep-me\n", encoding="utf-8")

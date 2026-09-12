@@ -76,6 +76,15 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
             output_file.resolve().relative_to(runner_temp_path)
         except ValueError as exc:
             raise ValueError("GITHUB_OUTPUT must remain inside RUNNER_TEMP") from exc
+    current = Path(output_file.anchor) if output_file.anchor else Path()
+    parts = output_file.parts[1:] if output_file.anchor else output_file.parts
+    for part in parts[:-1]:
+        current /= part
+        try:
+            if current.is_symlink():
+                raise ValueError("GITHUB_OUTPUT parent path must not contain a symbolic link")
+        except OSError as exc:
+            raise ValueError("GITHUB_OUTPUT parent path could not be inspected") from exc
     if output_file.exists() and output_file.is_symlink():
         raise ValueError("GITHUB_OUTPUT must not be a symbolic link")
     if not output_file.parent.exists():

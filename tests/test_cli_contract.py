@@ -25,3 +25,9 @@ def test_cli_still_requires_a_subcommand(capsys: pytest.CaptureFixture[str]):
 def test_simulate_parser_accepts_data_only_fallback_plan():
     args = _build_parser().parse_args(["simulate", ".", "--fallback-plan", "fallback.json"])
     assert args.fallback_plan == "fallback.json"
+
+
+def test_validate_fallback_plan_parser_is_read_only():
+    args = _build_parser().parse_args(["validate-fallback-plan", "fallback.json", "--format", "json"])
+    assert args.command == "validate-fallback-plan"
+    assert args.fallback_format == "json"

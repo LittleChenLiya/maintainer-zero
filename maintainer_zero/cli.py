@@ -90,6 +90,9 @@ def _build_parser() -> argparse.ArgumentParser:
     describe.add_argument("--format", choices=("text", "json"), default="text", dest="describe_format")
     validate_registry = sub.add_parser("validate-registry", help="validate a versioned scenario registry without executing it")
     validate_registry.add_argument("path")
+    validate_fallback = sub.add_parser("validate-fallback-plan", help="validate a data-only dependency fallback plan without executing it")
+    validate_fallback.add_argument("path")
+    validate_fallback.add_argument("--format", choices=("text", "json"), default="text", dest="fallback_format")
     verify = sub.add_parser("verify-manifest", help="verify a local artifact manifest without executing repository code")
     verify.add_argument("path")
     verify.add_argument("--format", choices=("text", "json"), default="text", dest="manifest_format")
@@ -345,6 +348,22 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: {exc}")
             return 2
         print(f"Valid registry: {registry['id']} v{registry['version']} ({len(registry['scenarios'])} scenarios)")
+        return 0
+    if args.command == "validate-fallback-plan":
+        try:
+            summary = summarize_fallback_plan(load_fallback_plan(args.path))
+        except FallbackPlanError as exc:
+            print(f"error: {exc}")
+            return 2
+        if args.fallback_format == "json":
+            print(json.dumps(summary, indent=2, ensure_ascii=False))
+        else:
+            print(
+                f"Valid fallback plan: {summary['dependency_count']} dependencies; "
+                f"execution={summary['execution']}"
+            )
+            for status, count in summary["cold_build_status_counts"].items():
+                print(f"  cold-build {status}: {count}")
         return 0
     if args.command == "verify-manifest":
         try:

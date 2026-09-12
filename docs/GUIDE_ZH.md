@@ -56,6 +56,8 @@ maintainer-zero simulate . --github-metadata github-metadata.json --output .cont
 分页或条目达到上限时报告会标记为 partial，不代表完整数据。
 如需仓库默认分支、可见性和归档状态等有限元数据，可额外传入 `--include-repository`；该请求只保留标量字段。
 
+依赖替代/冷构建计划可以先单独校验，再注入演练报告：`maintainer-zero validate-fallback-plan fallback.json --format json`。该命令只读取并验证 data-only JSON，输出会明确 `execution: not-run`，不会执行命令、安装依赖或联网。
+
 只有额外传入 `--allow-environment-token` 才会读取 `GITHUB_TOKEN`；命令只执行 GET，不执行 GitHub 写操作。
 
 ## 隐私与安全边界

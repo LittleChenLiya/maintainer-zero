@@ -4,6 +4,7 @@ import os
 
 import pytest
 
+from maintainer_zero.cli import main
 from maintainer_zero.fallback import FallbackPlanError, load_fallback_plan, summarize_fallback_plan
 
 
@@ -54,3 +55,15 @@ def test_plan_rejects_descriptor_redirect_before_parsing(tmp_path: Path, monkeyp
     monkeypatch.setattr("maintainer_zero.fallback.os.fstat", mismatched)
     with pytest.raises(FallbackPlanError, match="changed before"):
         load_fallback_plan(path)
+
+
+def test_validate_fallback_plan_command_is_read_only_and_supports_json(tmp_path: Path, capsys):
+    path = tmp_path / "fallback.json"
+    _write(path, "{\"schema_version\":1,\"dependencies\":[]}")
+    assert main(["validate-fallback-plan", str(path), "--format", "json"]) == 0
+    output = capsys.readouterr().out
+    assert '\"execution\": \"not-run\"' in output
+    invalid = tmp_path / "invalid.json"
+    _write(invalid, "{}")
+    assert main(["validate-fallback-plan", str(invalid)]) == 2
+    assert "error:" in capsys.readouterr().out

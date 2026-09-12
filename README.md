@@ -54,6 +54,8 @@ maintainer-zero simulate . --github-metadata .continuity/github-cache.json --all
 maintainer-zero simulate . --history .continuity/history.json
 # Attach a reviewed, data-only dependency fallback/cold-build plan (never executes it)
 maintainer-zero simulate . --fallback-plan fallback.json
+# Validate the plan alone before attaching it to a report (still never executes it)
+maintainer-zero validate-fallback-plan fallback.json --format json
 # Validate a declarative community scenario without executing code
 maintainer-zero validate-scenario examples/scenarios/dependency-yanked.json
 # Print a validated, non-executable scenario contract for review

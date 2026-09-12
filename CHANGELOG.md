@@ -1,5 +1,7 @@
 # Changelog
 
+- Added offline `validate-benchmark` for strict, privacy-preserving benchmark summaries; rejects unsafe fields, duplicate keys, non-standard numbers, redirected files, and inconsistent aggregates before sharing.
+
 ## Unreleased
 
 + GitHub 只读采集器现在在规范化快照中显式写入 `provider: github`，与 provider-neutral 离线协议建立可审计连接；旧快照仍兼容默认 GitHub 语义。

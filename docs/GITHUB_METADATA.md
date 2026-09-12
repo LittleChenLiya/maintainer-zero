@@ -22,6 +22,12 @@ unknown 状态，不复制原始记录。该参数不会触发网络请求。
 而联网，也没有内置对应平台的认证或写入客户端。适配器必须先把平台响应投影为本契约
 允许的标量字段，再交给 `load_metadata()` 校验。
 
+如果适配器需要把平台原始字段转换为规范化资源，可使用离线的
+`normalize_metadata(provider, raw_snapshot)`。它只接受显式的资源/字段别名（例如
+GitLab `project` → `repository`、`merge_requests` → `pull_requests`），拒绝别名冲突、
+嵌套值、身份/URL/凭证字段和未知键，且不会发起网络请求或执行代码。该函数是映射契约，
+不是 GitLab/Forgejo 客户端；调用方仍需自行实现经过审阅的只读采集器。
+
 可用 `validate-metadata PATH --format json` 在注入演练前离线检查快照；该命令不执行
 仓库代码、不联网、不读取 token，也不修改快照。
 

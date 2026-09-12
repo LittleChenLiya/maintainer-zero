@@ -24,8 +24,9 @@ CLI 参数
 | `report.py` | 把同一结果转换为三种工件，并输出 GitHub 元数据证据状态与隐私边界摘要 | 不重算或修改评分；隐私摘要只记录布尔状态，不保存身份映射 |
 | `manifest.py` | 为已生成的本地工件写入 bounded SHA-256/size manifest，并离线校验 | 只允许相对路径与普通文件；manifest 不包含自身 hash，不是数字签名 |
 | `fallback.py` | 校验 data-only 依赖替代/冷构建计划并生成未执行声明摘要 | 不执行命令、不联网；`planned`/`passed` 仅是声明，不能当作运行证明 |
-| `benchmark.py` | 将已验证报告投影为隐私保护的公开基准摘要 | 省略仓库/人员身份、依赖名、Finding 文本和原始记录；只读、离线、不形成排名 |
+| `benchmark.py` | 将已验证报告投影为隐私保护的公开基准摘要，并校验待分享摘要 | 省略仓库/人员身份、依赖名、Finding 文本和原始记录；`validate-benchmark` 只读、离线、不形成排名 |
 | `github_metadata.py` | 校验并摘要 provider-neutral 的只读元数据快照 | 允许 github/gitlab/forgejo provider；共用规范化资源白名单与 unknown/partial 语义；不联网、不认证、不执行适配器 |
+| `metadata_mapping.py` | 将经审阅的 provider 原始数据映射为 canonical 快照 | 仅使用显式资源/字段别名和标量白名单；冲突、未知键、嵌套值与凭证 fail-closed；不联网、不认证、不执行代码 |
 | `.github/workflows/continuity.yml` | 在本项目 CI 中运行并上传报告 | 默认只读仓库权限 |
 
 数据流必须保持单向：采集层不能为获得好看的分数补造事实，报告层不能把未知状态改写成“安全”。GitHub 元数据证据只作为上下文，除非场景明确声明输入契约，否则不参与分数计算。

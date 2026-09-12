@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from maintainer_zero.benchmark import BenchmarkError, build_benchmark, render_benchmark_text
+from maintainer_zero.benchmark import BenchmarkError, build_benchmark, load_benchmark, render_benchmark_text, validate_benchmark
 from maintainer_zero.cli import main
 
 
@@ -29,6 +29,57 @@ def test_benchmark_omits_identity_and_raw_records():
     assert summary["metadata"] == {"available_resources": ["issues"], "unknown_resources": ["repository", "pull_requests", "reviews", "releases"]}
     assert "private" not in rendered and "C:/private" not in rendered and "Alice" not in rendered and "secret finding" not in rendered
     assert summary["privacy"]["raw_records"] == "omitted"
+
+
+def test_benchmark_summary_contract_is_valid_and_deterministic(tmp_path: Path):
+    summary = build_benchmark(report())
+    assert validate_benchmark(summary) == summary
+    path = tmp_path / "benchmark.json"
+    path.write_text(json.dumps(summary, ensure_ascii=False), encoding="utf-8")
+    assert load_benchmark(path) == summary
+
+
+@pytest.mark.parametrize(
+    ("mutator", "message"),
+    [
+        (lambda item: item.update({"scope": "ranking"}), "scope"),
+        (lambda item: item["privacy"].update({"raw_records": "included"}), "privacy"),
+        (lambda item: item["metadata"]["available_resources"].append("issues"), "duplicate"),
+        (lambda item: item.update({"overall_score": 99}), "overall_score"),
+    ],
+)
+def test_benchmark_validator_rejects_unsafe_or_inconsistent_mutations(mutator, message):
+    summary = build_benchmark(report())
+    mutator(summary)
+    with pytest.raises(BenchmarkError, match=message):
+        validate_benchmark(summary)
+
+
+def test_load_benchmark_rejects_duplicate_json_keys_and_symlink(tmp_path: Path):
+    path = tmp_path / "duplicate.json"
+    path.write_text('{"schema_version":1,"schema_version":1}', encoding="utf-8")
+    with pytest.raises(BenchmarkError, match="duplicate"):
+        load_benchmark(path)
+    outside = tmp_path / "outside.json"
+    outside.write_text(json.dumps(build_benchmark(report())), encoding="utf-8")
+    link = tmp_path / "link.json"
+    try:
+        link.symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(BenchmarkError, match="regular file"):
+        load_benchmark(link)
+
+
+def test_validate_benchmark_rejects_unknown_fields_and_noncanonical_metadata():
+    summary = build_benchmark(report())
+    summary["unexpected"] = True
+    with pytest.raises(BenchmarkError, match="fields"):
+        validate_benchmark(summary)
+    summary = build_benchmark(report())
+    summary["metadata"]["available_resources"] = ["releases", "issues"]
+    with pytest.raises(BenchmarkError, match="canonical"):
+        validate_benchmark(summary)
 
 
 def test_benchmark_rejects_duplicate_and_invalid_scenarios():

@@ -23,7 +23,7 @@ from .history import HistoryError, append_history, render_trend_markdown
 from .demos import DemoError, load_demo_suite, run_demo_suite
 from .manifest import ManifestError, verify_manifest, write_manifest
 from .fallback import FallbackPlanError, load_fallback_plan, summarize_fallback_plan
-from .benchmark import BenchmarkError, build_benchmark, render_benchmark_text
+from .benchmark import BenchmarkError, build_benchmark, load_benchmark, render_benchmark_text
 from . import __version__
 
 def _atomic_write_text(path: str | Path, content: str) -> None:
@@ -101,6 +101,9 @@ def _build_parser() -> argparse.ArgumentParser:
     benchmark.add_argument("report", metavar="REPORT")
     benchmark.add_argument("--output", required=True, metavar="PATH")
     benchmark.add_argument("--format", choices=("json", "text"), default="json", dest="benchmark_format")
+    validate_benchmark = sub.add_parser("validate-benchmark", help="validate a privacy-preserving benchmark summary without executing code")
+    validate_benchmark.add_argument("path")
+    validate_benchmark.add_argument("--format", choices=("json", "text"), default="text", dest="benchmark_validate_format")
     verify = sub.add_parser("verify-manifest", help="verify a local artifact manifest without executing repository code")
     verify.add_argument("path")
     verify.add_argument("--format", choices=("text", "json"), default="text", dest="manifest_format")
@@ -400,6 +403,21 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: {exc}")
             return 2
         print(f"Benchmark summary written to {Path(args.output).resolve()}")
+        return 0
+    if args.command == "validate-benchmark":
+        try:
+            summary = load_benchmark(args.path)
+        except BenchmarkError as exc:
+            print(f"error: {exc}")
+            return 2
+        if args.benchmark_validate_format == "json":
+            print(json.dumps(summary, indent=2, ensure_ascii=False))
+        else:
+            print(
+                f"Valid benchmark: {len(summary['scenarios'])} scenario(s); "
+                f"overall_score={summary['overall_score'] if summary['overall_score'] is not None else 'unknown'}; "
+                "scope=privacy-preserving-summary; not_a_ranking=true"
+            )
         return 0
     if args.command == "verify-manifest":
         try:

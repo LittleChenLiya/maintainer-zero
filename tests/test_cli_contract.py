@@ -43,3 +43,9 @@ def test_export_benchmark_parser_requires_output():
     args = _build_parser().parse_args(["export-benchmark", "report.json", "--output", "benchmark.json"])
     assert args.command == "export-benchmark"
     assert args.benchmark_format == "json"
+
+
+def test_validate_benchmark_parser_is_read_only():
+    args = _build_parser().parse_args(["validate-benchmark", "benchmark.json", "--format", "json"])
+    assert args.command == "validate-benchmark"
+    assert args.benchmark_validate_format == "json"

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from maintainer_zero.benchmark import BenchmarkError, build_benchmark
+from maintainer_zero.benchmark import BenchmarkError, build_benchmark, render_benchmark_text
 from maintainer_zero.cli import main
 
 
@@ -40,6 +40,30 @@ def test_benchmark_rejects_duplicate_and_invalid_scenarios():
     payload["results"][0]["score"] = 101
     with pytest.raises(BenchmarkError, match="between"):
         build_benchmark(payload)
+
+
+def test_benchmark_rejects_huge_integer_without_leaking_overflow():
+    payload = report()
+    payload["results"][0]["score"] = 10**1000
+    with pytest.raises(BenchmarkError, match="finite score"):
+        build_benchmark(payload)
+
+
+@pytest.mark.parametrize("score", [-0.4, 100.4])
+def test_benchmark_rejects_fractional_scores_outside_range(score):
+    payload = report()
+    payload["results"][0]["score"] = score
+    with pytest.raises(BenchmarkError, match="between"):
+        build_benchmark(payload)
+
+
+def test_text_renderer_rejects_untrusted_control_characters():
+    with pytest.raises(BenchmarkError, match="rule_version.*control"):
+        render_benchmark_text({
+            "rule_version": "0.2\nInjected",
+            "overall_score": None,
+            "scenarios": [],
+        })
 
 
 def test_export_benchmark_cli_writes_json_and_text(tmp_path: Path, capsys):

@@ -26,11 +26,23 @@ def _text(value: object, field: str) -> str:
 
 
 def _score(value: object, field: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise BenchmarkError(f"{field} must be a finite score")
-    score = round(float(value))
-    if not 0 <= score <= 100:
+    # Converting an arbitrarily large JSON integer to float raises
+    # OverflowError.  Treat it as invalid input instead of leaking an
+    # exception through the CLI.  Decimal scores are still normalized using
+    # the same deterministic rounding rule as before.
+    try:
+        numeric = float(value)
+    except (OverflowError, ValueError):
+        raise BenchmarkError(f"{field} must be a finite score") from None
+    if not math.isfinite(numeric):
+        raise BenchmarkError(f"{field} must be a finite score")
+    # Validate the source value before rounding; otherwise values such as
+    # 100.4 or -0.4 would silently become an in-range integer score.
+    if not 0 <= numeric <= 100:
         raise BenchmarkError(f"{field} must be between 0 and 100")
+    score = round(numeric)
     return score
 
 
@@ -111,15 +123,43 @@ def build_benchmark(report: Mapping[str, Any]) -> dict[str, Any]:
 
 def render_benchmark_text(summary: Mapping[str, Any]) -> str:
     """Render a compact text view that preserves the same privacy omissions."""
+    # This public helper may be called independently of ``build_benchmark``.
+    # Validate every interpolated value so an untrusted mapping cannot inject
+    # control characters or arbitrary fields into a shareable text artifact.
+    if not isinstance(summary, Mapping):
+        raise BenchmarkError("benchmark summary must be an object")
+    rule_version = _text(summary.get("rule_version"), "rule_version")
+    overall = summary.get("overall_score")
+    overall_score = None if overall is None else _score(overall, "overall_score")
+    scenarios = summary.get("scenarios")
+    if not isinstance(scenarios, list) or len(scenarios) > _MAX_SCENARIOS:
+        raise BenchmarkError("benchmark summary scenarios must be a bounded array")
+    validated_scenarios: list[tuple[str, int, str]] = []
+    seen: set[str] = set()
+    for index, item in enumerate(scenarios):
+        if not isinstance(item, Mapping):
+            raise BenchmarkError(f"summary scenario {index} must be an object")
+        scenario = _text(item.get("id"), f"summary scenario {index} id")
+        if scenario not in _KNOWN_SCENARIOS:
+            raise BenchmarkError("benchmark summary scenario is not reviewed")
+        key = scenario.casefold()
+        if key in seen:
+            raise BenchmarkError("benchmark summary contains duplicate scenarios")
+        seen.add(key)
+        score = _score(item.get("score"), f"summary scenario {index} score")
+        confidence = item.get("confidence")
+        if not isinstance(confidence, str) or confidence not in _CONFIDENCES:
+            raise BenchmarkError(f"summary scenario {index} confidence is invalid")
+        validated_scenarios.append((scenario, score, confidence))
     lines = [
         "Maintainer-Zero privacy-preserving benchmark summary",
-        f"Rule version: {summary['rule_version']}",
-        f"Overall score: {summary['overall_score'] if summary['overall_score'] is not None else 'unknown'}",
+        f"Rule version: {rule_version}",
+        f"Overall score: {overall_score if overall_score is not None else 'unknown'}",
         "Scope: privacy-preserving-summary (not a ranking)",
         "Repository identity and raw records: omitted",
     ]
-    for item in summary["scenarios"]:
-        lines.append(f"  {item['id']}: {item['score']}/100 ({item['confidence']})")
+    for scenario, score, confidence in validated_scenarios:
+        lines.append(f"  {scenario}: {score}/100 ({confidence})")
     return "\n".join(lines) + "\n"
 
 

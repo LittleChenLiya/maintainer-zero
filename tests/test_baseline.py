@@ -97,6 +97,20 @@ def test_load_report_rejects_future_schema_and_bad_envelope(tmp_path):
         load_report(path)
 
 
+@pytest.mark.parametrize(
+    "raw, message",
+    [
+        ('{"schema_version":1,"schema_version":1}', "duplicate"),
+        ('{"schema_version":1,"rule_version":"0.2","repository":{},"results":[],"x":NaN}', "non-standard"),
+    ],
+)
+def test_load_report_rejects_ambiguous_or_nonstandard_json(tmp_path, raw, message):
+    path = tmp_path / "report.json"
+    path.write_text(raw, encoding="utf-8")
+    with pytest.raises(ValueError, match=message):
+        load_report(path)
+
+
 def test_load_report_rejects_descriptor_redirect_before_parsing(tmp_path, monkeypatch):
     path = tmp_path / "report.json"
     path.write_text(json.dumps(report(score=80)), encoding="utf-8")

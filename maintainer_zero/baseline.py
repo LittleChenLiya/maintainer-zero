@@ -17,6 +17,20 @@ class BaselineError(ValueError):
     """Raised when a baseline or comparison report is unusable."""
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject ambiguous JSON objects instead of silently keeping the last key."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise BaselineError(f"continuity report contains duplicate object key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_nonstandard_number(value: str) -> None:
+    raise BaselineError(f"continuity report contains non-standard JSON number: {value}")
+
+
 def _link_like(info: os.stat_result) -> bool:
     return stat.S_ISLNK(info.st_mode) or bool(
         getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
@@ -63,7 +77,11 @@ def load_report(path: str | Path) -> dict[str, Any]:
             raise BaselineError("continuity report changed during reading")
         if getattr(after, "st_mtime_ns", None) != getattr(info, "st_mtime_ns", None):
             raise BaselineError("continuity report changed during reading")
-        payload = json.loads(raw.decode("utf-8"))
+        payload = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_object_keys,
+            parse_constant=_reject_nonstandard_number,
+        )
     except BaselineError:
         raise
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:

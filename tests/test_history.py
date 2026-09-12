@@ -153,6 +153,28 @@ def test_history_rejects_reparse_parent_without_following_it(tmp_path, monkeypat
     assert not target.exists()
 
 
+@pytest.mark.parametrize("kind", ["symlink", "reparse"])
+def test_history_rejects_redirected_dotdot_parent(tmp_path, monkeypatch, kind):
+    blocked = tmp_path / "blocked"
+    blocked.mkdir()
+    target = tmp_path / "history.json"
+    path = blocked / ".." / target.name
+    original_lstat = Path.lstat
+
+    def fake_lstat(self, *args, **kwargs):
+        if self == blocked:
+            return SimpleNamespace(
+                st_mode=stat.S_IFLNK if kind == "symlink" else stat.S_IFDIR,
+                st_file_attributes=0x400 if kind == "reparse" else 0,
+            )
+        return original_lstat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(HistoryError, match="symlink"):
+        append_history(path, report(), recorded_at="2026-01-01T00:00:00Z")
+    assert not target.exists()
+
+
 def test_history_rejects_dangling_symlink_target(tmp_path, monkeypatch):
     target = tmp_path / "history.json"
     original_lstat = Path.lstat

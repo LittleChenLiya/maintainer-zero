@@ -177,6 +177,27 @@ def test_recovery_rejects_anonymized_claim_for_raw_snapshot(tmp_path: Path):
     assert not output.exists()
 
 
+def test_recovery_artifacts_expose_privacy_boundary_without_raw_identity(tmp_path: Path):
+    repo = RepoSnapshot(
+        path="<local-repository>",
+        name="repository-1234abcd5678",
+        contributors={"contributor-1": 3},
+        codeowners={"*": ["@owner-1"]},
+    )
+    privacy = {"anonymize_people": True, "anonymize_repository": True, "upload_repository_content": False}
+    output = tmp_path / "artifacts"
+    write_recovery_artifacts(output, repo, [_result()], privacy)
+    runbook = (output / "runbook.md").read_text(encoding="utf-8")
+    issues = (output / "issue-drafts.md").read_text(encoding="utf-8")
+    owners = (output / "CODEOWNERS.draft").read_text(encoding="utf-8")
+    sarif = json.loads((output / "continuity.sarif").read_text(encoding="utf-8"))
+    assert all("Privacy boundary" in text for text in (runbook, issues, owners))
+    assert all("disabled" in text for text in (runbook, issues, owners))
+    assert sarif["runs"][0]["properties"]["privacy"] == privacy
+    assert "repository-1234abcd5678" in runbook
+    assert "<local-repository>" not in runbook
+
+
 def test_recovery_rejects_symlinked_output_directory(tmp_path: Path):
     outside = tmp_path / "outside"
     outside.mkdir()

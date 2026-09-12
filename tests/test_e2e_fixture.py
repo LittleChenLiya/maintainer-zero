@@ -57,6 +57,9 @@ def test_offline_fixture_runs_analyze_report_recovery_and_baseline_gate(tmp_path
     assert (baseline_dir / "recovery" / "CODEOWNERS.draft").exists()
     assert (baseline_dir / "recovery" / "issue-drafts.md").exists()
     assert (baseline_dir / "recovery" / "continuity.sarif").exists()
+    recovery_runbook = (baseline_dir / "recovery" / "runbook.md").read_text(encoding="utf-8")
+    assert "## Privacy boundary" in recovery_runbook
+    assert "Repository content upload: **disabled**" in recovery_runbook
 
     stable_dir = tmp_path / "stable"
     assert (

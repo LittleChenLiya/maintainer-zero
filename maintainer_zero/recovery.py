@@ -39,6 +39,24 @@ def _markdown_text(value: object) -> str:
     return "".join("\\" + char if char in punctuation else char for char in text)
 
 
+def _privacy_boundary_lines(repo: RepoSnapshot, privacy_summary: dict | None) -> list[str]:
+    """Render a non-sensitive privacy boundary for human recovery drafts."""
+    summary = validate_snapshot_projection(repo, privacy_summary)
+    if summary is None:
+        return []
+    people = "anonymized" if summary["anonymize_people"] else "present"
+    repository = "anonymized" if summary["anonymize_repository"] else "present"
+    return [
+        "## Privacy boundary",
+        "",
+        f"- Contributor and CODEOWNERS identities: **{people}**",
+        f"- Repository name and path: **{repository}**",
+        "- Repository content upload: **disabled**",
+        "> This records handling policy only; it does not reproduce identities or local paths.",
+        "",
+    ]
+
+
 def _finding_id(scenario: str, finding: Finding) -> str:
     """Return a stable ID even for findings from third-party scenarios."""
     if finding.finding_id:
@@ -53,7 +71,7 @@ def _iter_findings(results: Iterable[DrillResult]):
             yield result, finding, _finding_id(result.scenario, finding)
 
 
-def render_runbook(repo: RepoSnapshot, results: list[DrillResult]) -> str:
+def render_runbook(repo: RepoSnapshot, results: list[DrillResult], privacy_summary: dict | None = None) -> str:
     """Render a human-reviewable incident recovery runbook draft."""
     lines = [
         f"# Continuity recovery runbook draft: {_markdown_text(repo.name)}",
@@ -126,10 +144,11 @@ def render_runbook(repo: RepoSnapshot, results: list[DrillResult]) -> str:
     lines.extend(f"- {_markdown_text(assumption)}" for assumption in assumptions)
     if not assumptions:
         lines.append("- No assumptions were recorded; treat missing evidence as unknown.")
+    lines += _privacy_boundary_lines(repo, privacy_summary)
     return "\n".join(lines) + "\n"
 
 
-def render_codeowners_draft(repo: RepoSnapshot, results: list[DrillResult]) -> str:
+def render_codeowners_draft(repo: RepoSnapshot, results: list[DrillResult], privacy_summary: dict | None = None) -> str:
     """Render a placeholder CODEOWNERS proposal without guessing identities."""
     del results  # The draft is intentionally conservative and identity-free.
     lines = [
@@ -147,10 +166,13 @@ def render_codeowners_draft(repo: RepoSnapshot, results: list[DrillResult]) -> s
         "# @backup-maintainer",
         "# @release-backup",
     ]
+    boundary = _privacy_boundary_lines(repo, privacy_summary)
+    if boundary:
+        lines.extend(f"# {line}" if line else "#" for line in boundary)
     return "\n".join(lines) + "\n"
 
 
-def render_issue_drafts(repo: RepoSnapshot, results: list[DrillResult]) -> str:
+def render_issue_drafts(repo: RepoSnapshot, results: list[DrillResult], privacy_summary: dict | None = None) -> str:
     """Render copy/paste issue drafts; no network or external mutation occurs."""
     lines = [
         f"# Continuity issue drafts: {_markdown_text(repo.name)}",
@@ -188,10 +210,11 @@ def render_issue_drafts(repo: RepoSnapshot, results: list[DrillResult]) -> str:
         )
     if not finding_count:
         lines.extend(["No issue drafts: no actionable findings were produced.", ""])
+    lines += _privacy_boundary_lines(repo, privacy_summary)
     return "\n".join(lines)
 
 
-def render_sarif(repo: RepoSnapshot, results: list[DrillResult]) -> str:
+def render_sarif(repo: RepoSnapshot, results: list[DrillResult], privacy_summary: dict | None = None) -> str:
     """Render findings as SARIF 2.1.0 for GitHub Code Scanning ingestion.
 
     Findings are repository-level observations, so this intentionally omits a
@@ -221,15 +244,21 @@ def render_sarif(repo: RepoSnapshot, results: list[DrillResult]) -> str:
                 "properties": {"scenario": _safe_text(result.scenario), "score": result.score},
             }
         )
+    privacy = validate_snapshot_projection(repo, privacy_summary)
+    run_payload: dict[str, object] = {
+        "tool": {"driver": {"name": "Maintainer-Zero", "version": "0.2", "informationUri": "https://github.com/"}},
+        "automationDetails": {"id": f"maintainer-zero/{_safe_text(repo.name)}"},
+        "results": sarif_results,
+        "rules": list(rules.values()),
+    }
+    if privacy is not None:
+        run_payload["properties"] = {"privacy": privacy}
     payload = {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "version": "2.1.0",
         "runs": [
             {
-                "tool": {"driver": {"name": "Maintainer-Zero", "version": "0.2", "informationUri": "https://github.com/"}},
-                "automationDetails": {"id": f"maintainer-zero/{_safe_text(repo.name)}"},
-                "results": sarif_results,
-                "rules": list(rules.values()),
+                **run_payload,
             }
         ],
     }
@@ -352,9 +381,9 @@ def write_recovery_artifacts(
     validate_snapshot_projection(repo, privacy_summary)
     out = _safe_output_directory(out)
     artefacts = {
-        "runbook.md": render_runbook(repo, results),
-        "CODEOWNERS.draft": render_codeowners_draft(repo, results),
-        "issue-drafts.md": render_issue_drafts(repo, results),
-        "continuity.sarif": render_sarif(repo, results),
+        "runbook.md": render_runbook(repo, results, privacy_summary),
+        "CODEOWNERS.draft": render_codeowners_draft(repo, results, privacy_summary),
+        "issue-drafts.md": render_issue_drafts(repo, results, privacy_summary),
+        "continuity.sarif": render_sarif(repo, results, privacy_summary),
     }
     return _atomic_write_artifacts(out, artefacts)

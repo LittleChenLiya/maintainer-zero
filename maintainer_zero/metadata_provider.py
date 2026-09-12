@@ -124,8 +124,10 @@ def _has_next(headers: Mapping[str, str] | None) -> bool:
 def _rate_limit_hints(headers: Mapping[str, str] | None) -> tuple[int | None, int | None]:
     retry_after = _header(headers, "retry-after") or ""
     reset = _header(headers, "x-ratelimit-reset") or ""
-    retry = int(retry_after) if retry_after.isdigit() and int(retry_after) <= 86_400 else None
-    epoch = int(reset) if reset.isdigit() and int(reset) <= 4_102_444_800 else None
+    # Check length before int() so hostile digit strings cannot trigger costly
+    # conversion or interpreter limits while handling a rate-limited response.
+    retry = int(retry_after) if retry_after.isdigit() and len(retry_after) <= 5 and int(retry_after) <= 86_400 else None
+    epoch = int(reset) if reset.isdigit() and len(reset) <= 10 and int(reset) <= 4_102_444_800 else None
     return retry, epoch
 
 

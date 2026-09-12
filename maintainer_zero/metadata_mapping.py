@@ -146,8 +146,12 @@ _STATUS_KEYS = frozenset(("available", "pages", "truncated", "reason", "retry_af
 
 
 def _scalar(value: Any) -> bool:
-    if value is None or isinstance(value, (str, int, bool)):
+    if value is None or isinstance(value, (str, bool)):
         return True
+    if isinstance(value, int):
+        # Provider IDs and counters are bounded machine values; do not let an
+        # adapter smuggle arbitrarily large integers into the canonical file.
+        return -(1 << 63) <= value <= (1 << 63) - 1
     return isinstance(value, float) and math.isfinite(value)
 
 

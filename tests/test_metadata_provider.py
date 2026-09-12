@@ -81,3 +81,13 @@ def test_provider_client_rejects_duplicate_or_nested_records_fail_closed():
     payload = ReadOnlyProviderClient("gitlab", nested).collect("42")
     assert payload["permissions"]["issues"] is True
     assert payload["data"]["issues"] == [{"number": 1}]
+
+
+def test_provider_client_rejects_unbounded_integers_and_headers_without_raising():
+    huge = lambda *_: TransportResponse(200, json.dumps([{"iid": 10**100}]), {})
+    payload = ReadOnlyProviderClient("gitlab", huge).collect("42")
+    assert payload["permissions"]["issues"] is False
+    giant_header = lambda *_: TransportResponse(429, b"{}", {"Retry-After": "9" * 10000, "X-RateLimit-Reset": "8" * 10000})
+    payload = ReadOnlyProviderClient("forgejo", giant_header).collect("acme/demo")
+    assert payload["collection"]["issues"]["reason"] == "rate_limited"
+    assert "retry_after_seconds" not in payload["collection"]["issues"]

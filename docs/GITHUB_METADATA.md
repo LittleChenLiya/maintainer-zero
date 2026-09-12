@@ -34,6 +34,8 @@ GitLab `project` → `repository`、`merge_requests` → `pull_requests`），�
 `Link`、`Retry-After`、`X-RateLimit-Reset` 的有界提示。调用方负责提供 GET transport；
 客户端不读取 token、不自动重试、不跟随重定向，也不执行平台返回的数据。GitLab reviews
 暂不映射，需由适配器明确声明 unknown。
+适配器记录中的整数也受有界标量限制；超大整数和超长限流头会被拒绝或丢弃，不会进入
+快照或触发高成本数值转换。
 
 可用 `validate-metadata PATH --format json` 在注入演练前离线检查快照；该命令不执行
 仓库代码、不联网、不读取 token，也不修改快照。

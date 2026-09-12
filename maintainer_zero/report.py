@@ -113,7 +113,29 @@ def _privacy_section(privacy_summary: dict | None) -> list[str]:
     ]
 
 
+def _validated_privacy_summary(privacy_summary: dict | None) -> dict | None:
+    """Validate the report privacy contract before serializing it."""
+    if privacy_summary is None:
+        return None
+    if not isinstance(privacy_summary, dict):
+        raise ValueError("privacy_summary must be an object")
+    unsupported = set(privacy_summary) - {"anonymize_people", "anonymize_repository", "upload_repository_content"}
+    if unsupported:
+        raise ValueError(f"privacy_summary contains unsupported fields: {', '.join(sorted(map(str, unsupported)))}")
+    for key in ("anonymize_people", "anonymize_repository", "upload_repository_content"):
+        if key in privacy_summary and not isinstance(privacy_summary[key], bool):
+            raise ValueError(f"privacy_summary.{key} must be boolean")
+    if privacy_summary.get("upload_repository_content") is True:
+        raise ValueError("repository uploads are not supported by report output")
+    return {
+        "anonymize_people": privacy_summary.get("anonymize_people", False) is True,
+        "anonymize_repository": privacy_summary.get("anonymize_repository", False) is True,
+        "upload_repository_content": False,
+    }
+
+
 def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None) -> str:
+    privacy_summary = _validated_privacy_summary(privacy_summary)
     lines = [f"# OSS Continuity Report: {_markdown_text(repo.name)}", "", "- **Rule version:** `0.2`", f"- Commits analyzed: **{repo.commits}**", f"- Contributors: **{len(repo.contributors)}**", f"- Dependencies found: **{len(repo.dependencies)}**", f"- Workflows found: **{len(repo.workflows)}**", "", "> This is an explainable heuristic drill, not a security certification.", ""]
     for result in results:
         lines += [f"## {_markdown_text(result.scenario)} — {result.score}/100", "", f"Confidence: `{_markdown_text(result.confidence)}`", "", "### Metrics", ""]
@@ -139,6 +161,7 @@ def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_sum
 
 def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None) -> None:
     out.mkdir(parents=True, exist_ok=True)
+    privacy_summary = _validated_privacy_summary(privacy_summary)
     payload = _safe_value({"schema_version": 1, "rule_version": "0.2", "repository": repo.to_dict(), "results": [r.to_dict() for r in results]})
     if privacy_summary is not None:
         payload["privacy"] = _safe_value(privacy_summary)

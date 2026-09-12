@@ -104,3 +104,23 @@ def test_report_privacy_summary_distinguishes_present_values(tmp_path):
     assert "Contributor and CODEOWNERS identities: **present**" in markdown
     assert "Repository name and path: **present**" in markdown
     assert json.loads((outputs / "continuity.json").read_text(encoding="utf-8"))["privacy"] == summary
+
+
+def test_report_rejects_repository_content_upload_even_without_cli(tmp_path):
+    with pytest.raises(ValueError, match="repository uploads are not supported"):
+        write_report(
+            tmp_path / "rejected",
+            RepoSnapshot(".", "demo"),
+            [result("safe")],
+            privacy_summary={"upload_repository_content": True},
+        )
+
+
+def test_report_rejects_unknown_privacy_fields(tmp_path):
+    with pytest.raises(ValueError, match="unsupported fields"):
+        write_report(
+            tmp_path / "rejected",
+            RepoSnapshot(".", "demo"),
+            [result("safe")],
+            privacy_summary={"future_option": True},
+        )

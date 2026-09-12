@@ -69,7 +69,15 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     workflow = (WORKFLOWS / "continuity.yml").read_text(encoding="utf-8")
 
     assert "uses: ./" in workflow
+    assert "runs-on: ${{ matrix.os }}" in workflow
+    assert re.search(r"matrix:\s+os: \[ubuntu-latest, windows-latest\]", workflow)
+    assert "actions/setup-python@v5" in workflow
+    assert "python-version: \"3.12\"" in workflow
     assert "scenario: all" in workflow
     assert "output: .continuity" in workflow
+    assert "Publish job summary (Unix)" in workflow
+    assert "Publish job summary (Windows)" in workflow
+    assert "Get-Content .continuity/report.md | Out-File" in workflow
+    assert "name: continuity-report-${{ matrix.os }}" in workflow
     for artifact in ("continuity.sarif", "runbook.md", "CODEOWNERS.draft", "issue-drafts.md"):
         assert f".continuity/recovery/{artifact}" in workflow

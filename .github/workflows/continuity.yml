@@ -16,8 +16,12 @@ concurrency:
 
 jobs:
   drill:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,12 +35,17 @@ jobs:
         with:
           scenario: all
           output: .continuity
-      - name: Publish job summary
+      - name: Publish job summary (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         run: cat .continuity/report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish job summary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Get-Content .continuity/report.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
       - uses: actions/upload-artifact@v4
         with:
-          name: continuity-report
+          name: continuity-report-${{ matrix.os }}
           path: |
             .continuity/continuity.json
             .continuity/report.md

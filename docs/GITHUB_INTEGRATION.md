@@ -5,7 +5,7 @@ Maintainer-Zero is local-first. The analyzer does not call a GitHub API or uploa
 ## Included workflows
 
 - ci.yml tests Python 3.10 and 3.12 on Ubuntu and Windows, then runs a CLI smoke test.
-- continuity.yml runs the three drills on pushes, pull requests, a monthly schedule, or manual dispatch. The report is appended to the Actions job summary and uploaded as a 14-day artifact.
+- continuity.yml runs the three drills on pushes, pull requests, a monthly schedule, or manual dispatch on both Ubuntu and Windows runners. Each matrix leg publishes the report to its Job Summary and uploads a separately named 14-day artifact.
 - `action.yml` is a reusable composite Action. It installs the pinned action checkout with no dependencies and runs the same local CLI against `github.workspace`; inputs are passed through environment variables and shell arrays rather than interpolated into commands.
 
 Both workflows use contents: read, disable checkout credential persistence, cap execution time, and cancel superseded runs. They do not use `pull_request_target`, external write permissions, or an unreviewed network client, so fork pull requests stay within the local-analysis boundary.
@@ -26,7 +26,7 @@ performs GitHub writes; review the resulting JSON before passing it to `simulate
 | PR comment (opt-in) | pull-requests: write | Comment only |
 
 The adapter should accept GITHUB_TOKEN only through explicit opt-in, redact repository names and people in exported reports when configured, and fail closed when a permission is missing. `anonymize_repository` replaces the basename and absolute path with a stable short digest and `<local-repository>`; it does not send the original identity anywhere. It must never print tokens or upload raw prompts, repository files, or unredacted report payloads.
-The checked-in continuity workflow uploads the JSON, Markdown, HTML, SARIF, Runbook, CODEOWNERS draft, and Issue draft artifacts together; these are reviewable suggestions and are not written back to the repository or GitHub.
+The checked-in continuity workflow uploads the JSON, Markdown, HTML, SARIF, Runbook, CODEOWNERS draft, and Issue draft artifacts together on each OS; these are reviewable suggestions and are not written back to the repository or GitHub.
 
 ## PR 评论草稿边界
 

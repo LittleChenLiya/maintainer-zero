@@ -75,6 +75,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-12：扩展 composite Action 输出契约，成功运行时同时暴露报告目录、JSON/Markdown/HTML 报告和恢复工件目录的绝对路径；门禁失败或输出边界失败均不写入 `GITHUB_OUTPUT`，并补齐 Unix/Windows 共用适配器测试。
 - 2026-09-12：将隐私配置提升为报告中的可审计摘要；JSON、Markdown 和 HTML 现在明确记录身份/仓库匿名化状态与仓库内容上传禁用状态，同时不复制原始姓名、owner 或本地路径；补充直接报告与真实 Git fixture 回归测试。
 - 2026-09-12：恢复目录改为整套工件暂存、原子替换并支持中途失败回滚；新增回归测试证明既有 Runbook、CODEOWNERS、Issue 和 SARIF 不会被半套更新覆盖。
+- 2026-09-12：自带 continuity workflow 扩展为 Ubuntu/Windows 矩阵，分别使用 bash/PowerShell 发布 Job Summary，并为每个 runner 上传完整且独立命名的报告与恢复工件；本地契约测试覆盖工作流结构，真实远程 runner 仍需实际执行确认。
 
 - 2026-09-12：收紧 GitHub 数组资源的隐私投影：issues、pull requests、reviews 和 releases 现在只保留固定的状态、编号、时间和计数字段，丢弃正文、用户/作者对象、标签、URL 与未知字段；新增原始记录投影负例，避免缓存保存不必要的 GitHub 内容。
 - 2026-09-12：为内置三类演练增加结构化 Evidence 链：每条结果现在记录来源、字段、观测值和说明，并在 Markdown 报告中单独展示；旧的 DrillResult 调用保持兼容，证据仍经过既有递归脱敏。

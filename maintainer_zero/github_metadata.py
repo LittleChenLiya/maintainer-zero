@@ -10,6 +10,7 @@ from typing import Any, Mapping
 SCHEMA_VERSION = 1
 _MAX_ITEMS = 5000
 MAX_METADATA_BYTES = 10_000_000
+MAX_METADATA_NESTING = 64
 _RESOURCES = ("repository", "issues", "pull_requests", "reviews", "releases")
 _ARRAY_RESOURCES = frozenset(_RESOURCES) - {"repository"}
 _TOP_LEVEL_KEYS = frozenset(("schema_version", "permissions", "data", "collection", "cache"))
@@ -22,15 +23,17 @@ def _reject_nonstandard_number(value: str) -> None:
     raise MetadataError(f"metadata contains non-standard JSON number: {value}")
 
 
-def _validate_finite_numbers(value: Any) -> None:
+def _validate_finite_numbers(value: Any, *, depth: int = 0) -> None:
+    if depth > MAX_METADATA_NESTING:
+        raise MetadataError(f"metadata nesting exceeds {MAX_METADATA_NESTING} levels")
     if isinstance(value, float) and not math.isfinite(value):
         raise MetadataError("metadata contains a non-finite number")
     if isinstance(value, dict):
         for nested in value.values():
-            _validate_finite_numbers(nested)
+            _validate_finite_numbers(nested, depth=depth + 1)
     elif isinstance(value, list):
         for nested in value:
-            _validate_finite_numbers(nested)
+            _validate_finite_numbers(nested, depth=depth + 1)
 
 def load_metadata(path: str | Path) -> dict[str, Any]:
     path = Path(path)
@@ -41,7 +44,7 @@ def load_metadata(path: str | Path) -> dict[str, Any]:
         payload = json.loads(raw, parse_constant=_reject_nonstandard_number)
     except MetadataError:
         raise
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, json.JSONDecodeError, RecursionError) as exc:
         raise MetadataError(f"Invalid GitHub metadata snapshot: {path}") from exc
     return validate_metadata(payload)
 
@@ -135,4 +138,4 @@ def summarize_metadata(payload: Mapping[str, Any]) -> dict[str, Any]:
         }
     return summary
 
-__all__ = ["MAX_METADATA_BYTES", "MetadataError", "SCHEMA_VERSION", "load_metadata", "summarize_metadata", "validate_metadata"]
+__all__ = ["MAX_METADATA_BYTES", "MAX_METADATA_NESTING", "MetadataError", "SCHEMA_VERSION", "load_metadata", "summarize_metadata", "validate_metadata"]

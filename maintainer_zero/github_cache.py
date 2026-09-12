@@ -87,7 +87,7 @@ def _read(path: Path) -> dict[str, Any]:
         payload = json.loads(raw)
     except MetadataCacheError:
         raise
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
         raise MetadataCacheError(f"invalid metadata cache: {path}") from exc
     if not isinstance(payload, dict):
         raise MetadataCacheError("metadata cache must be a JSON object")

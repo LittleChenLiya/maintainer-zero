@@ -67,6 +67,18 @@ def test_cache_write_failure_preserves_existing_file_and_cleans_temp(tmp_path, m
     assert not list(tmp_path.glob(".cache.json.*.tmp"))
 
 
+def test_cache_read_converts_deep_json_recursion_to_cache_error(tmp_path):
+    nested = "[" * 70 + "0" + "]" * 70
+    path = tmp_path / "deep-cache.json"
+    path.write_text(
+        '{"schema_version":1,"permissions":{"issues":true},'
+        f'"data":{{"issues":[{{"nested":{nested}}}]}}}}',
+        encoding="utf-8",
+    )
+    with pytest.raises(MetadataCacheError, match="payload is invalid"):
+        load_metadata_cache(path)
+
+
 def test_cache_rejects_credential_like_top_level_fields(tmp_path):
     unsafe = dict(payload(), token="do-not-store", secret="also-do-not-store")
     with pytest.raises(MetadataCacheError, match="payload is invalid"):

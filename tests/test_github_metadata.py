@@ -83,3 +83,15 @@ def test_summary_preserves_only_bounded_collection_status_fields():
 def test_metadata_rejects_unbounded_collection_scheduling_hints():
     with pytest.raises(MetadataError, match="retry_after_seconds"):
         validate_metadata({**snapshot(), "collection": {"issues": {"available": False, "pages": 0, "truncated": False, "retry_after_seconds": 86401}}})
+
+
+def test_metadata_rejects_excessive_nesting_without_recursion_error(tmp_path):
+    nested = "[" * 70 + "0" + "]" * 70
+    payload = (
+        '{"schema_version":1,"permissions":{"issues":true},'
+        f'"data":{{"issues":[{{"nested":{nested}}}]}}}}'
+    )
+    path = tmp_path / "deep.json"
+    path.write_text(payload, encoding="utf-8")
+    with pytest.raises(MetadataError, match="nesting"):
+        load_metadata(path)

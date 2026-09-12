@@ -20,3 +20,8 @@ def test_cli_still_requires_a_subcommand(capsys: pytest.CaptureFixture[str]):
 
     assert exc.value.code == 2
     assert "the following arguments are required: command" in capsys.readouterr().err
+
+
+def test_simulate_parser_accepts_data_only_fallback_plan():
+    args = _build_parser().parse_args(["simulate", ".", "--fallback-plan", "fallback.json"])
+    assert args.fallback_plan == "fallback.json"

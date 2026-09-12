@@ -52,6 +52,8 @@ maintainer-zero simulate . --github-metadata .continuity/github-cache.json --out
 maintainer-zero simulate . --github-metadata .continuity/github-cache.json --allow-stale-github-metadata --output .continuity
 # Keep a local, same-repository score history (no raw repository records)
 maintainer-zero simulate . --history .continuity/history.json
+# Attach a reviewed, data-only dependency fallback/cold-build plan (never executes it)
+maintainer-zero simulate . --fallback-plan fallback.json
 # Validate a declarative community scenario without executing code
 maintainer-zero validate-scenario examples/scenarios/dependency-yanked.json
 # Print a validated, non-executable scenario contract for review

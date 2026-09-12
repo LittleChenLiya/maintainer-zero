@@ -46,6 +46,10 @@ inputs:
     description: Explicitly allow an expired local metadata cache
     required: false
     default: "false"
+  fallback-plan:
+    description: Optional reviewed data-only dependency fallback/cold-build plan
+    required: false
+    default: ""
 
 outputs:
   report-directory:
@@ -99,6 +103,7 @@ runs:
         MZ_INPUT_FAIL_HIGH: ${{ inputs['fail-on-new-high-risk'] }}
         MZ_INPUT_METADATA: ${{ inputs.github-metadata }}
         MZ_INPUT_ALLOW_STALE: ${{ inputs.allow-stale-github-metadata }}
+        MZ_INPUT_FALLBACK_PLAN: ${{ inputs.fallback-plan }}
       run: python "$MZ_ACTION_PATH/tools/action_entrypoint.py"
     - id: drill_windows
       name: Run continuity drill (Windows)
@@ -117,4 +122,5 @@ runs:
         MZ_INPUT_FAIL_HIGH: ${{ inputs['fail-on-new-high-risk'] }}
         MZ_INPUT_METADATA: ${{ inputs.github-metadata }}
         MZ_INPUT_ALLOW_STALE: ${{ inputs.allow-stale-github-metadata }}
+        MZ_INPUT_FALLBACK_PLAN: ${{ inputs.fallback-plan }}
       run: python "$env:MZ_ACTION_PATH/tools/action_entrypoint.py"

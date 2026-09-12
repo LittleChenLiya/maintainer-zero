@@ -124,3 +124,26 @@ def test_cli_history_and_baseline_sidecars_use_atomic_replacement(tmp_path: Path
     assert (second / "baseline-comparison.json").exists()
     assert not list(second.glob(".history-summary.json.*.tmp"))
     assert not list(second.glob(".baseline-comparison.json.*.tmp"))
+
+
+def test_cli_fallback_plan_is_reported_as_unexecuted_declaration(tmp_path: Path):
+    repo = _git_fixture(tmp_path)
+    plan = tmp_path / "fallback.json"
+    plan.write_text(
+        json.dumps({
+            "schema_version": 1,
+            "dependencies": [{
+                "name": "build",
+                "replacement": "reviewed-mirror",
+                "source": "mirror",
+                "cold_build": {"status": "planned", "recorded_at": "2026-09-12"},
+            }],
+        }),
+        encoding="utf-8",
+    )
+    output = tmp_path / "fallback-output"
+    assert main(["simulate", str(repo), "--days", "7", "--output", str(output), "--fallback-plan", str(plan)]) == 0
+    report = json.loads((output / "continuity.json").read_text(encoding="utf-8"))
+    assert report["dependency_fallback"]["execution"] == "not-run"
+    assert report["dependency_fallback"]["cold_build_status_counts"]["planned"] == 1
+    assert "No fallback command or cold build was executed" in (output / "report.md").read_text(encoding="utf-8")

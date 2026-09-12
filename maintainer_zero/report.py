@@ -213,7 +213,7 @@ def _privacy_section(privacy_summary: dict | None) -> list[str]:
     ]
 
 
-def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None) -> str:
+def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None, fallback_summary: dict | None = None) -> str:
     privacy_summary = validate_snapshot_projection(repo, privacy_summary)
     lines = [f"# OSS Continuity Report: {_markdown_text(repo.name)}", "", "- **Rule version:** `0.2`", f"- Commits analyzed: **{repo.commits}**", f"- Contributors: **{len(repo.contributors)}**", f"- Dependencies found: **{len(repo.dependencies)}**", f"- Workflows found: **{len(repo.workflows)}**", "", "> This is an explainable heuristic drill, not a security certification.", ""]
     lines.insert(2, "- **Tool version:** " + chr(96) + _markdown_text(__version__) + chr(96))
@@ -235,11 +235,17 @@ def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_sum
         lines.extend(f"    Day {e['day']} : {_markdown_text(e['event'])} : {_markdown_text(e['impact'])}" for e in result.timeline)
         lines += ["```", ""]
     lines += _metadata_section(metadata_summary)
+    if fallback_summary is not None:
+        lines += ["## Dependency fallback plan", "", "> This is a declared, data-only plan. No fallback command or cold build was executed.", ""]
+        lines += [f"- Declared dependencies: **{fallback_summary.get('dependency_count', 0)}**", f"- Cold-build evidence: `{fallback_summary.get('execution', 'not-run')}`", ""]
+        counts = fallback_summary.get("cold_build_status_counts", {})
+        lines.extend(f"- **cold-build {_markdown_text(status)}**: {counts[status]}" for status in sorted(counts))
+        lines.append("")
     lines += _privacy_section(privacy_summary)
     lines += ["## Suggested next steps", "", "1. Assign a backup owner for every critical path.", "2. Test a clean checkout and local release procedure.", "3. Re-run this drill monthly and track score changes in Git."]
     return "\n".join(lines) + "\n"
 
-def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None) -> None:
+def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None, fallback_summary: dict | None = None) -> None:
     privacy_summary = validate_snapshot_projection(repo, privacy_summary)
     out = _safe_output_directory(out)
     _preflight_report_targets(out)
@@ -249,7 +255,9 @@ def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], meta
     if metadata_summary is not None:
         payload["github_metadata"] = _safe_value(metadata_summary)
         payload["metadata_evidence"] = _metadata_evidence(metadata_summary)
-    markdown = render_markdown(repo, results, metadata_summary, privacy_summary)
+    if fallback_summary is not None:
+        payload["dependency_fallback"] = _safe_value(fallback_summary)
+    markdown = render_markdown(repo, results, metadata_summary, privacy_summary, fallback_summary)
     body = html.escape(markdown).replace("\n", "<br>")
     _atomic_write_report_set(
         out,

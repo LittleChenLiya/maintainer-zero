@@ -13,6 +13,7 @@ def test_composite_action_exposes_bounded_local_contract():
     assert all(name in action for name in ("report-directory:", "report-json:", "report-markdown:", "report-html:", "recovery-directory:", "artifact-manifest:"))
     assert "MZ_INPUT_PATH: ${{ github.workspace }}/${{ inputs.path }}" in action
     assert "MZ_INPUT_METADATA: ${{ inputs.github-metadata }}" in action
+    assert "MZ_INPUT_FALLBACK_PLAN: ${{ inputs.fallback-plan }}" in action
     assert "GITHUB_TOKEN" not in action
     assert "pull_request_target" not in action
     assert "--allow-network" not in action
@@ -185,3 +186,16 @@ def test_action_adapter_bounds_baseline_and_metadata_to_workspace(tmp_path):
     for key in ("MZ_INPUT_BASELINE", "MZ_INPUT_METADATA"):
         with pytest.raises(ValueError, match="inside the GitHub workspace"):
             build_argv({"MZ_INPUT_WORKSPACE": str(workspace), "MZ_INPUT_PATH": str(workspace), "MZ_INPUT_OUTPUT": str(workspace / "reports"), key: str(workspace.parent / "outside.json")})
+
+
+def test_action_adapter_passes_fallback_plan_as_one_workspace_argv(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    plan = workspace / "fallback.json"
+    argv = build_argv({
+        "MZ_INPUT_WORKSPACE": str(workspace),
+        "MZ_INPUT_PATH": str(workspace),
+        "MZ_INPUT_OUTPUT": str(workspace / "reports"),
+        "MZ_INPUT_FALLBACK_PLAN": str(plan),
+    })
+    assert argv[-2:] == ["--fallback-plan", str(plan)]

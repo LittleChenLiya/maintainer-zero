@@ -22,6 +22,7 @@ from .scenario_registry import ScenarioSpecError, load_registry, load_scenario, 
 from .history import HistoryError, append_history, render_trend_markdown
 from .demos import DemoError, load_demo_suite, run_demo_suite
 from .manifest import ManifestError, verify_manifest, write_manifest
+from .fallback import FallbackPlanError, load_fallback_plan, summarize_fallback_plan
 from . import __version__
 
 def _atomic_write_text(path: str | Path, content: str) -> None:
@@ -137,6 +138,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="allow an expired local GitHub metadata cache for offline review",
     )
     run.add_argument("--history", default=None, metavar="JSON", help="append a compact same-repository trend record (opt-in)")
+    run.add_argument("--fallback-plan", default=None, metavar="JSON", help="use a reviewed data-only dependency fallback/cold-build plan")
     return parser
 
 
@@ -425,8 +427,11 @@ def main(argv: list[str] | None = None) -> int:
             metadata_summary = _load_metadata_summary(
                 args.github_metadata, allow_stale=args.allow_stale_github_metadata
             )
+        fallback_summary = None
+        if args.fallback_plan:
+            fallback_summary = summarize_fallback_plan(load_fallback_plan(args.fallback_plan))
         results = [SCENARIOS[name](repo, days) for name in names]
-        write_report(Path(args.output), repo, results, metadata_summary, privacy_summary)
+        write_report(Path(args.output), repo, results, metadata_summary, privacy_summary, fallback_summary)
         recovery_output = Path(args.recovery_output) if args.recovery_output else Path(args.output) / "recovery"
         write_recovery_artifacts(recovery_output, repo, results, privacy_summary)
         if args.history:
@@ -436,7 +441,7 @@ def main(argv: list[str] | None = None) -> int:
             history_markdown_path = Path(args.output) / "history-summary.md"
             _atomic_write_text(history_markdown_path, render_trend_markdown(history_summary))
             print(f"History appended: {history_summary_path} and {history_markdown_path}")
-    except (ValueError, MetadataError, MetadataCacheError, ScenarioSpecError, HistoryError, DemoError, json.JSONDecodeError) as exc:
+    except (ValueError, MetadataError, MetadataCacheError, ScenarioSpecError, HistoryError, DemoError, FallbackPlanError, json.JSONDecodeError) as exc:
         print(f"error: {exc}")
         return 2
     print(f"Analyzed {repo.name}: {len(results)} drills written to {Path(args.output).resolve()}")

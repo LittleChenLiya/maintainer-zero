@@ -21,6 +21,7 @@ from .github_http import GitHubHTTPError, GitHubHTTPTransport, HTTPTransportConf
 from .scenario_registry import ScenarioSpecError, load_registry, load_scenario, scenario_summary
 from .history import HistoryError, append_history, render_trend_markdown
 from .demos import DemoError, load_demo_suite, run_demo_suite
+from .manifest import ManifestError, verify_manifest, write_manifest
 from . import __version__
 
 def _atomic_write_text(path: str | Path, content: str) -> None:
@@ -88,6 +89,9 @@ def _build_parser() -> argparse.ArgumentParser:
     describe.add_argument("--format", choices=("text", "json"), default="text", dest="describe_format")
     validate_registry = sub.add_parser("validate-registry", help="validate a versioned scenario registry without executing it")
     validate_registry.add_argument("path")
+    verify = sub.add_parser("verify-manifest", help="verify a local artifact manifest without executing repository code")
+    verify.add_argument("path")
+    verify.add_argument("--format", choices=("text", "json"), default="text", dest="manifest_format")
     collect = sub.add_parser("collect-github", help="explicitly collect bounded, read-only GitHub metadata")
     collect.add_argument("repository", metavar="OWNER/REPOSITORY")
     collect.add_argument("--output", default="github-metadata.json", metavar="PATH")
@@ -340,6 +344,17 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(f"Valid registry: {registry['id']} v{registry['version']} ({len(registry['scenarios'])} scenarios)")
         return 0
+    if args.command == "verify-manifest":
+        try:
+            summary = verify_manifest(args.path)
+        except ManifestError as exc:
+            print(f"error: {exc}")
+            return 2
+        if args.manifest_format == "json":
+            print(json.dumps(summary, indent=2, ensure_ascii=False))
+        else:
+            print(f"Manifest verified: {summary['verified']} artifact(s)")
+        return 0
     if args.command in {"demo", "demos"}:
         try:
             suite = load_demo_suite(args.path)
@@ -427,6 +442,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Analyzed {repo.name}: {len(results)} drills written to {Path(args.output).resolve()}")
     for result in results:
         print(f"  {result.scenario}: {result.score}/100 ({result.confidence} confidence)")
+    baseline_failed = False
     if args.baseline:
         try:
             current_report = load_report(Path(args.output) / "continuity.json")
@@ -445,7 +461,28 @@ def main(argv: list[str] | None = None) -> int:
             failed = comparison["status"] == "regressed"
         if failed:
             print("Baseline gate failed: selected regression policy matched")
-            return 1
+            baseline_failed = True
+    manifest_artifacts = [
+        Path(args.output) / "continuity.json",
+        Path(args.output) / "report.md",
+        Path(args.output) / "report.html",
+        recovery_output / "runbook.md",
+        recovery_output / "CODEOWNERS.draft",
+        recovery_output / "issue-drafts.md",
+        recovery_output / "continuity.sarif",
+        Path(args.output) / "history-summary.json",
+        Path(args.output) / "history-summary.md",
+        Path(args.output) / "baseline-comparison.json",
+    ]
+    manifest_artifacts = [path for path in manifest_artifacts if path.exists()]
+    try:
+        manifest_path = write_manifest(Path(args.output), manifest_artifacts)
+    except ManifestError as exc:
+        print(f"error: {exc}")
+        return 2
+    print(f"Artifact manifest: {manifest_path}")
+    if baseline_failed:
+        return 1
     if fail_under is not None:
         failing = [result for result in results if result.score < fail_under]
         if failing:

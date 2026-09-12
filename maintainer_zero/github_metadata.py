@@ -15,6 +15,12 @@ MAX_METADATA_BYTES = 10_000_000
 MAX_METADATA_NESTING = 64
 _RESOURCES = ("repository", "issues", "pull_requests", "reviews", "releases")
 _ARRAY_RESOURCES = frozenset(_RESOURCES) - {"repository"}
+_RESOURCE_FIELDS = {
+    "issues": frozenset(("number", "state", "draft", "created_at", "updated_at", "closed_at", "comments")),
+    "pull_requests": frozenset(("number", "state", "draft", "created_at", "updated_at", "closed_at", "merged_at", "comments", "review_comments")),
+    "reviews": frozenset(("id", "state", "submitted_at", "commit_id")),
+    "releases": frozenset(("id", "draft", "prerelease", "created_at", "published_at")),
+}
 _TOP_LEVEL_KEYS = frozenset(("schema_version", "permissions", "data", "collection", "cache"))
 
 class MetadataError(ValueError):
@@ -117,8 +123,20 @@ def validate_metadata(payload: Any) -> dict[str, Any]:
         if any(not isinstance(value, (str, int, float, bool)) and value is not None for value in record.values()):
             raise MetadataError("metadata repository fields must be scalar")
     for key in _ARRAY_RESOURCES:
-        if key in data and (not isinstance(data[key], list) or len(data[key]) > _MAX_ITEMS or any(not isinstance(item, dict) for item in data[key])):
+        records = data.get(key)
+        if key not in data:
+            continue
+        if not isinstance(records, list) or len(records) > _MAX_ITEMS or any(not isinstance(item, dict) for item in records):
             raise MetadataError(f"metadata {key} must be a bounded array")
+        allowed = _RESOURCE_FIELDS[key]
+        for record in records:
+            if set(record) - allowed:
+                raise MetadataError(f"metadata {key} contains an unsupported field")
+            if len(record) > len(allowed) or any(
+                not isinstance(value, (str, int, float, bool)) and value is not None
+                for value in record.values()
+            ):
+                raise MetadataError(f"metadata {key} records must contain scalar fields")
     collection = payload.get("collection")
     if collection is not None:
         if not isinstance(collection, dict) or set(collection) - set(_RESOURCES):

@@ -29,6 +29,30 @@ def test_validation_rejects_unknown_resources_and_non_object_records():
     with pytest.raises(MetadataError, match="bounded"):
         validate_metadata({**snapshot(), "data": {"issues": ["not-an-object"]}})
 
+
+def test_validation_rejects_raw_github_record_fields_and_nested_values():
+    raw = {
+        "number": 1,
+        "state": "open",
+        "body": "token=should-not-be-stored",
+        "user": {"login": "private-person"},
+    }
+    with pytest.raises(MetadataError, match="unsupported field"):
+        validate_metadata({**snapshot(), "data": {"issues": [raw]}})
+
+
+def test_validation_accepts_only_projected_scalar_resource_fields():
+    payload = {
+        "schema_version": 1,
+        "permissions": {"pull_requests": True, "reviews": True, "releases": True},
+        "data": {
+            "pull_requests": [{"number": 2, "state": "closed", "merged_at": None}],
+            "reviews": [{"id": 9, "state": "approved", "commit_id": "abc"}],
+            "releases": [{"id": 3, "draft": False, "published_at": "2026-01-01T00:00:00Z"}],
+        },
+    }
+    assert validate_metadata(payload) == payload
+
 def test_load_metadata_rejects_oversized_files(tmp_path):
     path = tmp_path / "large.json"
     path.write_bytes(b"{" + b"x" * 10_000_000 + b"}")

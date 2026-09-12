@@ -85,6 +85,13 @@ def test_cache_rejects_credential_like_top_level_fields(tmp_path):
         save_metadata_cache(tmp_path / "unsafe.json", unsafe)
 
 
+def test_cache_rejects_raw_github_array_records(tmp_path):
+    unsafe = payload()
+    unsafe["data"]["issues"][0].update(body="token=should-not-be-stored", user={"login": "private-person"})
+    with pytest.raises(MetadataCacheError, match="payload is invalid"):
+        save_metadata_cache(tmp_path / "unsafe-record.json", unsafe)
+
+
 def test_cache_rejects_non_regular_file(tmp_path):
     directory = tmp_path / "cache.json"
     directory.mkdir()

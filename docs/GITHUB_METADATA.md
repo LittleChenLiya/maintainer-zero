@@ -111,6 +111,7 @@ repository descriptor 只有传入 `--include-repository` 才会请求。reviews
 - 401/403/404/429、非 200、超时/传输异常、非法 JSON 均降级为不可用并保留原因；
 - repository descriptor 只保留默认分支、可见性、归档和计数等标量字段，不复制 owner、URL 或原始仓库对象；
 - issues、pull requests、reviews 和 releases 也会在快照写入前做固定字段投影，只保留状态、编号、时间和计数等连续性所需标量；正文、用户/作者对象、标签、URL 和未知字段不会进入快照或缓存；
+- 离线快照校验层也强制执行同一字段白名单：数组记录中的未知字段或嵌套值会被拒绝，而不是被摘要阶段静默忽略；因此绕过采集客户端提交原始 GitHub 记录也不能进入快照或缓存；
 - 不接收或写入 token，不执行任何 POST、PATCH、DELETE，不创建 Issue 或评论。
 
 这是真实网络适配器的安全内核，而不是默认联网功能。项目仍不提供内置 HTTP

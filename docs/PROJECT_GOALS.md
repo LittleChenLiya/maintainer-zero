@@ -30,6 +30,7 @@
 
 - [x] 可选 `--fail-under` 连续性评分门禁，可用于 CI / PR
 - [x] 维护者离开场景接入确定性积压模拟器
+- [x] 三类核心场景共享可解释的事故积压与假设恢复指标
 - [x] 版本化报告 schema、稳定 finding ID 与 `--baseline` 比较
 - [x] 生成只读恢复 Runbook、CODEOWNERS / Issue 草稿和 SARIF
 - [x] 增加离线 GitHub 元数据快照校验与权限降级摘要

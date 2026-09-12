@@ -178,6 +178,26 @@ def test_maintainer_drill_exposes_deterministic_queue_metrics():
     assert [item["day"] for item in result.timeline] == [0, 3]
 
 
+@pytest.mark.parametrize("scenario, days", [(dependency_yanked, 3), (ci_outage, 3)])
+def test_all_applicable_drills_expose_recovery_queue_metrics(scenario, days):
+    result = scenario(repo(), days)
+    metrics = result.metrics
+    assert metrics["simulated_peak_backlog"] >= 0
+    assert metrics["simulated_ending_backlog"] >= 0
+    assert 0 <= metrics["simulated_service_level"] <= 1
+    assert metrics["simulated_recovery_window_days"] == 7
+    assert metrics["simulated_recovery_ending_backlog"] >= 0
+    assert metrics["simulated_recovery_day"] is not None
+    assert any(item.field == "recovery_day" for item in result.evidence)
+
+
+def test_non_applicable_dependency_drill_marks_queue_metrics_unknown():
+    result = dependency_yanked(repo(dependencies=[]), 3)
+    assert result.metrics["simulated_recovery_window_days"] == 7
+    assert result.metrics["simulated_recovery_day"] is None
+    assert result.metrics["simulated_recovery_ending_backlog"] is None
+
+
 def test_fail_under_is_parsed_and_invalid_config_rejected(tmp_path):
     parser = _build_parser()
     args = parser.parse_args(["simulate", ".", "--fail-under", "70"])

@@ -103,6 +103,10 @@ def _load_config(path: Path) -> dict:
         raise ValueError(f"Invalid continuity config: {config_path}") from exc
     if not isinstance(data, dict):
         raise ValueError(f"Invalid continuity config: {config_path}")
+    allowed_keys = {"scenarios", "days", "fail_under", "privacy"}
+    unsupported = set(data) - allowed_keys
+    if unsupported:
+        raise ValueError(f"continuity.json contains unsupported fields: {', '.join(sorted(map(str, unsupported)))}")
     configured = data.get("scenarios")
     if "scenarios" in data:
         if isinstance(configured, str):
@@ -118,6 +122,9 @@ def _load_config(path: Path) -> dict:
     privacy = data.get("privacy", {})
     if not isinstance(privacy, dict):
         raise ValueError("continuity.json privacy must be an object")
+    unsupported_privacy = set(privacy) - {"anonymize_people", "anonymize_repository", "upload_repository_content"}
+    if unsupported_privacy:
+        raise ValueError(f"continuity.json privacy contains unsupported fields: {', '.join(sorted(map(str, unsupported_privacy)))}")
     for key in ("anonymize_people", "anonymize_repository", "upload_repository_content"):
         if key in privacy and not isinstance(privacy[key], bool):
             raise ValueError(f"continuity.json privacy.{key} must be boolean")

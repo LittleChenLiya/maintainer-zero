@@ -133,6 +133,16 @@ def test_config_rejects_unsupported_uploads(tmp_path):
         _load_config(tmp_path)
 
 
+@pytest.mark.parametrize("value, message", [
+    ('{"future_option": true}', "unsupported fields"),
+    ('{"privacy": {"future_option": true}}', "privacy contains unsupported fields"),
+])
+def test_config_rejects_unknown_options_instead_of_silently_ignoring(tmp_path, value, message):
+    (tmp_path / "continuity.json").write_text(value, encoding="utf-8")
+    with pytest.raises(ValueError, match=message):
+        _load_config(tmp_path)
+
+
 @pytest.mark.parametrize("value", ['{"scenarios": null}', '{"scenarios": [{}]}', '{"days": null}'])
 def test_config_rejects_null_and_non_string_values(tmp_path, value):
     (tmp_path / "continuity.json").write_text(value, encoding="utf-8")

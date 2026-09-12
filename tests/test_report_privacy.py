@@ -94,6 +94,28 @@ def test_report_rejects_symlinked_output_parent(tmp_path):
     assert not list(outside.iterdir())
 
 
+def test_report_preflights_all_targets_before_replacement(tmp_path):
+    outputs = tmp_path / "out"
+    outputs.mkdir()
+    existing = outputs / "continuity.json"
+    existing.write_text("old report\n", encoding="utf-8")
+    outside = tmp_path / "outside.md"
+    outside.write_text("must remain", encoding="utf-8")
+    linked = outputs / "report.md"
+    try:
+        linked.symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+
+    with pytest.raises(ValueError, match="regular file"):
+        write_report(outputs, RepoSnapshot(".", "demo"), [result("safe")])
+
+    assert existing.read_text(encoding="utf-8") == "old report\n"
+    assert outside.read_text(encoding="utf-8") == "must remain"
+    assert not (outputs / "report.html").exists()
+    assert not list(outputs.glob(".*.tmp"))
+
+
 def test_report_records_privacy_boundary_without_raw_identity_values(tmp_path):
     outputs = tmp_path / "privacy-summary"
     repo = RepoSnapshot("<local-repository>", "repository-1234abcd5678", contributors={"contributor-1": 4})

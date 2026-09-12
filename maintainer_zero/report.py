@@ -105,6 +105,12 @@ def _safe_output_file(path: str | Path) -> Path:
     return target
 
 
+def _preflight_report_targets(out: Path) -> None:
+    """Validate every report target before replacing any artifact."""
+    for filename in ("continuity.json", "report.md", "report.html"):
+        _safe_output_file(out / filename)
+
+
 def _metadata_section(metadata_summary: dict | None) -> list[str]:
     if metadata_summary is None:
         return []
@@ -182,6 +188,7 @@ def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_sum
 def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None) -> None:
     privacy_summary = validate_snapshot_projection(repo, privacy_summary)
     out = _safe_output_directory(out)
+    _preflight_report_targets(out)
     payload = _safe_value({"schema_version": 1, "tool": {"name": "Maintainer-Zero", "version": __version__}, "rule_version": "0.2", "repository": repo.to_dict(), "results": [r.to_dict() for r in results]})
     if privacy_summary is not None:
         payload["privacy"] = _safe_value(privacy_summary)

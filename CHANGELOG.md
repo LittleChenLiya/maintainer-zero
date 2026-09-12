@@ -45,6 +45,7 @@
 - composite Action 成功后同时暴露 JSON、Markdown、HTML 报告和恢复目录的绝对路径；失败门禁不会写入 `GITHUB_OUTPUT`。
 - 独立社区场景文档增加 1 MiB 大小上限，并拒绝 declarative 场景中的 entrypoint，保持场景生态为 data-only、不可执行契约。
 - builtin 场景入口现在必须匹配项目内三项已审阅的固定函数；未知入口直接拒绝，避免注册表演变成任意模块加载器。
+- 场景与注册表加载器现在只接受普通文件并拒绝符号链接，避免贡献校验被重定向到未预期目标。
 - 增加根级可复用 Composite Action：安装动作自身并对 checkout 工作区运行本地演练；输入通过环境变量和 shell 数组传递，保留只读权限与 fork 边界。
 
 ## 发布说明

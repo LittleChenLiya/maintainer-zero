@@ -28,6 +28,8 @@ but are not loaded as executable plugins.
 - Builtin entrypoints are restricted to the three reviewed functions shipped
   by the project; unknown entrypoints are rejected before any future executor
   could resolve them.
+- Registry and standalone loaders accept only regular files and do not follow
+  symlinks, so validation cannot be redirected to an unexpected target.
 
 Validate a contribution before opening a pull request:
 

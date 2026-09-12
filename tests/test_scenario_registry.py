@@ -83,6 +83,20 @@ def test_load_scenario_bounds_untrusted_file(tmp_path):
         load_scenario(path, max_bytes=1)
 
 
+def test_loaders_reject_directories_and_symlinks(tmp_path):
+    with pytest.raises(ScenarioRegistryError, match="regular file"):
+        load_registry(tmp_path)
+    target = tmp_path / "target.json"
+    target.write_text(json.dumps(load_bundled_registry()), encoding="utf-8")
+    link = tmp_path / "registry-link.json"
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    with pytest.raises(ScenarioRegistryError, match="regular file"):
+        load_registry(link)
+
+
 def test_scenario_summary_is_stable_and_does_not_expose_entrypoint():
     summary = scenario_summary(load_bundled_registry()["scenarios"][0])
     assert summary["id"] == "ci-outage"

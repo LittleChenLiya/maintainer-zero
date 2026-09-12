@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import re
+import stat
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -76,6 +78,33 @@ def _reject_forbidden(value: Any, path: str = "scenario", *, allow_entrypoint: b
     elif isinstance(value, list):
         for index, child in enumerate(value):
             _reject_forbidden(child, f"{path}[{index}]", allow_entrypoint=allow_entrypoint)
+
+
+def _read_bounded_json(path: Path, max_bytes: int, error_type: type[ValueError], label: str) -> Any:
+    """Read a scenario document without following links or accepting special files."""
+    try:
+        path_stat = path.lstat()
+        if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
+            raise error_type(f"{label} must be a regular file")
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        file_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(file_stat.st_mode):
+            os.close(descriptor)
+            raise error_type(f"{label} must be a regular file")
+        if (getattr(path_stat, "st_dev", 0), getattr(path_stat, "st_ino", 0)) != (
+            getattr(file_stat, "st_dev", 0), getattr(file_stat, "st_ino", 0)
+        ):
+            os.close(descriptor)
+            raise error_type(f"{label} changed during open")
+        with os.fdopen(descriptor, "rb") as handle:
+            raw = handle.read(max_bytes + 1)
+        if len(raw) > max_bytes:
+            raise error_type(f"{label} exceeds {max_bytes} bytes")
+        return json.loads(raw)
+    except error_type:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
+        raise error_type(f"Invalid {label}: {path}") from exc
 
 
 def _validate_legacy_scenario(payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -204,14 +233,7 @@ def load_scenario(path: str | Path, *, max_bytes: int = MAX_SCENARIO_BYTES) -> d
     scenario_path = Path(path)
     if max_bytes <= 0:
         raise ValueError("max_bytes must be positive")
-    try:
-        if scenario_path.stat().st_size > max_bytes:
-            raise ScenarioSpecError(f"scenario exceeds {max_bytes} bytes")
-        payload = json.loads(scenario_path.read_text(encoding="utf-8"))
-    except ScenarioSpecError:
-        raise
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise ScenarioSpecError(f"Invalid scenario document: {scenario_path}") from exc
+    payload = _read_bounded_json(scenario_path, max_bytes, ScenarioSpecError, "scenario document")
     return validate_scenario(payload)
 
 
@@ -240,14 +262,7 @@ def load_registry(path: str | Path, *, max_bytes: int = MAX_REGISTRY_BYTES) -> d
     path = Path(path)
     if max_bytes <= 0:
         raise ValueError("max_bytes must be positive")
-    try:
-        if path.stat().st_size > max_bytes:
-            raise ScenarioRegistryError(f"scenario registry exceeds {max_bytes} bytes")
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except ScenarioRegistryError:
-        raise
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise ScenarioRegistryError(f"invalid scenario registry: {path}") from exc
+    payload = _read_bounded_json(path, max_bytes, ScenarioRegistryError, "scenario registry")
     return validate_registry(payload)
 
 

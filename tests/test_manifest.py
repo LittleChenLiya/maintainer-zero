@@ -49,6 +49,25 @@ def test_manifest_rejects_missing_artifact_and_extra_fields(tmp_path: Path):
         load_manifest(manifest)
 
 
+@pytest.mark.parametrize("artifact", [
+    "missing.txt",
+    "../outside.txt",
+    "bad\\name.txt",
+])
+def test_manifest_writer_rejects_invalid_artifact_instead_of_dropping_it(tmp_path: Path, artifact: str):
+    _artifacts(tmp_path)
+    with pytest.raises(ManifestError):
+        write_manifest(tmp_path, [tmp_path / "report.md", artifact])
+
+
+def test_manifest_writer_rejects_artifact_outside_root(tmp_path: Path):
+    _artifacts(tmp_path)
+    outside = tmp_path.parent / "outside-artifact.txt"
+    outside.write_text("outside\n", encoding="utf-8")
+    with pytest.raises(ManifestError):
+        write_manifest(tmp_path, [tmp_path / "report.md", outside])
+
+
 @pytest.mark.parametrize("path", ["/absolute.txt", "../escape.txt", "recovery/../escape.txt"])
 def test_manifest_rejects_unsafe_paths(tmp_path: Path, path: str):
     _artifacts(tmp_path)

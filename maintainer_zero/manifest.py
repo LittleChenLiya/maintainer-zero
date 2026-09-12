@@ -56,8 +56,14 @@ def _artifact(root: Path, rel: str) -> Path:
 
 def _entry(root: Path, item: str | Path):
     path = Path(item); path = path if path.is_absolute() else root / path
-    try: rel = _relative(Path(os.path.relpath(path, root)).as_posix())
-    except (ValueError, ManifestError): return None
+    try:
+        rel = Path(os.path.relpath(path, root)).as_posix()
+    except ValueError as exc:
+        raise ManifestError("artifact path is outside the manifest directory") from exc
+    # Only the manifest itself is intentionally omitted. Every other invalid,
+    # missing, or out-of-root artifact must fail closed instead of silently
+    # producing an incomplete integrity claim.
+    rel = _relative(rel)
     if rel == "artifact-manifest.json": return None
     target = _artifact(root, rel); digest = hashlib.sha256(); total = 0
     with target.open("rb") as handle:

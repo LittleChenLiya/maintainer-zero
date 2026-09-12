@@ -68,6 +68,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：收紧 GitHub 数组资源的隐私投影：issues、pull requests、reviews 和 releases 现在只保留固定的状态、编号、时间和计数字段，丢弃正文、用户/作者对象、标签、URL 与未知字段；新增原始记录投影负例，避免缓存保存不必要的 GitHub 内容。
 - 2026-09-12：补齐内存注入快照的循环结构边界：`validate_metadata()` 现在检测 dict/list 自引用并返回受控 `MetadataError`，不会让调用方遇到未处理的 `RecursionError`；新增循环结构负例。
 
 - 2026-09-12：统一 GitHub 元数据快照的文件边界：普通 `--github-metadata` 输入现在与缓存一样拒绝符号链接、目录和其他非普通文件，并新增快照路径负例，避免隐私校验只覆盖缓存分支。

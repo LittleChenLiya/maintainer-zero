@@ -63,6 +63,30 @@ def test_client_rejects_non_object_records():
     assert payload["collection"]["issues"]["reason"] == "invalid_record"
 
 
+def test_client_projects_array_records_to_data_only_fields():
+    raw = {
+        "number": 7,
+        "state": "open",
+        "created_at": "2026-01-01T00:00:00Z",
+        "body": "token=should-not-be-stored",
+        "user": {"login": "private-person"},
+        "html_url": "https://github.example/private",
+        "labels": [{"name": "secret-label"}],
+    }
+    payload = ReadOnlyGitHubClient(
+        lambda *_: TransportResponse(200, json.dumps([raw]))
+    ).collect({"issues": "/repos/acme/demo/issues"})
+    assert payload["data"]["issues"] == [{
+        "created_at": "2026-01-01T00:00:00Z",
+        "number": 7,
+        "state": "open",
+    }]
+    serialized = json.dumps(payload, ensure_ascii=False)
+    assert "should-not-be-stored" not in serialized
+    assert "private-person" not in serialized
+    assert "html_url" not in serialized
+
+
 def test_client_rejects_nonstandard_numbers_in_object_and_array_payloads():
     repository = ReadOnlyGitHubClient(
         lambda *_: TransportResponse(200, b'{"open_issues_count": NaN}')

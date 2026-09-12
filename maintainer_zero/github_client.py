@@ -25,6 +25,12 @@ _PATHS = {
     "releases": re.compile(_REPOSITORY_PATH + r"/releases"),
 }
 _ARRAY_RESOURCES = frozenset(("issues", "pull_requests", "reviews", "releases"))
+_RESOURCE_FIELDS = {
+    "issues": frozenset(("number", "state", "draft", "created_at", "updated_at", "closed_at", "comments")),
+    "pull_requests": frozenset(("number", "state", "draft", "created_at", "updated_at", "closed_at", "merged_at", "comments", "review_comments")),
+    "reviews": frozenset(("id", "state", "submitted_at", "commit_id")),
+    "releases": frozenset(("id", "draft", "prerelease", "created_at", "published_at")),
+}
 
 @dataclass(frozen=True)
 class TransportResponse:
@@ -110,6 +116,18 @@ def _status_payload(status: CollectionStatus) -> dict[str, Any]:
         payload["rate_limit_reset_epoch"] = status.rate_limit_reset_epoch
     return payload
 
+
+def _project_record(resource: str, record: Mapping[str, Any]) -> dict[str, Any]:
+    """Keep only bounded, data-only fields needed for continuity counts."""
+    allowed = _RESOURCE_FIELDS[resource]
+    projected: dict[str, Any] = {}
+    for key in sorted(allowed):
+        value = record.get(key)
+        if value is None or isinstance(value, (str, int, float, bool)):
+            if key in record:
+                projected[key] = value
+    return projected
+
 class ReadOnlyGitHubClient:
     """Collect bounded metadata through a caller-owned GET-only transport."""
 
@@ -132,7 +150,7 @@ class ReadOnlyGitHubClient:
         permissions: dict[str, bool] = {}
         collection: dict[str, dict[str, Any]] = {}
         for resource, path in sorted(paths.items()):
-            records, status = (self._collect_resource(path) if resource in _ARRAY_RESOURCES else self._collect_repository(path))
+            records, status = (self._collect_resource(resource, path) if resource in _ARRAY_RESOURCES else self._collect_repository(path))
             permissions[resource] = status.available
             collection[resource] = _status_payload(status)
             if status.available:
@@ -177,7 +195,7 @@ class ReadOnlyGitHubClient:
             return {}, CollectionStatus(False, 1, False, "invalid_record")
         return record, CollectionStatus(True, 1, False)
 
-    def _collect_resource(self, path: str) -> tuple[list[Any], CollectionStatus]:
+    def _collect_resource(self, resource: str, path: str) -> tuple[list[Any], CollectionStatus]:
         records: list[Any] = []
         collected_bytes = 0
         for page in range(1, self.max_pages + 1):
@@ -212,6 +230,7 @@ class ReadOnlyGitHubClient:
                 return records, CollectionStatus(False, page, False, "expected_array")
             if any(not isinstance(record, dict) for record in payload):
                 return records, CollectionStatus(False, page, False, "invalid_record")
+            payload = [_project_record(resource, record) for record in payload]
             if len(records) + len(payload) > MAX_COLLECTION_ITEMS:
                 records.extend(payload[:MAX_COLLECTION_ITEMS - len(records)])
                 return records, CollectionStatus(True, page, True, "item_limit")

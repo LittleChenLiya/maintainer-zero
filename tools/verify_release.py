@@ -10,6 +10,10 @@ def run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | No
     return completed.stdout
 
 def verify(root: Path, output: Path) -> None:
+    root = root.resolve()
+    output = output.resolve()
+    if output == root or output.is_relative_to(root):
+        raise ValueError("release verification output must be outside the source checkout")
     output.mkdir(parents=True, exist_ok=True)
     wheelhouse = output / "artifacts"
     # The output directory is a tool-owned, disposable verification area.

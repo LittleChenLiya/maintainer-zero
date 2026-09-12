@@ -25,7 +25,7 @@ python -m pytest -q tests/test_action_contract.py tests/test_action_integration.
 它不等价于真实 GitHub Actions Ubuntu/Windows runner 验证；发布前仍需在受控远程
 runner 上验证安装、GITHUB_OUTPUT 解析和矩阵行为。
 
-安装验证必须使用隔离目录，并至少确认 CLI 可导入、一个社区场景可校验、
+安装验证必须使用源码树外的隔离目录，并至少确认 CLI 可导入、一个社区场景可校验、
 以及内置注册表可加载。验证目录是临时产物，不应提交到 Git。
 脚本会构建一个 wheel 和一个 sdist，在源码树外分别安装，并确认默认 `demo` 从包内
 fixture 读取、输出 3 个结果且通过回归门禁。输出目录是临时产物，不应提交到 Git。

@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from tools.verify_release import DEFAULT_VERIFY_OUTPUT, verify
 
 
@@ -22,3 +24,9 @@ def test_release_verification_default_output_is_an_absolute_codex_path():
 def test_release_verification_install_probe_is_offline_safe():
     source = (Path(__file__).parents[1] / "tools" / "verify_release.py").read_text(encoding="utf-8")
     assert "--no-build-isolation" in source, "release install must not resolve build dependencies from the network"
+
+
+def test_release_verification_rejects_output_inside_source_checkout(tmp_path: Path):
+    root = Path(__file__).parents[1]
+    with pytest.raises(ValueError, match="outside the source checkout"):
+        verify(root, root / "release-output")

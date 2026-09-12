@@ -56,6 +56,7 @@ CLI 参数
 - 报告默认只在本地生成；启用 `privacy.anonymize_people` 和 `privacy.anonymize_repository` 后，贡献者/CODEOWNERS 身份会被替换，仓库名变为稳定短摘要、路径变为 `<local-repository>`。依赖名仍可能属于私有命名空间，公开分享前必须人工审查。
 - 每份由 CLI 生成的报告都可包含 `privacy` 摘要，分别标明人员身份、仓库身份是否匿名化，并固定记录 `upload_repository_content: false`；该摘要不携带原始姓名、owner、路径或映射表。
 - 报告 API 也执行同一 fail-closed 契约：即使绕过 CLI，`upload_repository_content: true` 仍会被拒绝，不会生成与实际策略矛盾的摘要。
+- 报告与恢复 API 共享快照投影校验；声明 `anonymize_people` 或 `anonymize_repository` 时，若传入快照仍含原始身份/路径会直接拒绝，且不会先创建输出目录。
 - 不把私有仓库工件发布为公开 badge、排名或公开基准样本。需要公开分享时应生成单独的脱敏摘要。
 - 未来外部来源读取要设置超时、大小与分页上限；链接与 HTML 输出要转义；符号链接不得让扫描范围悄悄越过仓库边界。当前分析器对依赖清单、CODEOWNERS、工作流和发布文件执行解析后仓库内检查。
 

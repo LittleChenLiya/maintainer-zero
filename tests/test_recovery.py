@@ -165,6 +165,18 @@ def test_recovery_set_failure_rolls_back_files_replaced_before_error(tmp_path: P
     assert not list(out.glob(".*.bak"))
 
 
+def test_recovery_rejects_anonymized_claim_for_raw_snapshot(tmp_path: Path):
+    output = tmp_path / "artifacts"
+    with pytest.raises(ValueError, match="anonymized contributor identities"):
+        write_recovery_artifacts(
+            output,
+            RepoSnapshot(path="C:/private/repo", name="repo", contributors={"Alice": 1}),
+            [_result()],
+            {"anonymize_people": True},
+        )
+    assert not output.exists()
+
+
 def test_recovery_rejects_symlinked_output_directory(tmp_path: Path):
     outside = tmp_path / "outside"
     outside.mkdir()

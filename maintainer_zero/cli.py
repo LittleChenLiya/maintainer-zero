@@ -375,7 +375,7 @@ def main(argv: list[str] | None = None) -> int:
         results = [SCENARIOS[name](repo, days) for name in names]
         write_report(Path(args.output), repo, results, metadata_summary, privacy_summary)
         recovery_output = Path(args.recovery_output) if args.recovery_output else Path(args.output) / "recovery"
-        write_recovery_artifacts(recovery_output, repo, results)
+        write_recovery_artifacts(recovery_output, repo, results, privacy_summary)
         if args.history:
             history_summary = append_history(args.history, json.loads((Path(args.output) / "continuity.json").read_text(encoding="utf-8")))
             history_summary_path = Path(args.output) / "history-summary.json"

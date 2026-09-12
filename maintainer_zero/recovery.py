@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .models import DrillResult, Finding, RepoSnapshot
+from .privacy import validate_snapshot_projection
 
 
 def _safe_text(value: object) -> str:
@@ -344,8 +345,11 @@ def _atomic_write_artifacts(out: Path, artefacts: dict[str, str]) -> list[Path]:
             backup.unlink(missing_ok=True)
 
 
-def write_recovery_artifacts(out: Path, repo: RepoSnapshot, results: list[DrillResult]) -> list[Path]:
+def write_recovery_artifacts(
+    out: Path, repo: RepoSnapshot, results: list[DrillResult], privacy_summary: dict | None = None
+) -> list[Path]:
     """Write recovery drafts below *out* and return paths in stable order."""
+    validate_snapshot_projection(repo, privacy_summary)
     out = _safe_output_directory(out)
     artefacts = {
         "runbook.md": render_runbook(repo, results),

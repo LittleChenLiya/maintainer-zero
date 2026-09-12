@@ -73,7 +73,7 @@ def test_report_write_failure_keeps_existing_artifact_intact(tmp_path, monkeypat
 
 def test_report_records_privacy_boundary_without_raw_identity_values(tmp_path):
     outputs = tmp_path / "privacy-summary"
-    repo = RepoSnapshot("<local-repository>", "repository-1234abcd", contributors={"contributor-1": 4})
+    repo = RepoSnapshot("<local-repository>", "repository-1234abcd5678", contributors={"contributor-1": 4})
     summary = {
         "anonymize_people": True,
         "anonymize_repository": True,
@@ -88,7 +88,7 @@ def test_report_records_privacy_boundary_without_raw_identity_values(tmp_path):
     assert "anonymized" in rendered
     assert "disabled" in rendered
     assert "contributor-1" in rendered
-    assert "repository-1234abcd" in rendered
+    assert "repository-1234abcd5678" in rendered
     assert "<local-repository>" in rendered
 
 
@@ -124,3 +124,15 @@ def test_report_rejects_unknown_privacy_fields(tmp_path):
             [result("safe")],
             privacy_summary={"future_option": True},
         )
+
+
+def test_report_rejects_anonymized_claim_for_raw_snapshot(tmp_path):
+    output = tmp_path / "rejected"
+    with pytest.raises(ValueError, match="anonymized (contributor identities|repository identity)"):
+        write_report(
+            output,
+            RepoSnapshot("C:/private/repo", "repo", contributors={"Alice": 1}),
+            [result("safe")],
+            privacy_summary={"anonymize_people": True, "anonymize_repository": True},
+        )
+    assert not output.exists()

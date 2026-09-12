@@ -23,6 +23,12 @@ class MetadataCacheError(ValueError):
     """Raised when a local metadata cache is missing, invalid, or stale."""
 
 
+def _is_link_like(info: os.stat_result) -> bool:
+    """Treat Windows junctions/reparse points as links as well as POSIX symlinks."""
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
+
+
 def _prepare_cache_target(path: Path, *, create_parents: bool) -> Path:
     """Return an absolute cache path with non-symlinked parent components."""
     target = Path(os.path.abspath(path))
@@ -42,8 +48,8 @@ def _prepare_cache_target(path: Path, *, create_parents: bool) -> Path:
                 raise MetadataCacheError(f"could not create metadata cache directory: {current}") from exc
         except OSError as exc:
             raise MetadataCacheError(f"could not inspect metadata cache path: {current}") from exc
-        if stat.S_ISLNK(info.st_mode):
-            raise MetadataCacheError("metadata cache path may not contain a symlink")
+        if _is_link_like(info):
+            raise MetadataCacheError("metadata cache path may not contain a symlink or reparse point")
         if not stat.S_ISDIR(info.st_mode):
             raise MetadataCacheError("metadata cache parent must be a directory")
     return target
@@ -111,7 +117,7 @@ def _open_cache(path: Path):
     path = _prepare_cache_target(path, create_parents=False)
     try:
         path_stat = path.lstat()
-        if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
+        if _is_link_like(path_stat) or not stat.S_ISREG(path_stat.st_mode):
             raise MetadataCacheError("metadata cache must be a regular file")
         flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
         descriptor = os.open(path, flags)
@@ -174,13 +180,14 @@ def save_metadata_cache(path: str | Path, payload: Mapping[str, Any], *,
     if len(encoded) > MAX_METADATA_BYTES:
         raise MetadataCacheError(f"metadata cache exceeds {MAX_METADATA_BYTES} bytes")
     target = _prepare_cache_target(Path(path), create_parents=True)
-    if target.exists():
-        try:
-            target_stat = target.lstat()
-        except OSError as exc:
-            raise MetadataCacheError(f"could not inspect metadata cache: {target}") from exc
-        if stat.S_ISLNK(target_stat.st_mode) or not stat.S_ISREG(target_stat.st_mode):
-            raise MetadataCacheError("metadata cache target must be a regular file")
+    try:
+        target_stat = target.lstat()
+    except FileNotFoundError:
+        target_stat = None
+    except OSError as exc:
+        raise MetadataCacheError(f"could not inspect metadata cache: {target}") from exc
+    if target_stat is not None and (_is_link_like(target_stat) or not stat.S_ISREG(target_stat.st_mode)):
+        raise MetadataCacheError("metadata cache target must be a regular file")
     temporary: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
@@ -206,7 +213,10 @@ def save_metadata_cache(path: str | Path, payload: Mapping[str, Any], *,
 
 def cache_status(path: str | Path, *, now: datetime | None = None) -> CacheStatus:
     """Inspect a cache without treating stale data as current."""
-    target = Path(path)
+    try:
+        target = _prepare_cache_target(Path(path), create_parents=False)
+    except MetadataCacheError as exc:
+        return CacheStatus("invalid", reason=str(exc))
     try:
         target.lstat()
     except FileNotFoundError:

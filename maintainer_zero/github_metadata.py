@@ -27,6 +27,12 @@ class MetadataError(ValueError):
     """Raised when a metadata snapshot violates the local envelope."""
 
 
+def _is_link_like(info: os.stat_result) -> bool:
+    """Treat Windows junctions/reparse points as links as well as POSIX symlinks."""
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
+
+
 def _reject_symlinked_parents(path: Path) -> Path:
     """Return an absolute path after checking existing parent components."""
     target = Path(os.path.abspath(path))
@@ -40,8 +46,8 @@ def _reject_symlinked_parents(path: Path) -> Path:
             break
         except OSError as exc:
             raise MetadataError(f"could not inspect metadata snapshot path: {current}") from exc
-        if stat.S_ISLNK(info.st_mode):
-            raise MetadataError("metadata snapshot path may not contain a symlink")
+        if _is_link_like(info):
+            raise MetadataError("metadata snapshot path may not contain a symlink or reparse point")
         if not stat.S_ISDIR(info.st_mode):
             raise MetadataError("metadata snapshot parent must be a directory")
     return target
@@ -52,7 +58,7 @@ def _open_snapshot(path: Path):
     path = _reject_symlinked_parents(path)
     try:
         path_stat = path.lstat()
-        if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
+        if _is_link_like(path_stat) or not stat.S_ISREG(path_stat.st_mode):
             raise MetadataError("metadata snapshot must be a regular file")
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         file_stat = os.fstat(descriptor)

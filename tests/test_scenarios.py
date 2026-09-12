@@ -48,6 +48,31 @@ def test_config_is_validated_and_people_can_be_anonymized(tmp_path):
     assert anonymized.contributors == {"contributor-2": 2, "contributor-1": 1}
 
 
+def test_init_creates_valid_config_and_is_idempotent(tmp_path):
+    assert main(["init", str(tmp_path)]) == 0
+    config_path = tmp_path / "continuity.json"
+    first = config_path.read_text(encoding="utf-8")
+    assert _load_config(tmp_path)["days"] == 90
+
+    config_path.write_text("{\"days\": 14}", encoding="utf-8")
+    assert main(["init", str(tmp_path)]) == 0
+    assert config_path.read_text(encoding="utf-8") == "{\"days\": 14}"
+    assert first.endswith("\n")
+
+
+def test_init_write_failure_leaves_no_partial_config_or_temp_file(tmp_path, monkeypatch, capsys):
+    import maintainer_zero.cli as cli_module
+
+    def fail_replace(source, target):
+        raise OSError("simulated replace failure")
+
+    monkeypatch.setattr(cli_module.os, "replace", fail_replace)
+    assert main(["init", str(tmp_path)]) == 2
+    assert not (tmp_path / "continuity.json").exists()
+    assert not list(tmp_path.glob(".continuity.json.*.tmp"))
+    assert "cannot write starter config" in capsys.readouterr().out
+
+
 def test_repository_anonymization_redacts_path_and_is_stable():
     original = repo(path="C:/private/acme-secret", name="acme-secret")
     first = _anonymize_snapshot(original, anonymize_people=False, anonymize_repository=True)

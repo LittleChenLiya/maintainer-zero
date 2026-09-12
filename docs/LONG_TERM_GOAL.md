@@ -68,6 +68,8 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：将 `init` 的 starter `continuity.json` 写入接入原子替换与失败清理边界；重复初始化保留用户配置，替换失败返回退出码 2 且不留下半成品，新增幂等与失败回归测试。
+
 - 2026-09-12：收紧 GitHub 元数据顶层 schema，仅允许 schema_version、permissions、data、collection 和受限 cache envelope；token/secret 等任意凭证样字段会在快照校验和缓存保存阶段直接拒绝，而不是仅在摘要阶段隐藏；专项 34 项通过。
 - 2026-09-12：收紧 composite Action 的 `GITHUB_OUTPUT` 边界：要求绝对路径，在 runner 提供 `RUNNER_TEMP` 时限制于该目录，拒绝控制字符、符号链接和缺失父目录，并使用 `O_NOFOLLOW` 打开输出文件；输出写入失败返回输入/环境错误码 2，新增契约负例覆盖。
 

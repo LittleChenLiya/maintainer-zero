@@ -192,7 +192,26 @@ def main(argv: list[str] | None = None) -> int:
         path.mkdir(parents=True, exist_ok=True)
         config = path / "continuity.json"
         if not config.exists():
-            config.write_text(json.dumps({"scenarios": list(SCENARIOS), "days": 90, "privacy": {"anonymize_people": True, "anonymize_repository": True, "upload_repository_content": False}}, indent=2), encoding="utf-8")
+            try:
+                _atomic_write_text(
+                    config,
+                    json.dumps(
+                        {
+                            "scenarios": list(SCENARIOS),
+                            "days": 90,
+                            "privacy": {
+                                "anonymize_people": True,
+                                "anonymize_repository": True,
+                                "upload_repository_content": False,
+                            },
+                        },
+                        indent=2,
+                    )
+                    + "\n",
+                )
+            except OSError as exc:
+                print(f"error: cannot write starter config: {config}")
+                return 2
         print(f"Created {config}")
         return 0
     if args.command == "collect-github":

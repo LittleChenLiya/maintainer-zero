@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from maintainer_zero.cli import main
 from maintainer_zero.github_metadata import MetadataError, load_metadata, summarize_metadata, validate_metadata
 
 def snapshot():
@@ -207,3 +208,40 @@ def test_metadata_rejects_excessive_nesting_without_recursion_error(tmp_path):
     path.write_text(payload, encoding="utf-8")
     with pytest.raises(MetadataError, match="nesting"):
         load_metadata(path)
+
+
+def test_validate_metadata_cli_renders_gitlab_snapshot_without_network_or_mutation(tmp_path, monkeypatch, capsys):
+    payload = {
+        "schema_version": 1,
+        "provider": "gitlab",
+        "permissions": {"issues": True},
+        "data": {"issues": [{"number": 7, "state": "opened"}]},
+    }
+    path = tmp_path / "gitlab.json"
+    original = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    path.write_text(original, encoding="utf-8")
+
+    import urllib.request
+    calls = []
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *args, **kwargs: calls.append(args))
+
+    assert main(["validate-metadata", str(path)]) == 0
+    assert "Valid gitlab metadata snapshot" in capsys.readouterr().out
+    assert calls == []
+    assert path.read_text(encoding="utf-8") == original
+
+    assert main(["validate-metadata", str(path), "--format", "json"]) == 0
+    rendered = json.loads(capsys.readouterr().out)
+    assert rendered["provider"] == "gitlab"
+    assert rendered["fields"]["issues"] == 1
+    assert path.read_text(encoding="utf-8") == original
+
+
+def test_validate_metadata_cli_rejects_unknown_provider(tmp_path, capsys):
+    path = tmp_path / "invalid-provider.json"
+    path.write_text(
+        json.dumps({"schema_version": 1, "provider": "unknown", "permissions": {}, "data": {}}),
+        encoding="utf-8",
+    )
+    assert main(["validate-metadata", str(path)]) == 2
+    assert "error:" in capsys.readouterr().out

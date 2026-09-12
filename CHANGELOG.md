@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 新增 provider-neutral 离线元数据快照契约：可选 provider 为 github、gitlab 或 forgejo，沿用同一资源白名单、unknown/partial 语义和只读边界；新增 validate-metadata 命令。该增量不提供 GitLab/Forgejo 网络客户端，适配器仍需由调用方生成经过审阅的快照。
 - baseline 报告 schema 现在验证每个结果的分数必须是有限且位于 0..100 的数值；非法超大整数、NaN/Infinity 与小数越界均 fail-closed，避免比较门禁泄漏异常或误读异常分数。
 - benchmark 与 baseline 输入现在拒绝重复 JSON key、NaN/Infinity 和无法安全转换的超大整数；benchmark 文本渲染器也独立校验场景、分数、置信度与 Unicode 控制字符，避免不可信映射绕过 CLI 产生歧义或注入输出。
 - 模拟输出新增本地 `artifact-manifest.json`，记录实际生成工件的相对路径、大小和 SHA-256；新增离线 `verify-manifest` 校验命令。manifest 拒绝路径逃逸、链接、特殊文件和超大输入，不包含自身 hash，也不被描述为数字签名或来源证明。

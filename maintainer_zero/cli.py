@@ -94,6 +94,9 @@ def _build_parser() -> argparse.ArgumentParser:
     validate_fallback = sub.add_parser("validate-fallback-plan", help="validate a data-only dependency fallback plan without executing it")
     validate_fallback.add_argument("path")
     validate_fallback.add_argument("--format", choices=("text", "json"), default="text", dest="fallback_format")
+    validate_metadata = sub.add_parser("validate-metadata", help="validate a read-only provider-neutral metadata snapshot without executing it")
+    validate_metadata.add_argument("path")
+    validate_metadata.add_argument("--format", choices=("text", "json"), default="text", dest="metadata_format")
     benchmark = sub.add_parser("export-benchmark", help="export a privacy-preserving benchmark summary from a report")
     benchmark.add_argument("report", metavar="REPORT")
     benchmark.add_argument("--output", required=True, metavar="PATH")
@@ -369,6 +372,20 @@ def main(argv: list[str] | None = None) -> int:
             )
             for status, count in summary["cold_build_status_counts"].items():
                 print(f"  cold-build {status}: {count}")
+        return 0
+    if args.command == "validate-metadata":
+        try:
+            summary = summarize_metadata(load_metadata(args.path))
+        except MetadataError as exc:
+            print(f"error: {exc}")
+            return 2
+        if args.metadata_format == "json":
+            print(json.dumps(summary, indent=2, ensure_ascii=False))
+        else:
+            provider = summary.get("provider", "github")
+            print(f"Valid {provider} metadata snapshot: {len(summary['unknown'])} unknown resource(s)")
+            if summary.get("partial"):
+                print(f"  partial: {', '.join(summary['partial'])}")
         return 0
     if args.command == "export-benchmark":
         try:

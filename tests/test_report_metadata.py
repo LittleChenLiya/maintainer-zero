@@ -21,6 +21,30 @@ def test_report_keeps_metadata_summary_without_raw_records(tmp_path):
     assert payload["github_metadata"] == summary
     assert "GitHub metadata" in (tmp_path / "report.md").read_text(encoding="utf-8")
 
+
+def test_report_labels_provider_neutral_metadata(tmp_path):
+    summary = {"source": "gitlab-metadata", "provider": "gitlab", "read_only": True, "permissions": {"issues": True}, "fields": {"issues": 2}, "unknown": []}
+    write_report(tmp_path, RepoSnapshot(".", "demo"), [DrillResult("demo", 80, "medium", [], {}, [], [])], summary)
+    rendered = (tmp_path / "report.md").read_text(encoding="utf-8")
+    assert "## GitLab metadata" in rendered
+    payload = json.loads((tmp_path / "continuity.json").read_text(encoding="utf-8"))
+    assert payload["metadata_evidence"][0]["source"] == "gitlab metadata"
+
+
+def test_report_does_not_interpolate_unknown_provider_text(tmp_path):
+    summary = {
+        "source": "attacker metadata",
+        "provider": "attacker metadata",
+        "read_only": True,
+        "permissions": {},
+        "fields": {},
+        "unknown": [],
+    }
+    write_report(tmp_path, RepoSnapshot(".", "demo"), [DrillResult("demo", 80, "medium", [], {}, [], [])], summary)
+    rendered = (tmp_path / "report.md").read_text(encoding="utf-8")
+    assert "attacker metadata" not in rendered
+    assert "## External metadata" in rendered
+
 def test_report_explains_partial_metadata_counts(tmp_path):
     summary = {"source": "github-metadata", "read_only": True, "permissions": {"issues": True}, "fields": {"issues": 5000}, "unknown": [], "partial": ["issues"]}
     write_report(tmp_path, RepoSnapshot(".", "demo"), [DrillResult("demo", 80, "medium", [], {}, [], [])], summary)

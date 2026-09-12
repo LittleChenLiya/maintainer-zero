@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 SCHEMA_VERSION = 1
+SUPPORTED_PROVIDERS = ("github", "gitlab", "forgejo")
 _MAX_ITEMS = 5000
 MAX_METADATA_BYTES = 10_000_000
 MAX_METADATA_NESTING = 64
@@ -21,7 +22,7 @@ _RESOURCE_FIELDS = {
     "reviews": frozenset(("id", "state", "submitted_at", "commit_id")),
     "releases": frozenset(("id", "draft", "prerelease", "created_at", "published_at")),
 }
-_TOP_LEVEL_KEYS = frozenset(("schema_version", "permissions", "data", "collection", "cache"))
+_TOP_LEVEL_KEYS = frozenset(("schema_version", "provider", "permissions", "data", "collection", "cache"))
 
 class MetadataError(ValueError):
     """Raised when a metadata snapshot violates the local envelope."""
@@ -149,6 +150,10 @@ def validate_metadata(payload: Any) -> dict[str, Any]:
         raise MetadataError("metadata snapshot must be a JSON object")
     if set(payload) - _TOP_LEVEL_KEYS:
         raise MetadataError("metadata snapshot contains unsupported top-level fields")
+    if "provider" in payload and (
+        not isinstance(payload["provider"], str) or payload["provider"] not in SUPPORTED_PROVIDERS
+    ):
+        raise MetadataError("metadata provider is unsupported")
     if "cache" in payload:
         cache = payload["cache"]
         if not isinstance(cache, dict) or set(cache) != {"schema_version", "source", "fetched_at", "expires_at", "ttl_seconds"}:
@@ -223,7 +228,10 @@ def summarize_metadata(payload: Mapping[str, Any]) -> dict[str, Any]:
     validate_metadata(dict(payload))
     permissions = payload["permissions"]
     data = payload["data"]
-    summary: dict[str, Any] = {"source": "github-metadata", "read_only": True, "permissions": {key: bool(value) for key, value in sorted(permissions.items())}, "fields": {}, "unknown": []}
+    provider = payload.get("provider", "github")
+    summary: dict[str, Any] = {"source": f"{provider}-metadata", "read_only": True, "permissions": {key: bool(value) for key, value in sorted(permissions.items())}, "fields": {}, "unknown": []}
+    if "provider" in payload:
+        summary["provider"] = provider
     collection = payload.get("collection", {})
     partial: list[str] = []
     for key in _RESOURCES:
@@ -245,4 +253,4 @@ def summarize_metadata(payload: Mapping[str, Any]) -> dict[str, Any]:
         }
     return summary
 
-__all__ = ["MAX_METADATA_BYTES", "MAX_METADATA_NESTING", "MetadataError", "SCHEMA_VERSION", "load_metadata", "summarize_metadata", "validate_metadata"]
+__all__ = ["MAX_METADATA_BYTES", "MAX_METADATA_NESTING", "MetadataError", "SCHEMA_VERSION", "SUPPORTED_PROVIDERS", "load_metadata", "summarize_metadata", "validate_metadata"]

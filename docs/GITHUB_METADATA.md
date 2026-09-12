@@ -9,6 +9,18 @@ unknown 状态，不复制原始记录。该参数不会触发网络请求。
 `observed`、`partial` 或 `unknown` 状态；这些是上下文证据，不会改变本地演练分数，
 也不会复制原始 GitHub 记录。
 
+## Provider-neutral 快照契约
+
+快照可以声明可选的顶层 \`provider\`：\`github\`、\`gitlab\` 或 \`forgejo\`。三者共用同一组
+规范化资源名（\`repository\`、\`issues\`、\`pull_requests\`、\`reviews\`、\`releases\`）、
+权限、分页截断和 \`unknown\` 语义，报告会保留 provider 标签。未声明时为兼容旧快照
+默认 \`github\`。当前实现只提供离线校验与报告投影；不会因为声明 \`gitlab\` 或 \`forgejo\`
+而联网，也没有内置对应平台的认证或写入客户端。适配器必须先把平台响应投影为本契约
+允许的标量字段，再交给 \`load_metadata()\` 校验。
+
+可用 \`validate-metadata PATH --format json\` 在注入演练前离线检查快照；该命令不执行
+仓库代码、不联网、不读取 token，也不修改快照。
+
 普通快照文件和带 `cache` envelope 的缓存都只接受普通文件；读取时拒绝文件本身及
 任一已有父目录的符号链接、Windows junction/reparse point、目录和其他特殊文件，避免 `--github-metadata` 或缓存
 路径把分析重定向到未审阅目标。不存在的缓存父目录会逐级创建，但每一级创建后都会

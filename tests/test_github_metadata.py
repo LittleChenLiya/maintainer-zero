@@ -14,6 +14,23 @@ def test_summary_preserves_unknown_permissions_and_is_deterministic():
     assert summarize_metadata(snapshot()) == expected
     assert summarize_metadata(snapshot()) == expected
 
+
+def test_provider_neutral_snapshot_preserves_declared_provider():
+    payload = {**snapshot(), "provider": "gitlab"}
+    summary = summarize_metadata(payload)
+    assert summary["provider"] == "gitlab"
+    assert summary["source"] == "gitlab-metadata"
+
+
+def test_provider_neutral_snapshot_rejects_unknown_provider():
+    with pytest.raises(MetadataError, match="provider"):
+        validate_metadata({**snapshot(), "provider": "unknown-forge"})
+
+
+def test_provider_neutral_snapshot_rejects_non_string_provider():
+    with pytest.raises(MetadataError, match="provider"):
+        validate_metadata({**snapshot(), "provider": {"name": "gitlab"}})
+
 def test_validation_rejects_future_schema_and_unbounded_arrays():
     with pytest.raises(MetadataError, match="unsupported"):
         validate_metadata({**snapshot(), "schema_version": 2})

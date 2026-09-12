@@ -11,6 +11,8 @@ from .models import DrillResult, RepoSnapshot
 from .privacy import validate_snapshot_projection
 from . import __version__
 
+_METADATA_PROVIDER_LABELS = {"github": "GitHub", "gitlab": "GitLab", "forgejo": "Forgejo"}
+
 _SECRET_RE = re.compile(
     r"(?i)(\b(?:token|secret|password|passwd|api[_-]?key|authorization)\b\s*[:=]\s*)([\"']?)([^\"'\s,;}]+)\2"
 )
@@ -171,7 +173,11 @@ def _metadata_section(metadata_summary: dict | None) -> list[str]:
     fields = metadata_summary.get("fields", {})
     unknown = metadata_summary.get("unknown", [])
     partial = metadata_summary.get("partial", [])
-    lines = ["## GitHub metadata", "", "Read-only metadata was supplied by an external snapshot; unavailable fields remain unknown. These observations provide context and do not change drill scores.", "", "### Metadata evidence", ""]
+    provider = metadata_summary.get("provider")
+    if not isinstance(provider, str):
+        provider = str(metadata_summary.get("source", "github-metadata")).removesuffix("-metadata")
+    provider_label = _METADATA_PROVIDER_LABELS.get(provider, "External")
+    lines = [f"## {provider_label} metadata", "", "Read-only metadata was supplied by an external snapshot; unavailable fields remain unknown. These observations provide context and do not change drill scores.", "", "### Metadata evidence", ""]
     lines.extend(f"- **{_markdown_text(key)}**: {_markdown_text('unknown' if key in unknown or value is None else 'partial' if key in partial else 'observed')} — {_display(value) if value is not None else 'unknown'}" for key, value in sorted(fields.items()))
     if unknown:
         lines.extend(["", f"Unknown fields: `{', '.join(unknown)}`"] )
@@ -185,6 +191,10 @@ def _metadata_evidence(metadata_summary: dict | None) -> list[dict[str, object]]
     if metadata_summary is None:
         return []
     fields = metadata_summary.get("fields", {})
+    provider = metadata_summary.get("provider")
+    if not isinstance(provider, str):
+        provider = str(metadata_summary.get("source", "github-metadata")).removesuffix("-metadata")
+    provider_label = provider if provider in _METADATA_PROVIDER_LABELS else "external"
     unknown = set(metadata_summary.get("unknown", []))
     partial = set(metadata_summary.get("partial", []))
     if not isinstance(fields, dict):
@@ -194,7 +204,7 @@ def _metadata_evidence(metadata_summary: dict | None) -> list[dict[str, object]]
         value = fields[key]
         status = "unknown" if key in unknown or value is None else "partial" if key in partial else "observed"
         observed: object = value if isinstance(value, (str, int, float, bool)) or value is None else "present"
-        evidence.append({"source": "github metadata", "field": key, "observed": observed, "status": status})
+        evidence.append({"source": f"{provider_label} metadata", "field": key, "observed": observed, "status": status})
     return evidence
 
 def _privacy_section(privacy_summary: dict | None) -> list[str]:

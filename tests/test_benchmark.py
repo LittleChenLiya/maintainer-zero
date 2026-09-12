@@ -84,3 +84,18 @@ def test_export_benchmark_cli_writes_json_and_text(tmp_path: Path, capsys):
     assert "not a ranking" in text_output.read_text(encoding="utf-8")
     assert "private" not in text_output.read_text(encoding="utf-8")
     assert "Benchmark summary written" in capsys.readouterr().out
+
+
+def test_export_benchmark_cli_rejects_redirected_output(tmp_path: Path, capsys):
+    report_path = tmp_path / "report.json"
+    report_path.write_text(json.dumps(report()), encoding="utf-8")
+    outside = tmp_path / "outside.json"
+    outside.write_text("keep", encoding="utf-8")
+    redirected = tmp_path / "benchmark.json"
+    try:
+        redirected.symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    assert main(["export-benchmark", str(report_path), "--output", str(redirected)]) == 2
+    assert outside.read_text(encoding="utf-8") == "keep"
+    assert "error:" in capsys.readouterr().out

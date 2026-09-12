@@ -45,6 +45,7 @@ def test_report_records_tool_version_separately_from_rule_version(tmp_path):
     payload = json.loads((outputs / "continuity.json").read_text(encoding="utf-8"))
     assert payload["tool"] == {"name": "Maintainer-Zero", "version": __version__}
     assert payload["rule_version"] == "0.2"
+    assert f"- **Tool version:** {chr(96)}{__version__}{chr(96)}" in (outputs / "report.md").read_text(encoding="utf-8")
 
 
 def test_report_evidence_is_structured_and_sanitized(tmp_path):

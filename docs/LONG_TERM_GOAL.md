@@ -80,8 +80,10 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-12：报告 JSON 与 SARIF 增加工具发行版本证据，并与规则版本分离；新增报告和恢复工件回归测试，避免长期趋势无法区分工具实现变化。
 - 2026-09-12：基线比较增加工具版本边界：两份报告均声明且不一致时拒绝比较，旧版缺少工具字段时保留兼容读取；新增跨工具版本负例。
 - 2026-09-12：同仓库历史 JSON 与趋势 Markdown 增加工具版本字段；旧版历史继续兼容读取，跨工具版本追加会 fail-closed，避免长期趋势混入不同实现。
+- 2026-09-12：Runbook、Issue 与 CODEOWNERS 恢复草稿增加生成器版本标识，并补充单独下载工件的追溯测试。
 - 2026-09-12：恢复目录改为整套工件暂存、原子替换并支持中途失败回滚；新增回归测试证明既有 Runbook、CODEOWNERS、Issue 和 SARIF 不会被半套更新覆盖。
 - 2026-09-12：自带 continuity workflow 扩展为 Ubuntu/Windows 矩阵，分别使用 bash/PowerShell 发布 Job Summary，并为每个 runner 上传完整且独立命名的报告与恢复工件；本地契约测试覆盖工作流结构，真实远程 runner 仍需实际执行确认。
+- 2026-09-12：连续性 workflow 的摘要与 artifact 发布改为 `always()`；分数或基线门禁失败时仍保留可审阅报告，初始化失败时使用 warning 避免 artifact 步骤掩盖原始错误；补充工作流契约断言。
 
 - 2026-09-12：收紧 GitHub 数组资源的隐私投影：issues、pull requests、reviews 和 releases 现在只保留固定的状态、编号、时间和计数字段，丢弃正文、用户/作者对象、标签、URL 与未知字段；新增原始记录投影负例，避免缓存保存不必要的 GitHub 内容。
 - 2026-09-12：为内置三类演练增加结构化 Evidence 链：每条结果现在记录来源、字段、观测值和说明，并在 Markdown 报告中单独展示；旧的 DrillResult 调用保持兼容，证据仍经过既有递归脱敏。

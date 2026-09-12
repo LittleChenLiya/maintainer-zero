@@ -33,6 +33,8 @@ def test_recovery_drafts_include_stable_finding_id_and_never_credentials():
 
     assert "demo.owner" in runbook
     assert "demo.owner" in issue
+    assert "Generator version: " + chr(96) + __version__ + chr(96) in runbook
+    assert "Generator version: " + chr(96) + __version__ + chr(96) in issue
     assert "super-secret" not in runbook
     assert r"token=\[REDACTED\]" in runbook
     assert "C:/private/repo" not in runbook  # path is not copied from the snapshot
@@ -92,6 +94,7 @@ def test_codeowners_draft_is_conservative_and_not_applied(tmp_path: Path):
     assert "@real-person" not in draft
     assert "NOT applied automatically" in draft
     assert "@backup-maintainer" in draft
+    assert f"Generator version: {__version__}" in draft
     assert not (tmp_path / "CODEOWNERS").exists()
 
 

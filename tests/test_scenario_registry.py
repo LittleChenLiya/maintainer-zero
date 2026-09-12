@@ -1,5 +1,7 @@
 import json
+import stat
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -124,6 +126,34 @@ def test_loaders_reject_symlinked_parent_directory(tmp_path):
         pytest.skip("symlink creation unavailable")
     with pytest.raises(ScenarioRegistryError, match="may not contain a symlink"):
         load_registry(link_dir / "registry.json")
+
+
+@pytest.mark.parametrize("kind", ["registry", "scenario"])
+def test_loaders_reject_reparse_point_parent_without_following_it(tmp_path, monkeypatch, kind):
+    linked = tmp_path / "linked-parent"
+    linked.mkdir()
+    if kind == "registry":
+        filename = "registry.json"
+        payload = load_bundled_registry()
+        loader = load_registry
+        error_type = ScenarioRegistryError
+    else:
+        filename = "scenario.json"
+        payload = load_scenario(EXAMPLES / "dependency-yanked.json")
+        loader = load_scenario
+        error_type = ScenarioSpecError
+    target = linked / filename
+    target.write_text(json.dumps(payload), encoding="utf-8")
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        if path == linked:
+            return SimpleNamespace(st_mode=stat.S_IFDIR, st_file_attributes=0x400)
+        return original_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(error_type, match="reparse point"):
+        loader(target)
 
 
 def test_scenario_summary_is_stable_and_does_not_expose_entrypoint():

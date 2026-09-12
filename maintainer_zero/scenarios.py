@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .models import DrillResult, Finding, RepoSnapshot
+from .models import DrillResult, Evidence, Finding, RepoSnapshot
 from .simulation import SimulationConfig, SimulationEvent, run_simulation
 
 def _validate_days(days: int) -> int:
@@ -34,7 +34,14 @@ def maintainer_zero(repo: RepoSnapshot, days: int = 90) -> DrillResult:
         SimulationConfig(days=days, initial_capacity=daily_demand, daily_demand=daily_demand),
     )
     metrics = {"departed_maintainer": top_name, "contribution_share": round(share, 3), "backup_maintainers": backups, "estimated_weekly_backlog": backlog, "days": days, "simulated_peak_backlog": round(queue.peak_backlog, 3), "simulated_ending_backlog": round(queue.ending_backlog, 3), "simulated_service_level": round(queue.service_level, 3), "simulated_recovery_day": queue.first_zero_backlog_day}
-    return DrillResult("maintainer-zero", max(0, min(100, score)), "medium" if repo.commits >= 10 else "low", ["使用提交历史近似工作容量；未连接 GitHub Issue API。", f"假设 {top_name} 在整个演练周期不可用。"], metrics, findings, _timeline([(0, "核心维护者停止响应", "新 PR 和安全 Issue 开始积压"), (7, "审查队列增长", f"预计每周积压约 {backlog} 个工作单元"), (30, "发布压力出现", "若无备用发布人，修复无法可靠上线"), (days, "演练结束", "检查接班人和恢复 Runbook 是否可执行")], days))
+    evidence = [
+        Evidence("git snapshot", "commits", repo.commits, "Used as the workload proxy."),
+        Evidence("git snapshot", "contributor_count", len(repo.contributors), "Used to estimate maintainer redundancy."),
+        Evidence("git snapshot", "top_contributor_share", round(share, 3), "Used by the single-point rule."),
+        Evidence("drill parameters", "days", days, "The simulated unavailability window."),
+        Evidence("deterministic simulation", "ending_backlog", round(queue.ending_backlog, 3), "Queue result after applying the capacity shock."),
+    ]
+    return DrillResult("maintainer-zero", max(0, min(100, score)), "medium" if repo.commits >= 10 else "low", ["使用提交历史近似工作容量；未连接 GitHub Issue API。", f"假设 {top_name} 在整个演练周期不可用。"], metrics, findings, _timeline([(0, "核心维护者停止响应", "新 PR 和安全 Issue 开始积压"), (7, "审查队列增长", f"预计每周积压约 {backlog} 个工作单元"), (30, "发布压力出现", "若无备用发布人，修复无法可靠上线"), (days, "演练结束", "检查接班人和恢复 Runbook 是否可执行")], days), evidence)
 
 def dependency_yanked(repo: RepoSnapshot, days: int = 30) -> DrillResult:
     days = _validate_days(days)
@@ -50,7 +57,12 @@ def dependency_yanked(repo: RepoSnapshot, days: int = 30) -> DrillResult:
         applicable = False
         events = [(0, "场景跳过", "当前采集范围没有可模拟的依赖")]
     metrics = {"dependency_count": count, "simulated_packages": critical, "applicable": applicable, "days": days}
-    return DrillResult("dependency-yanked", score, "medium" if count else "low", ["按清单文件中的依赖数量估算；没有联网验证包可用性。"], metrics, findings, _timeline(events, days))
+    evidence = [
+        Evidence("dependency manifests", "dependency_count", count, "Counted from supported local manifests."),
+        Evidence("scenario applicability", "applicable", applicable, "The drill is not applicable when no supported dependency is present."),
+        Evidence("drill parameters", "days", days, "The simulated recovery window."),
+    ]
+    return DrillResult("dependency-yanked", score, "medium" if count else "low", ["按清单文件中的依赖数量估算；没有联网验证包可用性。"], metrics, findings, _timeline(events, days), evidence)
 
 def ci_outage(repo: RepoSnapshot, days: int = 14) -> DrillResult:
     days = _validate_days(days)
@@ -58,6 +70,11 @@ def ci_outage(repo: RepoSnapshot, days: int = 14) -> DrillResult:
     release = bool(repo.release_files)
     score = max(10, 100 - count * 5 - (25 if release else 0))
     finding = Finding("high" if release else "medium", "CI / 发布链路中断", f"模拟 CI 不可用 {days} 天；发现 {count} 个工作流。", "提供本地测试与发布命令，并记录备用 Runner、凭证和人工审批流程。", "ci-outage.pipeline")
-    return DrillResult("ci-outage", min(100, score), "medium" if count else "low", ["只从仓库文件推断流水线；未调用 GitHub 配额或 Secrets API。"], {"workflow_count": count, "release_path_detected": release, "days": days}, [finding], _timeline([(0, "CI 服务不可用", "合并验证转为人工"), (3, "未验证变更堆积", "发布节奏开始下降"), (days, "演练结束", "检查本地 fallback 和凭证轮换文档")], days))
+    evidence = [
+        Evidence("repository files", "workflow_count", count, "Counted workflow files under .github/workflows."),
+        Evidence("repository files", "release_path_detected", release, "Whether a supported release file was found."),
+        Evidence("drill parameters", "days", days, "The simulated CI outage window."),
+    ]
+    return DrillResult("ci-outage", min(100, score), "medium" if count else "low", ["只从仓库文件推断流水线；未调用 GitHub 配额或 Secrets API。"], {"workflow_count": count, "release_path_detected": release, "days": days}, [finding], _timeline([(0, "CI 服务不可用", "合并验证转为人工"), (3, "未验证变更堆积", "发布节奏开始下降"), (days, "演练结束", "检查本地 fallback 和凭证轮换文档")], days), evidence)
 
 SCENARIOS = {"maintainer-zero": maintainer_zero, "dependency-yanked": dependency_yanked, "ci-outage": ci_outage}

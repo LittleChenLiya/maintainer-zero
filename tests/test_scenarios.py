@@ -19,12 +19,14 @@ def test_maintainer_drill_flags_single_point():
     assert any(f.title == "核心维护单点" for f in result.findings)
     assert result.metrics["departed_maintainer"] == "A"
     assert result.findings[0].finding_id == "maintainer-zero.core-owner"
+    assert {item.field for item in result.evidence} >= {"commits", "top_contributor_share", "ending_backlog"}
 
 def test_dependency_drill_is_deterministic():
     first = dependency_yanked(repo())
     second = dependency_yanked(repo())
     assert first.to_dict() == second.to_dict()
     assert first.metrics["dependency_count"] == 2
+    assert first.to_dict()["evidence"] == second.to_dict()["evidence"]
 
 def test_ci_drill_detects_release_path():
     result = ci_outage(repo())

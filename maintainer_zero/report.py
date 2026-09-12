@@ -84,6 +84,15 @@ def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_sum
     for result in results:
         lines += [f"## {_markdown_text(result.scenario)} — {result.score}/100", "", f"Confidence: `{_markdown_text(result.confidence)}`", "", "### Metrics", ""]
         lines.extend(f"- **{_markdown_text(key)}**: {_display(value)}" for key, value in result.metrics.items())
+        lines += ["", "### Evidence", ""]
+        if result.evidence:
+            lines.extend(
+                f"- **{_markdown_text(item.source)} / {_markdown_text(item.field)}**: {_display(item.observed)}"
+                + (f" — {_markdown_text(item.note)}" if item.note else "")
+                for item in result.evidence
+            )
+        else:
+            lines.append("- No structured evidence was supplied by this scenario.")
         lines += ["", "### Findings", ""]
         lines.extend(f"- **{_markdown_text(f.severity).upper()} — {_markdown_text(f.title)}** (`{_markdown_text(f.finding_id or 'unclassified')}`): {_markdown_text(f.detail)} *Action:* {_markdown_text(f.action)}" for f in result.findings)
         lines += ["", "### Timeline", "", "```mermaid", "timeline", "    title Incident drill"]

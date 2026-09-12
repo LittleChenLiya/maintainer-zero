@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import pytest
 
-from maintainer_zero.models import DrillResult, Finding, RepoSnapshot
+from maintainer_zero.models import DrillResult, Evidence, Finding, RepoSnapshot
 from maintainer_zero.report import render_markdown, write_report
 
 
@@ -35,6 +35,21 @@ def test_report_artifacts_use_atomic_replacement_and_clean_temporary_files(tmp_p
     write_report(outputs, RepoSnapshot("C:/private/repo", "repo"), [result("safe")])
     assert not list(outputs.glob(".*.tmp"))
     assert json.loads((outputs / "continuity.json").read_text(encoding="utf-8"))["schema_version"] == 1
+    assert "### Evidence" in (outputs / "report.md").read_text(encoding="utf-8")
+
+
+def test_report_evidence_is_structured_and_sanitized(tmp_path):
+    drill = DrillResult(
+        "external", 50, "low", [], {}, [], [],
+        [Evidence("fixture", "token", "token=secret-value", "untrusted note")],
+    )
+    outputs = tmp_path / "evidence"
+    write_report(outputs, RepoSnapshot("C:/private/repo", "repo"), [drill])
+    payload = json.loads((outputs / "continuity.json").read_text(encoding="utf-8"))
+    assert payload["results"][0]["evidence"][0]["field"] == "token"
+    rendered = (outputs / "report.md").read_text(encoding="utf-8")
+    assert "secret-value" not in rendered
+    assert "[REDACTED]" in rendered
 
 def test_report_write_failure_keeps_existing_artifact_intact(tmp_path, monkeypatch):
     import maintainer_zero.report as report_module

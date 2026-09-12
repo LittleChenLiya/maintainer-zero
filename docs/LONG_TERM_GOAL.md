@@ -76,6 +76,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-12：将隐私配置提升为报告中的可审计摘要；JSON、Markdown 和 HTML 现在明确记录身份/仓库匿名化状态与仓库内容上传禁用状态，同时不复制原始姓名、owner 或本地路径；补充直接报告与真实 Git fixture 回归测试。
 - 2026-09-12：报告和恢复 API 共享 fail-closed 的快照投影校验；匿名化声明与原始身份/路径不一致时拒绝输出，避免绕过 CLI 产生虚假隐私证据。
 - 2026-09-12：恢复 Runbook、Issue、CODEOWNERS 草稿和 SARIF 同步输出非敏感隐私边界摘要；单独下载恢复 artifact 时仍可审计匿名化状态与仓库内容上传禁用。
+- 2026-09-12：将 Python 包版本统一为 0.2.0，并用自动化测试校验 pyproject.toml 与包内 __version__ 一致；报告规则版本 0.2 继续作为独立协议版本。
 - 2026-09-12：恢复目录改为整套工件暂存、原子替换并支持中途失败回滚；新增回归测试证明既有 Runbook、CODEOWNERS、Issue 和 SARIF 不会被半套更新覆盖。
 - 2026-09-12：自带 continuity workflow 扩展为 Ubuntu/Windows 矩阵，分别使用 bash/PowerShell 发布 Job Summary，并为每个 runner 上传完整且独立命名的报告与恢复工件；本地契约测试覆盖工作流结构，真实远程 runner 仍需实际执行确认。
 

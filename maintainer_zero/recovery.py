@@ -334,6 +334,23 @@ def _artifact_backup_path(directory: Path, filename: str) -> Path:
     return path
 
 
+def _safe_output_file(path: str | Path) -> Path:
+    """Validate one recovery artifact target without following links."""
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
+    parent = _safe_output_directory(target.parent)
+    target = parent / target.name
+    if os.path.lexists(target):
+        try:
+            info = target.lstat()
+        except OSError as exc:
+            raise ValueError(f"could not inspect recovery output file: {target}") from exc
+        if _is_link_like(info) or not stat.S_ISREG(info.st_mode):
+            raise ValueError(f"recovery output file must be a regular file: {target}")
+    return target
+
+
 def _atomic_write_artifacts(out: Path, artefacts: dict[str, str]) -> list[Path]:
     """Replace all recovery artifacts as one rollback-capable generation."""
     staged: dict[Path, Path] = {}
@@ -350,6 +367,12 @@ def _atomic_write_artifacts(out: Path, artefacts: dict[str, str]) -> list[Path]:
                 handle.write(content)
                 handle.flush()
                 os.fsync(handle.fileno())
+
+        # Preflight every destination before moving any staged artifact.  A
+        # symlink or special file must not turn a multi-file generation into
+        # a partially replaced output set.
+        for target in staged:
+            _safe_output_file(target)
 
         for target, temporary in list(staged.items()):
             if os.path.lexists(target):

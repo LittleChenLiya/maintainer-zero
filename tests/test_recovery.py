@@ -142,6 +142,26 @@ def test_recovery_write_failure_keeps_existing_artifact_intact(tmp_path: Path, m
     with pytest.raises(OSError, match="simulated replace failure"):
         write_recovery_artifacts(out, RepoSnapshot(path=".", name="demo"), [_result()])
     assert existing.read_text(encoding="utf-8") == "old runbook\n"
+
+
+def test_recovery_rejects_symlinked_artifact_before_any_replacement(tmp_path: Path):
+    out = tmp_path / "artifacts"
+    out.mkdir()
+    outside = tmp_path / "outside.md"
+    outside.write_text("must remain", encoding="utf-8")
+    linked = out / "runbook.md"
+    try:
+        linked.symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+
+    with pytest.raises(ValueError, match="regular file"):
+        write_recovery_artifacts(out, RepoSnapshot(path=".", name="demo"), [_result()])
+
+    assert linked.is_symlink()
+    assert outside.read_text(encoding="utf-8") == "must remain"
+    assert not (out / "CODEOWNERS.draft").exists()
+    assert not list(out.glob(".*.tmp"))
     assert not list(out.glob(".runbook.md.*.tmp"))
 
 

@@ -166,7 +166,7 @@ class ReadOnlyGitHubClient:
             collection[resource] = _status_payload(status)
             if status.available:
                 data[resource] = records
-        return validate_metadata({"schema_version": SCHEMA_VERSION, "permissions": permissions, "data": data, "collection": collection})
+        return validate_metadata({"schema_version": SCHEMA_VERSION, "provider": "github", "permissions": permissions, "data": data, "collection": collection})
 
     def _collect_repository(self, path: str) -> tuple[dict[str, Any], CollectionStatus]:
         """Fetch one repository descriptor and keep only safe scalar fields."""

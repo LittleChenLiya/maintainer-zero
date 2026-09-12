@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- GitHub 只读采集器现在在规范化快照中显式写入 \`provider: github\`，与 provider-neutral 离线协议建立可审计连接；旧快照仍兼容默认 GitHub 语义。
 - metadata cache 读取现在与普通快照一致拒绝重复 JSON key 与 NaN/Infinity，避免缓存 envelope 在校验前静默丢失字段或传播非标准数值。
 - 新增 provider-neutral 离线元数据快照契约：可选 provider 为 github、gitlab 或 forgejo，沿用同一资源白名单、unknown/partial 语义和只读边界；新增 validate-metadata 命令。该增量不提供 GitLab/Forgejo 网络客户端，适配器仍需由调用方生成经过审阅的快照。
 - baseline 报告 schema 现在验证每个结果的分数必须是有限且位于 0..100 的数值；非法超大整数、NaN/Infinity 与小数越界均 fail-closed，避免比较门禁泄漏异常或误读异常分数。

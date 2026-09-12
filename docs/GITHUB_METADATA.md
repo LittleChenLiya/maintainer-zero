@@ -9,6 +9,10 @@ unknown 状态，不复制原始记录。该参数不会触发网络请求。
 `observed`、`partial` 或 `unknown` 状态；这些是上下文证据，不会改变本地演练分数，
 也不会复制原始 GitHub 记录。
 
+\`collect-github\` 生成的快照会显式包含 \`provider: "github"\`。这只是来源标签，不是
+远程身份或真实性证明；快照仍需按本地白名单校验，且未声明 provider 的旧快照按 GitHub
+兼容处理。
+
 ## Provider-neutral 快照契约
 
 快照可以声明可选的顶层 \`provider\`：\`github\`、\`gitlab\` 或 \`forgejo\`。三者共用同一组

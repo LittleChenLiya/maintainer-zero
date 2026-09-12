@@ -22,6 +22,11 @@ def test_client_degrades_unavailable_resource(status, reason):
     assert "issues" not in payload["data"]
     assert payload["collection"]["issues"]["reason"] == reason
 
+
+def test_client_declares_github_provider():
+    payload = ReadOnlyGitHubClient(lambda *_: TransportResponse(200, b"[]")).collect({"issues": "/repos/acme/demo/issues"})
+    assert payload["provider"] == "github"
+
 def test_client_preserves_bounded_rate_limit_scheduling_hints():
     payload = ReadOnlyGitHubClient(
         lambda *_: TransportResponse(429, b"{}", {"Retry-After": "37", "X-RateLimit-Reset": "1700000000", "X-Leak": "ignore"})

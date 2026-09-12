@@ -18,7 +18,7 @@ from .github_client import DEFAULT_MAX_RESPONSE_BYTES, GitHubClientError
 from .github_collect import GitHubRepositoryError, collect_repository_metadata
 from .github_http import GitHubHTTPError, GitHubHTTPTransport, HTTPTransportConfig
 from .scenario_registry import ScenarioSpecError, load_registry, load_scenario
-from .history import HistoryError, append_history
+from .history import HistoryError, append_history, render_trend_markdown
 from .demos import DemoError, load_demo_suite, run_demo_suite
 
 def _atomic_write_text(path: str | Path, content: str) -> None:
@@ -349,6 +349,8 @@ def main(argv: list[str] | None = None) -> int:
             history_summary = append_history(args.history, json.loads((Path(args.output) / "continuity.json").read_text(encoding="utf-8")))
             history_summary_path = Path(args.output) / "history-summary.json"
             _atomic_write_text(history_summary_path, json.dumps(history_summary, indent=2, ensure_ascii=False) + "\n")
+            history_markdown_path = Path(args.output) / "history-summary.md"
+            _atomic_write_text(history_markdown_path, render_trend_markdown(history_summary))
             print(f"History appended: {history_summary_path}")
     except (ValueError, MetadataError, MetadataCacheError, ScenarioSpecError, HistoryError, DemoError, json.JSONDecodeError) as exc:
         print(f"error: {exc}")

@@ -108,6 +108,8 @@ def test_cli_history_and_baseline_sidecars_use_atomic_replacement(tmp_path: Path
         "--baseline", str(first / "continuity.json"), "--history", str(history),
     ]) == 0
     assert (second / "history-summary.json").exists()
+    assert (second / "history-summary.md").exists()
+    assert "Continuity trend summary" in (second / "history-summary.md").read_text(encoding="utf-8")
     assert (second / "baseline-comparison.json").exists()
     assert not list(second.glob(".history-summary.json.*.tmp"))
     assert not list(second.glob(".baseline-comparison.json.*.tmp"))

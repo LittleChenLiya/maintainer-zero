@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from maintainer_zero.history import HistoryError, append_history, summarize_report, trend_summary
+from maintainer_zero.history import HistoryError, append_history, render_trend_markdown, summarize_report, trend_summary
 
 
 def report(path="D:/repo", score=80, scenario="demo", severity="low"):
@@ -91,6 +91,26 @@ def test_append_history_uses_atomic_same_directory_replacement(tmp_path):
     append_history(path, report(score=80), recorded_at="2026-01-01T00:00:00Z")
     assert not list(tmp_path.glob(".history.json.*.tmp"))
     assert json.loads(path.read_text(encoding="utf-8"))["entries"][0]["overall_score"] == 80
+
+
+def test_trend_markdown_is_path_free_and_marks_unknown_values():
+    summary = trend_summary({"schema_version": 1, "repository": {"name": "repo|name", "path": "C:/private/secret"}, "entries": []})
+    rendered = render_trend_markdown(summary)
+    assert "repo\\|name" in rendered
+    assert "C:/private/secret" not in rendered
+    assert "Runs: 0" in rendered
+    assert "unknown" in rendered
+    assert "zero-risk" in rendered
+
+
+def test_trend_markdown_escapes_scenario_table_values(tmp_path):
+    path = tmp_path / "history.json"
+    append_history(path, report(score=70, scenario="unsafe|scenario"), recorded_at="2026-01-01T00:00:00Z")
+    append_history(path, report(score=80, scenario="unsafe|scenario"), recorded_at="2026-02-01T00:00:00Z")
+    from maintainer_zero.history import load_history
+    rendered = render_trend_markdown(trend_summary(load_history(path)))
+    assert "unsafe\\|scenario" in rendered
+    assert "| unsafe|scenario |" not in rendered
 
 
 def test_history_rejects_out_of_order_and_mixed_rule_entries(tmp_path):

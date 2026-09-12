@@ -286,4 +286,41 @@ def trend_summary(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-__all__ = ["HISTORY_SCHEMA_VERSION", "HistoryError", "append_history", "load_history", "summarize_report", "trend_summary"]
+def _markdown_value(value: Any) -> str:
+    """Render a bounded trend value without Markdown structure injection."""
+    if value is None:
+        return "unknown"
+    text = str(value).replace("\r", " ").replace("\n", " ").replace("|", "\\|")
+    return "".join(char if char.isprintable() or char == "\t" else " " for char in text).strip() or "unknown"
+
+
+def render_trend_markdown(summary: Mapping[str, Any]) -> str:
+    """Render a path-free, human-reviewable trend summary."""
+    repository = summary.get("repository") if isinstance(summary, Mapping) else None
+    repository_name = repository.get("name") if isinstance(repository, Mapping) else None
+    latest = summary.get("latest")
+    latest_score = latest.get("overall_score") if isinstance(latest, Mapping) else None
+    lines = [
+        "# Continuity trend summary", "",
+        f"- Repository: {_markdown_value(repository_name)}",
+        f"- Rule version: {_markdown_value(summary.get('rule_version'))}",
+        f"- Runs: {_markdown_value(summary.get('runs'))}",
+        f"- Latest overall score: {_markdown_value(latest_score)}",
+        f"- Change since previous: {_markdown_value(summary.get('delta_since_previous'))}",
+        f"- Change since first: {_markdown_value(summary.get('delta_since_first'))}", "",
+        "> This is a local, same-repository aggregate. unknown means unavailable; it is not a zero-risk or recovery claim.", "",
+    ]
+    previous = summary.get("scenario_delta_since_previous")
+    first = summary.get("scenario_delta_since_first")
+    previous = previous if isinstance(previous, Mapping) else {}
+    first = first if isinstance(first, Mapping) else {}
+    names = sorted(set(previous) | set(first), key=str)
+    lines.extend(["## Scenario score changes", "", "| Scenario | Since previous | Since first |", "| --- | ---: | ---: |"])
+    lines.extend(f"| {_markdown_value(name)} | {_markdown_value(previous.get(name))} | {_markdown_value(first.get(name))} |" for name in names)
+    if not names:
+        lines.append("| No comparable scenarios | unknown | unknown |")
+    lines.extend(["", "## Finding and high-risk changes", "", f"- Finding count change since previous: {_markdown_value(summary.get('finding_count_delta_since_previous'))}", f"- Finding count change since first: {_markdown_value(summary.get('finding_count_delta_since_first'))}", f"- High-risk change since previous: {_markdown_value(summary.get('high_risk_delta_since_previous'))}", f"- High-risk change since first: {_markdown_value(summary.get('high_risk_delta_since_first'))}", ""])
+    return "\n".join(lines)
+
+
+__all__ = ["HISTORY_SCHEMA_VERSION", "HistoryError", "append_history", "load_history", "render_trend_markdown", "summarize_report", "trend_summary"]

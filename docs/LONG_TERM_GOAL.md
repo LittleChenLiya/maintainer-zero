@@ -124,3 +124,4 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-11：新增 collect-github 的 max-response-bytes 显式收紧参数（1 至 1 MiB），并将同一上限传入 HTTP transport 与注入式客户端；149 项全量回归通过。真实 GitHub-hosted runner、外部 publisher、Marketplace/PyPI 和正式发布仍待完成。
 
 - 2026-09-11：在 GitHub 只读采集边界中保留经过范围校验的 `Retry-After` / `X-RateLimit-Reset` 调度提示，并将其传入机器可读报告；不自动重试、不复制任意响应头。复合 Action 进一步把 `path`、`output`、`baseline` 和 `github-metadata` 全部限制在 workspace 内，拒绝控制字符和路径逃逸；离线集成测试与 137 项全量回归通过。真实 GitHub-hosted runner、外部 publisher、Marketplace/PyPI 和正式发布仍待完成。
+- 2026-09-12：收紧趋势 Markdown 摘要的字段转义，覆盖反引号、链接、强调、HTML、反斜杠和表格分隔符；恶意场景名称只作为文本显示，不得改变摘要结构。

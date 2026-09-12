@@ -25,6 +25,7 @@
 - 默认 starter 配置匿名化仓库名称/路径，并清理报告与本地 PR 草稿中的外部输入。
 - 收紧 PR publisher 注入契约：校验幂等键和返回标识，隔离权限/远端异常且不自动重试。
 - 增加带来源、TTL 和过期状态的本地 GitHub 元数据缓存契约；缓存默认离线、过期显式拒绝，且受大小/时间边界约束。
+- 趋势 Markdown 摘要现在转义反引号、链接、强调、HTML、反斜杠和表格分隔符，并增加恶意场景名称负例，避免不可信历史字段改变文档结构。
 - 根目录 composite Action 改为通过有界环境变量适配器调用 CLI，暴露报告路径输出并支持本地元数据缓存输入；仍不联网、不写 GitHub。
 - composite Action 增加 Windows `pwsh` 分支，与 Unix `bash` 分支保持同一输入/输出契约。
 - composite Action 成功后同时暴露 JSON、Markdown、HTML 报告和恢复目录的绝对路径；失败门禁不会写入 `GITHUB_OUTPUT`。

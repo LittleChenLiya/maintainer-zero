@@ -290,8 +290,14 @@ def _markdown_value(value: Any) -> str:
     """Render a bounded trend value without Markdown structure injection."""
     if value is None:
         return "unknown"
-    text = str(value).replace("\r", " ").replace("\n", " ").replace("|", "\\|")
-    return "".join(char if char.isprintable() or char == "\t" else " " for char in text).strip() or "unknown"
+    text = str(value).replace("\r", " ").replace("\n", " ")
+    text = "".join(char if char.isprintable() or char == "\t" else " " for char in text).strip()
+    if not text:
+        return "unknown"
+    # Values are inserted into list items and table cells. Escape punctuation
+    # that could create links, emphasis, code spans, HTML, or table columns.
+    punctuation = chr(96) + "*_[\\]()<>{}#+!~|"
+    return "".join("\\" + char if char in punctuation else char for char in text) or "unknown"
 
 
 def render_trend_markdown(summary: Mapping[str, Any]) -> str:

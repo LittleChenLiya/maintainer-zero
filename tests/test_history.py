@@ -124,3 +124,17 @@ def test_history_rejects_out_of_order_and_mixed_rule_entries(tmp_path):
     with pytest.raises(HistoryError, match="0 to 100"):
         from maintainer_zero.history import load_history
         load_history(path)
+
+
+def test_trend_markdown_escapes_inline_markdown_and_backslashes(tmp_path):
+    path = tmp_path / "history.json"
+    malicious = r"[click](https://example.invalid) `code` *emphasis* _emphasis_ <tag> \ |"
+    append_history(path, report(score=70, scenario=malicious), recorded_at="2026-01-01T00:00:00Z")
+    append_history(path, report(score=80, scenario=malicious), recorded_at="2026-02-01T00:00:00Z")
+    from maintainer_zero.history import load_history
+    rendered = render_trend_markdown(trend_summary(load_history(path)))
+    assert r"\[click\]" in rendered
+    assert r"\(https://example.invalid\)" in rendered
+    assert r"\`code\` \*emphasis\* \_emphasis\_ \<tag\>" in rendered
+    assert r"\ \|" in rendered
+    assert "[click](https://example.invalid)" not in rendered

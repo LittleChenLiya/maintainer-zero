@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -119,17 +121,27 @@ def save_metadata_cache(path: str | Path, payload: Mapping[str, Any], *,
     if len(encoded) > MAX_METADATA_BYTES:
         raise MetadataCacheError(f"metadata cache exceeds {MAX_METADATA_BYTES} bytes")
     target = Path(path)
-    temporary = target.with_name(target.name + ".tmp")
+    temporary: Path | None = None
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        temporary.write_bytes(encoded)
-        temporary.replace(target)
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=target.parent,
+            prefix=f".{target.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            handle.write(encoded)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+        temporary = None
     except OSError as exc:
-        try:
-            temporary.unlink(missing_ok=True)
-        except OSError:
-            pass
         raise MetadataCacheError(f"could not write metadata cache: {target}") from exc
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
     return result
 
 

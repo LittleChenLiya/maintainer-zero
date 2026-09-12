@@ -51,3 +51,17 @@ def test_cache_rejects_tampered_expiry_and_missing_file(tmp_path):
         load_metadata_cache(path)
     assert cache_status(tmp_path / "missing.json").state == "missing"
 
+
+def test_cache_write_failure_preserves_existing_file_and_cleans_temp(tmp_path, monkeypatch):
+    path = tmp_path / "cache.json"
+    save_metadata_cache(path, payload(), fetched_at=datetime(2026, 1, 1, tzinfo=timezone.utc), ttl_seconds=60)
+    original = path.read_bytes()
+
+    def fail_replace(source, target):
+        raise OSError("simulated replace failure")
+
+    monkeypatch.setattr("maintainer_zero.github_cache.os.replace", fail_replace)
+    with pytest.raises(MetadataCacheError, match="could not write"):
+        save_metadata_cache(path, payload(), fetched_at=datetime(2026, 1, 2, tzinfo=timezone.utc), ttl_seconds=60)
+    assert path.read_bytes() == original
+    assert not list(tmp_path.glob(".cache.json.*.tmp"))

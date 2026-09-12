@@ -30,3 +30,16 @@ def test_release_verification_rejects_output_inside_source_checkout(tmp_path: Pa
     root = Path(__file__).parents[1]
     with pytest.raises(ValueError, match="outside the source checkout"):
         verify(root, root / "release-output")
+
+
+def test_release_verification_rejects_symlinked_output_component(tmp_path: Path):
+    root = Path(__file__).parents[1]
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked-output"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    with pytest.raises(ValueError, match="may not contain a symlink"):
+        verify(root, linked / "release")

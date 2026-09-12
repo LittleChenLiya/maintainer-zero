@@ -1,6 +1,7 @@
 """Build and verify wheel/sdist artifacts outside the source checkout."""
 from __future__ import annotations
 import argparse, json, os, subprocess, sys, tempfile
+import stat
 from pathlib import Path
 
 DEFAULT_VERIFY_OUTPUT = Path("D:/Codex/maintainer-zero-release-verify")
@@ -9,12 +10,34 @@ def run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | No
     completed = subprocess.run(command, cwd=cwd, env=env, check=True, text=True, capture_output=True)
     return completed.stdout
 
+
+def _safe_output_directory(path: Path) -> Path:
+    """Create an output directory without following symlinked components."""
+    target = Path(os.path.abspath(path))
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts:
+        current /= part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            current.mkdir()
+            info = current.lstat()
+        if stat.S_ISLNK(info.st_mode):
+            raise ValueError(f"release verification output may not contain a symlink: {current}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValueError(f"release verification output is not a directory: {current}")
+    return target
+
 def verify(root: Path, output: Path) -> None:
     root = root.resolve()
-    output = output.resolve()
+    output = Path(os.path.abspath(output))
     if output == root or output.is_relative_to(root):
         raise ValueError("release verification output must be outside the source checkout")
-    output.mkdir(parents=True, exist_ok=True)
+    output = _safe_output_directory(output)
+    resolved_output = output.resolve()
+    if resolved_output == root or resolved_output.is_relative_to(root):
+        raise ValueError("release verification output must be outside the source checkout")
     wheelhouse = output / "artifacts"
     # The output directory is a tool-owned, disposable verification area.
     # Remove only files produced by this script so rerunning the documented

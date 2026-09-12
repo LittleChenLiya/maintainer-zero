@@ -17,6 +17,7 @@ from typing import Iterable
 
 from .models import DrillResult, Finding, RepoSnapshot
 from .privacy import validate_snapshot_projection
+from . import __version__
 
 
 def _safe_text(value: object) -> str:
@@ -246,7 +247,7 @@ def render_sarif(repo: RepoSnapshot, results: list[DrillResult], privacy_summary
         )
     privacy = validate_snapshot_projection(repo, privacy_summary)
     run_payload: dict[str, object] = {
-        "tool": {"driver": {"name": "Maintainer-Zero", "version": "0.2", "informationUri": "https://github.com/"}},
+        "tool": {"driver": {"name": "Maintainer-Zero", "version": __version__, "informationUri": "https://github.com/"}},
         "automationDetails": {"id": f"maintainer-zero/{_safe_text(repo.name)}"},
         "results": sarif_results,
         "rules": list(rules.values()),

@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 from .models import DrillResult, RepoSnapshot
 from .privacy import validate_snapshot_projection
+from . import __version__
 
 _SECRET_RE = re.compile(
     r"(?i)(\b(?:token|secret|password|passwd|api[_-]?key|authorization)\b\s*[:=]\s*)([\"']?)([^\"'\s,;}]+)\2"
@@ -117,6 +118,7 @@ def _privacy_section(privacy_summary: dict | None) -> list[str]:
 def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None) -> str:
     privacy_summary = validate_snapshot_projection(repo, privacy_summary)
     lines = [f"# OSS Continuity Report: {_markdown_text(repo.name)}", "", "- **Rule version:** `0.2`", f"- Commits analyzed: **{repo.commits}**", f"- Contributors: **{len(repo.contributors)}**", f"- Dependencies found: **{len(repo.dependencies)}**", f"- Workflows found: **{len(repo.workflows)}**", "", "> This is an explainable heuristic drill, not a security certification.", ""]
+    lines.insert(2, "- **Tool version:** " + chr(96) + _markdown_text(__version__) + chr(96))
     for result in results:
         lines += [f"## {_markdown_text(result.scenario)} — {result.score}/100", "", f"Confidence: `{_markdown_text(result.confidence)}`", "", "### Metrics", ""]
         lines.extend(f"- **{_markdown_text(key)}**: {_display(value)}" for key, value in result.metrics.items())
@@ -142,7 +144,7 @@ def render_markdown(repo: RepoSnapshot, results: list[DrillResult], metadata_sum
 def write_report(out: Path, repo: RepoSnapshot, results: list[DrillResult], metadata_summary: dict | None = None, privacy_summary: dict | None = None) -> None:
     privacy_summary = validate_snapshot_projection(repo, privacy_summary)
     out.mkdir(parents=True, exist_ok=True)
-    payload = _safe_value({"schema_version": 1, "rule_version": "0.2", "repository": repo.to_dict(), "results": [r.to_dict() for r in results]})
+    payload = _safe_value({"schema_version": 1, "tool": {"name": "Maintainer-Zero", "version": __version__}, "rule_version": "0.2", "repository": repo.to_dict(), "results": [r.to_dict() for r in results]})
     if privacy_summary is not None:
         payload["privacy"] = _safe_value(privacy_summary)
     if metadata_summary is not None:

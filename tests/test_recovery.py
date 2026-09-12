@@ -10,6 +10,7 @@ from maintainer_zero.recovery import (
     render_sarif,
     write_recovery_artifacts,
 )
+from maintainer_zero import __version__
 
 
 def _result(*, detail="核心路径 <需要复核>"):
@@ -110,6 +111,7 @@ def test_sarif_is_valid_and_has_no_fake_locations():
     assert payload["version"] == "2.1.0"
     run = payload["runs"][0]
     assert run["tool"]["driver"]["name"] == "Maintainer-Zero"
+    assert run["tool"]["driver"]["version"] == __version__
     assert run["results"][0]["ruleId"] == "demo.owner"
     assert "hidden" not in json.dumps(payload)
     assert "locations" not in run["results"][0]

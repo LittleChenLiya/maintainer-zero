@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- 报告 JSON 与 SARIF 现在记录工具发行版本 0.2.0，与规则版本 0.2 分离，便于长期趋势和恢复工件追溯。
 - 将包元数据与源码版本统一为 0.2.0，并增加一致性回归测试；报告规则版本仍独立保持为 0.2。
 - Harden recovery artifact output: reject symlinked or non-directory path components before writing drafts.
 - 恢复工件改为整套暂存后可回滚提交；中途替换失败会恢复旧一代，避免输出目录留下半套新旧混合草稿。

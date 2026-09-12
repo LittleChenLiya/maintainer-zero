@@ -4,6 +4,7 @@ import pytest
 
 from maintainer_zero.models import DrillResult, Evidence, Finding, RepoSnapshot
 from maintainer_zero.report import render_markdown, write_report
+from maintainer_zero import __version__
 
 
 def result(detail):
@@ -36,6 +37,14 @@ def test_report_artifacts_use_atomic_replacement_and_clean_temporary_files(tmp_p
     assert not list(outputs.glob(".*.tmp"))
     assert json.loads((outputs / "continuity.json").read_text(encoding="utf-8"))["schema_version"] == 1
     assert "### Evidence" in (outputs / "report.md").read_text(encoding="utf-8")
+
+
+def test_report_records_tool_version_separately_from_rule_version(tmp_path):
+    outputs = tmp_path / "versioned"
+    write_report(outputs, RepoSnapshot(".", "demo"), [result("safe")])
+    payload = json.loads((outputs / "continuity.json").read_text(encoding="utf-8"))
+    assert payload["tool"] == {"name": "Maintainer-Zero", "version": __version__}
+    assert payload["rule_version"] == "0.2"
 
 
 def test_report_evidence_is_structured_and_sanitized(tmp_path):

@@ -64,3 +64,18 @@ def test_demo_cli_writes_deterministic_json(tmp_path):
     assert "maintainer-handoff" in first
     assert main(["demo", str(DEMO_PATH), "--output", str(output)]) == 0
     assert output.read_text(encoding="utf-8") == first
+    assert not list(tmp_path.glob(".demo-results.json.*.tmp"))
+
+
+def test_demo_cli_write_failure_preserves_existing_output(tmp_path, monkeypatch, capsys):
+    output = tmp_path / "demo-results.json"
+    output.write_text("previous demo\n", encoding="utf-8")
+
+    def fail_replace(source, target):
+        raise OSError("simulated replace failure")
+
+    monkeypatch.setattr("maintainer_zero.cli.os.replace", fail_replace)
+    assert main(["demo", str(DEMO_PATH), "--format", "json", "--output", str(output)]) == 2
+    assert output.read_text(encoding="utf-8") == "previous demo\n"
+    assert not list(tmp_path.glob(".demo-results.json.*.tmp"))
+    assert "cannot write demo output" in capsys.readouterr().out

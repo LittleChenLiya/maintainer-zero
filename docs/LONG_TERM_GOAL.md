@@ -68,6 +68,8 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：将 demo --output 纳入统一原子写入边界；新增写入失败时保留已有文件、并清理临时文件的回归测试，专项 10 项通过。
+
 - 2026-09-12：将 CLI 生成的 history-summary.json 与 baseline-comparison.json 纳入同目录原子替换边界，避免中断时截断已有门禁/趋势证据；离线真实 Git fixture 新增回归覆盖，专项 18 项通过。
 
 - 2026-09-11：修复 wheel/sdist 发布验证脚本的重复执行缺陷：只清理脚本生成的归档，安装探针使用每轮独立临时目录；新增幂等回归测试。CI 增加 Ubuntu/Python 3.12 的 release-smoke job，在源码树外构建、安装并运行两个打包工件；全量回归 151 项通过。该 job 只验证构建与安装，不发布 PyPI；真实 Marketplace/PyPI 发布和正式外部仓库验证仍待授权。

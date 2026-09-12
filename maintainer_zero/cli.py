@@ -264,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
             output_path = Path(args.output)
             try:
                 output_path.parent.mkdir(parents=True, exist_ok=True)
-                output_path.write_text(rendered, encoding="utf-8")
+                _atomic_write_text(output_path, rendered)
             except OSError as exc:
                 print(f"error: cannot write demo output: {output_path}")
                 return 2

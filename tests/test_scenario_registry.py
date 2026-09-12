@@ -156,6 +156,30 @@ def test_loaders_reject_reparse_point_parent_without_following_it(tmp_path, monk
         loader(target)
 
 
+@pytest.mark.parametrize("kind", ["registry", "scenario"])
+def test_loaders_reject_reparse_point_file(tmp_path, monkeypatch, kind):
+    target = tmp_path / ("registry.json" if kind == "registry" else "scenario.json")
+    if kind == "registry":
+        payload = load_bundled_registry()
+        loader = load_registry
+        error_type = ScenarioRegistryError
+    else:
+        payload = load_scenario(EXAMPLES / "dependency-yanked.json")
+        loader = load_scenario
+        error_type = ScenarioSpecError
+    target.write_text(json.dumps(payload), encoding="utf-8")
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        if path == target:
+            return SimpleNamespace(st_mode=stat.S_IFREG, st_file_attributes=0x400)
+        return original_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(error_type, match="reparse point"):
+        loader(target)
+
+
 def test_scenario_summary_is_stable_and_does_not_expose_entrypoint():
     summary = scenario_summary(load_bundled_registry()["scenarios"][0])
     assert summary["id"] == "ci-outage"

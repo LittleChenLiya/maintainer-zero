@@ -52,6 +52,24 @@ def test_cache_rejects_tampered_expiry_and_missing_file(tmp_path):
     assert cache_status(tmp_path / "missing.json").state == "missing"
 
 
+def test_cache_rejects_ambiguous_or_nonstandard_json(tmp_path):
+    duplicate = tmp_path / "duplicate.json"
+    duplicate.write_text(
+        '{"schema_version":1,"schema_version":1,"permissions":{},"data":{},"cache":{}}',
+        encoding="utf-8",
+    )
+    with pytest.raises(MetadataCacheError, match="duplicate"):
+        load_metadata_cache(duplicate)
+
+    nonstandard = tmp_path / "nan.json"
+    nonstandard.write_text(
+        '{"schema_version":1,"permissions":{},"data":{},"value":NaN}',
+        encoding="utf-8",
+    )
+    with pytest.raises(MetadataCacheError, match="non-standard"):
+        load_metadata_cache(nonstandard)
+
+
 def test_cache_write_failure_preserves_existing_file_and_cleans_temp(tmp_path, monkeypatch):
     path = tmp_path / "cache.json"
     save_metadata_cache(path, payload(), fetched_at=datetime(2026, 1, 1, tzinfo=timezone.utc), ttl_seconds=60)

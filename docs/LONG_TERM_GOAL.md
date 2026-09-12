@@ -71,6 +71,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+- 2026-09-12：统一 metadata cache 与快照的 JSON 歧义边界：缓存读取拒绝重复 key 和非标准数值，新增离线负例；provider-neutral 快照契约仍保持同一缓存/权限/隐私语义。
 - 2026-09-12：新增 provider-neutral 离线元数据快照协议：可选 github/gitlab/forgejo provider 共用规范化资源、权限、unknown/partial 和隐私投影；新增 validate-metadata 命令。此阶段不提供 GitLab/Forgejo 网络客户端，避免把协议支持误报为已完成平台集成。
 - 2026-09-12：基线比较新增结果分数 schema 校验与有限数值边界，非法超大整数、NaN/Infinity 及原始范围外小数在读取阶段拒绝；新增 4 项负例并通过专项测试。
 - 2026-09-12：benchmark 导出与 baseline 报告读取新增歧义输入防护：重复 JSON key、非标准数值（NaN/Infinity）和超大整数均 fail-closed；分数先验证原始范围再做确定性舍入，独立文本渲染也校验场景/置信度及 Unicode 控制字符。专项与全量回归通过。

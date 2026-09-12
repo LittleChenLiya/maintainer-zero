@@ -23,6 +23,20 @@ class MetadataCacheError(ValueError):
     """Raised when a local metadata cache is missing, invalid, or stale."""
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject ambiguous cache envelopes instead of silently keeping the last key."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise MetadataCacheError(f"metadata cache contains duplicate object key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_nonstandard_number(value: str) -> None:
+    raise MetadataCacheError(f"metadata cache contains non-standard JSON number: {value}")
+
+
 def _is_link_like(info: os.stat_result) -> bool:
     """Treat Windows junctions/reparse points as links as well as POSIX symlinks."""
     reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
@@ -145,7 +159,11 @@ def _read(path: Path) -> dict[str, Any]:
             raw = handle.read(MAX_METADATA_BYTES + 1)
         if len(raw) > MAX_METADATA_BYTES:
             raise MetadataCacheError(f"metadata cache exceeds {MAX_METADATA_BYTES} bytes")
-        payload = json.loads(raw)
+        payload = json.loads(
+            raw,
+            object_pairs_hook=_reject_duplicate_object_keys,
+            parse_constant=_reject_nonstandard_number,
+        )
     except MetadataCacheError:
         raise
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:

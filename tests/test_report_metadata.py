@@ -27,6 +27,21 @@ def test_report_explains_partial_metadata_counts(tmp_path):
     assert "counts are not complete" in (tmp_path / "report.md").read_text(encoding="utf-8")
 
 
+def test_report_redacts_nested_credential_keys_in_metadata_summary(tmp_path):
+    summary = {
+        "source": "github-metadata",
+        "read_only": True,
+        "permissions": {"issues": True},
+        "fields": {"issues": {"token": "nested-secret", "owner": "safe"}},
+        "unknown": [],
+    }
+    write_report(tmp_path, RepoSnapshot(".", "demo"), [DrillResult("demo", 80, "medium", [], {}, [], [])], summary)
+    rendered = "\n".join(path.read_text(encoding="utf-8") for path in (tmp_path / "continuity.json", tmp_path / "report.md", tmp_path / "report.html"))
+    assert "nested-secret" not in rendered
+    assert "[REDACTED]" in rendered
+    assert "safe" in rendered
+
+
 def test_cli_reads_fresh_metadata_cache_and_records_source(tmp_path):
     cache = tmp_path / "github-cache.json"
     payload = {"schema_version": 1, "permissions": {"issues": True}, "data": {"issues": [{"number": 1}]}}

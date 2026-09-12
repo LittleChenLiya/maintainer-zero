@@ -11,6 +11,7 @@ from .models import DrillResult, RepoSnapshot
 _SECRET_RE = re.compile(
     r"(?i)(\b(?:token|secret|password|passwd|api[_-]?key|authorization)\b\s*[:=]\s*)([\"']?)([^\"'\s,;}]+)\2"
 )
+_SECRET_KEY_RE = re.compile(r"(?i)^(?:token|secret|password|passwd|api[_-]?key|authorization)$")
 
 
 def _safe_text(value: object) -> str:
@@ -27,7 +28,11 @@ def _safe_value(value: object) -> object:
     if isinstance(value, list):
         return [_safe_value(item) for item in value]
     if isinstance(value, dict):
-        return {_safe_text(key): _safe_value(item) for key, item in value.items()}
+        sanitized: dict[str, object] = {}
+        for key, item in value.items():
+            safe_key = _safe_text(key)
+            sanitized[safe_key] = "[REDACTED]" if _SECRET_KEY_RE.fullmatch(safe_key.strip()) else _safe_value(item)
+        return sanitized
     return value
 
 

@@ -14,6 +14,12 @@ _CONTROL_CHARS = frozenset(chr(code) for code in range(32)) | {chr(127)}
 _PATH_INPUTS = ("MZ_INPUT_PATH", "MZ_INPUT_OUTPUT", "MZ_INPUT_BASELINE", "MZ_INPUT_METADATA")
 
 
+def _is_link_like(info: os.stat_result) -> bool:
+    """Treat Windows junctions/reparse points as links as well as POSIX symlinks."""
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
+
+
 def _validate_environment(env: dict[str, str]) -> None:
     """Reject control characters and workspace escapes in Action inputs."""
     for key in _PATH_INPUTS:
@@ -81,12 +87,17 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
     for part in parts[:-1]:
         current /= part
         try:
-            if current.is_symlink():
+            info = current.lstat()
+            if _is_link_like(info):
                 raise ValueError("GITHUB_OUTPUT parent path must not contain a symbolic link")
         except OSError as exc:
             raise ValueError("GITHUB_OUTPUT parent path could not be inspected") from exc
-    if output_file.exists() and output_file.is_symlink():
-        raise ValueError("GITHUB_OUTPUT must not be a symbolic link")
+    if output_file.exists() or output_file.is_symlink():
+        try:
+            if _is_link_like(output_file.lstat()):
+                raise ValueError("GITHUB_OUTPUT must not be a symbolic link")
+        except OSError as exc:
+            raise ValueError("GITHUB_OUTPUT could not be inspected") from exc
     if not output_file.parent.exists():
         raise ValueError("GITHUB_OUTPUT parent directory does not exist")
     payload = (

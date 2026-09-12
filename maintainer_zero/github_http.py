@@ -124,8 +124,13 @@ class GitHubHTTPTransport:
             response = self.opener(request, timeout=float(timeout))
         except HTTPError as exc:
             return self._response(exc.code, exc)
-        except URLError:
-            raise
+        except URLError as exc:
+            # Do not let proxy/URL diagnostics (which may contain credentials or
+            # private host names) escape the transport boundary.  The caller
+            # already records this as an unavailable, read-only resource.
+            raise GitHubHTTPError("HTTP request failed") from exc
+        except OSError as exc:
+            raise GitHubHTTPError("HTTP request failed") from exc
         return self._response(getattr(response, "status", 200), response)
 
     def _response(self, status: int, response: Any) -> TransportResponse:

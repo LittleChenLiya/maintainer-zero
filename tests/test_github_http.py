@@ -1,4 +1,5 @@
 import json
+from urllib.error import URLError
 
 import pytest
 
@@ -76,6 +77,15 @@ def test_transport_rejects_non_bytes_or_unreadable_response_body():
     transport = GitHubHTTPTransport(opener=lambda *_args, **_kwargs: BrokenResponse())
     with pytest.raises(GitHubHTTPError, match="could not be read"):
         transport("/repos/acme/demo/issues", {}, 1)
+
+
+@pytest.mark.parametrize("error", [URLError("https://user:secret@example.invalid/private"), OSError("private socket details")])
+def test_transport_redacts_network_diagnostics(error):
+    transport = GitHubHTTPTransport(opener=lambda *_args, **_kwargs: (_ for _ in ()).throw(error))
+    with pytest.raises(GitHubHTTPError, match="^HTTP request failed$") as raised:
+        transport("/repos/acme/demo/issues", {}, 1)
+    assert "secret" not in str(raised.value)
+    assert "private" not in str(raised.value)
 
 
 def test_transport_rejects_unapproved_paths_and_unsafe_config():

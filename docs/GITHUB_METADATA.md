@@ -9,20 +9,20 @@ unknown 状态，不复制原始记录。该参数不会触发网络请求。
 `observed`、`partial` 或 `unknown` 状态；这些是上下文证据，不会改变本地演练分数，
 也不会复制原始 GitHub 记录。
 
-\`collect-github\` 生成的快照会显式包含 \`provider: "github"\`。这只是来源标签，不是
+`collect-github` 生成的快照会显式包含 `provider: "github"`。这只是来源标签，不是
 远程身份或真实性证明；快照仍需按本地白名单校验，且未声明 provider 的旧快照按 GitHub
 兼容处理。
 
 ## Provider-neutral 快照契约
 
-快照可以声明可选的顶层 \`provider\`：\`github\`、\`gitlab\` 或 \`forgejo\`。三者共用同一组
-规范化资源名（\`repository\`、\`issues\`、\`pull_requests\`、\`reviews\`、\`releases\`）、
-权限、分页截断和 \`unknown\` 语义，报告会保留 provider 标签。未声明时为兼容旧快照
-默认 \`github\`。当前实现只提供离线校验与报告投影；不会因为声明 \`gitlab\` 或 \`forgejo\`
+快照可以声明可选的顶层 `provider`：`github`、`gitlab` 或 `forgejo`。三者共用同一组
+规范化资源名（`repository`、`issues`、`pull_requests`、`reviews`、`releases`）、
+权限、分页截断和 `unknown` 语义，报告会保留 provider 标签。未声明时为兼容旧快照
+默认 `github`。当前实现只提供离线校验与报告投影；不会因为声明 `gitlab` 或 `forgejo`
 而联网，也没有内置对应平台的认证或写入客户端。适配器必须先把平台响应投影为本契约
-允许的标量字段，再交给 \`load_metadata()\` 校验。
+允许的标量字段，再交给 `load_metadata()` 校验。
 
-可用 \`validate-metadata PATH --format json\` 在注入演练前离线检查快照；该命令不执行
+可用 `validate-metadata PATH --format json` 在注入演练前离线检查快照；该命令不执行
 仓库代码、不联网、不读取 token，也不修改快照。
 
 普通快照文件和带 `cache` envelope 的缓存都只接受普通文件；读取时拒绝文件本身及

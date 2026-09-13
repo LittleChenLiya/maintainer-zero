@@ -211,7 +211,13 @@ def load_manifest(path: str | Path) -> dict:
     return payload
 
 def verify_manifest(path: str | Path) -> dict:
-    manifest = Path(path); payload = load_manifest(manifest); root = _directory(manifest.parent); checked = []
+    manifest = Path(path)
+    # Keep the manifest itself stable for the whole verification window.
+    # ``load_manifest`` protects its individual read, but without this
+    # snapshot a replacement after parsing could make the artifact checks
+    # describe a different manifest than the one the caller supplied.
+    manifest, initial = _safe_manifest_file(manifest)
+    payload = load_manifest(manifest); root = _directory(manifest.parent); checked = []
     for item in payload["artifacts"]:
         rel = item["path"]
         target = _artifact(root, rel)
@@ -220,4 +226,14 @@ def verify_manifest(path: str | Path) -> dict:
         if total != item["size"]: raise ManifestError(f"artifact size mismatch: {rel}")
         if digest != item["sha256"]: raise ManifestError(f"artifact hash mismatch: {rel}")
         checked.append(rel)
+    try:
+        _, final = _safe_manifest_file(manifest)
+    except ManifestError:
+        raise ManifestError("manifest changed during verification")
+    if (
+        not _same_file(initial, final)
+        or initial.st_size != final.st_size
+        or initial.st_mtime_ns != final.st_mtime_ns
+    ):
+        raise ManifestError("manifest changed during verification")
     return {"verified": len(checked), "artifacts": checked, "manifest": str(manifest)}

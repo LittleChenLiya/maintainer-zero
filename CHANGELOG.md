@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Manifest verification now confirms that the manifest file remains the same
+  regular file (including size and modification time) after every artifact is
+  checked, closing a replacement window between manifest parsing and the final
+  integrity result.
+
 - The init command now rejects symlinked, reparse-point, and special output
   directories before creating a starter configuration, preventing a requested
   path from redirecting writes outside the selected repository.

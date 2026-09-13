@@ -94,6 +94,25 @@ def test_manifest_loader_rejects_descriptor_redirect_before_parsing(tmp_path: Pa
         load_manifest(manifest)
 
 
+def test_verify_manifest_rejects_manifest_change_after_loading(tmp_path: Path, monkeypatch):
+    artifacts = _artifacts(tmp_path)
+    manifest = write_manifest(tmp_path, artifacts)
+    original_artifact = __import__("maintainer_zero.manifest", fromlist=["_artifact"])._artifact
+    changed = False
+
+    def mutate_after_lookup(root, rel):
+        nonlocal changed
+        target = original_artifact(root, rel)
+        if not changed:
+            changed = True
+            manifest.write_text(manifest.read_text(encoding="utf-8").replace("\"rule_version\": \"0.2\"", "\"rule_version\": \"0.2\", \"test_marker\": true"), encoding="utf-8")
+        return target
+
+    monkeypatch.setattr("maintainer_zero.manifest._artifact", mutate_after_lookup)
+    with pytest.raises(ManifestError, match="manifest changed during verification"):
+        verify_manifest(manifest)
+
+
 @pytest.mark.parametrize("artifact", [
     "missing.txt",
     "../outside.txt",

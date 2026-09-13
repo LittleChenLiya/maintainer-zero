@@ -7,6 +7,7 @@
 最终用户应能在 5 分钟内完成一次演练，回答：核心维护者、关键依赖或 CI/发布链路失效后，哪些能力会中断、多久开始积压、有哪些可验证的恢复路径、应先补齐哪些责任与文档。
 
 当前增量：模拟输出附带 `artifact-manifest.json`，可用 `verify-manifest` 在本地离线校验大小与 SHA-256。它不包含自身 hash，不是数字签名，也不证明来源可信。
+manifest 校验会在全部工件检查完成后再次确认 manifest 文件身份、大小和修改时间未变化；期间发生替换或重写会 fail-closed。
 当前增量同时附带 `continuity-credential.json`：它以独立 envelope 绑定报告和 manifest 的大小、SHA-256 及组合摘要，支持 `verify-credential` 离线校验。该凭证明确不是数字签名，不证明来源、身份或授权。
 GitHub composite Action 也暴露该 manifest 的绝对路径并将其纳入连续性 workflow artifact；Action 仍只做本地分析，不上传源码或执行 GitHub 写操作。
 创建凭证时会在 manifest 校验后重新读取并比较报告与 manifest；发现校验窗口内的替换或内容变化即 fail-closed，避免生成已知过期的凭证。该检查不提供并发写入锁，也不改变“不是数字签名”的边界。

@@ -16,7 +16,7 @@ from .report import write_report
 from .recovery import write_recovery_artifacts
 from .scenarios import SCENARIOS
 from .github_metadata import MetadataError, load_metadata, summarize_metadata
-from .github_cache import MetadataCacheError, cache_status, load_metadata_cache, save_metadata_cache
+from .github_cache import MAX_CACHE_TTL_SECONDS, MetadataCacheError, cache_status, load_metadata_cache, save_metadata_cache
 from .github_client import DEFAULT_MAX_RESPONSE_BYTES, GitHubClientError
 from .github_collect import GitHubRepositoryError, collect_repository_metadata
 from .github_http import GitHubHTTPError, GitHubHTTPTransport, HTTPTransportConfig
@@ -402,6 +402,14 @@ def main(argv: list[str] | None = None) -> int:
             if not 1 <= args.max_response_bytes <= DEFAULT_PROVIDER_MAX_RESPONSE_BYTES:
                 raise ProviderClientError(
                     f"max_response_bytes must be an integer from 1 to {DEFAULT_PROVIDER_MAX_RESPONSE_BYTES}"
+                )
+            if args.cache_output is not None and (
+                isinstance(args.cache_ttl, bool)
+                or not isinstance(args.cache_ttl, int)
+                or not 1 <= args.cache_ttl <= MAX_CACHE_TTL_SECONDS
+            ):
+                raise ProviderClientError(
+                    f"cache_ttl must be an integer from 1 to {MAX_CACHE_TTL_SECONDS}"
                 )
             config = ProviderHTTPTransportConfig(
                 api_base=args.api_base,

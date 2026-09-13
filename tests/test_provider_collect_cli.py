@@ -287,3 +287,36 @@ def test_collect_provider_rejects_output_cache_collision(tmp_path, monkeypatch):
         ]
     ) == 2
     assert not output.exists()
+
+
+@pytest.mark.parametrize("ttl", ["0", "-1", "2592001"])
+def test_collect_provider_rejects_invalid_cache_ttl_before_transport(tmp_path, monkeypatch, ttl):
+    called = False
+
+    class UnexpectedTransport:
+        @classmethod
+        def from_environment(cls, *args, **kwargs):
+            nonlocal called
+            called = True
+            raise AssertionError("invalid cache TTL must fail before transport construction")
+
+    monkeypatch.setattr("maintainer_zero.cli.ProviderHTTPTransport", UnexpectedTransport)
+    output = tmp_path / "metadata.json"
+    assert main(
+        [
+            "collect-provider",
+            "gitlab",
+            "42",
+            "--api-base",
+            "https://gitlab.example",
+            "--allow-network",
+            "--output",
+            str(output),
+            "--cache-output",
+            str(tmp_path / "cache.json"),
+            "--cache-ttl",
+            ttl,
+        ]
+    ) == 2
+    assert called is False
+    assert not output.exists()

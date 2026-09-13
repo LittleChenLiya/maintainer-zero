@@ -30,6 +30,10 @@ inputs:
     description: Optional prior continuity.json used for regression comparison
     required: false
     default: ""
+  history:
+    description: Optional local JSON history file to append a compact trend record
+    required: false
+    default: ""
   fail-on-score-decrease:
     description: Fail when a baseline scenario score decreases
     required: false
@@ -102,6 +106,7 @@ runs:
         MZ_INPUT_OUTPUT: ${{ github.workspace }}/${{ inputs.output }}
         MZ_INPUT_FAIL_UNDER: ${{ inputs['fail-under'] }}
         MZ_INPUT_BASELINE: ${{ inputs.baseline }}
+        MZ_INPUT_HISTORY: ${{ inputs.history }}
         MZ_INPUT_FAIL_SCORE: ${{ inputs['fail-on-score-decrease'] }}
         MZ_INPUT_FAIL_HIGH: ${{ inputs['fail-on-new-high-risk'] }}
         MZ_INPUT_METADATA: ${{ inputs.github-metadata }}
@@ -121,6 +126,7 @@ runs:
         MZ_INPUT_OUTPUT: ${{ github.workspace }}/${{ inputs.output }}
         MZ_INPUT_FAIL_UNDER: ${{ inputs['fail-under'] }}
         MZ_INPUT_BASELINE: ${{ inputs.baseline }}
+        MZ_INPUT_HISTORY: ${{ inputs.history }}
         MZ_INPUT_FAIL_SCORE: ${{ inputs['fail-on-score-decrease'] }}
         MZ_INPUT_FAIL_HIGH: ${{ inputs['fail-on-new-high-risk'] }}
         MZ_INPUT_METADATA: ${{ inputs.github-metadata }}

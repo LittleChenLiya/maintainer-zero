@@ -11,7 +11,7 @@ from pathlib import Path
 from maintainer_zero.cli import main
 
 _CONTROL_CHARS = frozenset(chr(code) for code in range(32)) | {chr(127)}
-_PATH_INPUTS = ("MZ_INPUT_PATH", "MZ_INPUT_OUTPUT", "MZ_INPUT_BASELINE", "MZ_INPUT_METADATA", "MZ_INPUT_FALLBACK_PLAN")
+_PATH_INPUTS = ("MZ_INPUT_PATH", "MZ_INPUT_OUTPUT", "MZ_INPUT_BASELINE", "MZ_INPUT_METADATA", "MZ_INPUT_HISTORY", "MZ_INPUT_FALLBACK_PLAN")
 
 
 def _is_link_like(info: os.stat_result) -> bool:
@@ -49,7 +49,7 @@ def build_argv(environ: dict[str, str] | None = None) -> list[str]:
     env = os.environ if environ is None else environ
     _validate_environment(env)
     argv = ["simulate", env.get("MZ_INPUT_PATH", "."), "--scenario", env.get("MZ_INPUT_SCENARIO", "all"), "--output", env.get("MZ_INPUT_OUTPUT", ".continuity")]
-    for key, option in (("MZ_INPUT_DAYS", "--days"), ("MZ_INPUT_FAIL_UNDER", "--fail-under"), ("MZ_INPUT_BASELINE", "--baseline"), ("MZ_INPUT_METADATA", "--github-metadata"), ("MZ_INPUT_FALLBACK_PLAN", "--fallback-plan")):
+    for key, option in (("MZ_INPUT_DAYS", "--days"), ("MZ_INPUT_FAIL_UNDER", "--fail-under"), ("MZ_INPUT_BASELINE", "--baseline"), ("MZ_INPUT_METADATA", "--github-metadata"), ("MZ_INPUT_HISTORY", "--history"), ("MZ_INPUT_FALLBACK_PLAN", "--fallback-plan")):
         value = env.get(key, "").strip()
         if value:
             argv.extend((option, value))

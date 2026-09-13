@@ -28,6 +28,8 @@ def test_composite_action_exposes_bounded_local_contract():
     assert "steps.drill-unix" not in action and "steps.drill-windows" not in action
     for output_name in ("report-directory", "report-json", "report-markdown", "report-html", "recovery-directory", "artifact-manifest", "integrity-credential"):
         assert f"outputs['{output_name}']" in action
+    assert "  history:" in action
+    assert "MZ_INPUT_HISTORY: ${{ inputs.history }}" in action
 
 def test_action_adapter_keeps_untrusted_paths_as_single_argv_values():
     argv = build_argv({
@@ -199,3 +201,28 @@ def test_action_adapter_passes_fallback_plan_as_one_workspace_argv(tmp_path):
         "MZ_INPUT_FALLBACK_PLAN": str(plan),
     })
     assert argv[-2:] == ["--fallback-plan", str(plan)]
+
+
+def test_action_adapter_passes_history_as_one_workspace_argv(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    history = workspace / "history.json"
+    argv = build_argv({
+        "MZ_INPUT_WORKSPACE": str(workspace),
+        "MZ_INPUT_PATH": str(workspace),
+        "MZ_INPUT_OUTPUT": str(workspace / "reports"),
+        "MZ_INPUT_HISTORY": str(history),
+    })
+    assert argv[-2:] == ["--history", str(history)]
+
+
+def test_action_adapter_bounds_history_to_workspace(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    with pytest.raises(ValueError, match="inside the GitHub workspace"):
+        build_argv({
+            "MZ_INPUT_WORKSPACE": str(workspace),
+            "MZ_INPUT_PATH": str(workspace),
+            "MZ_INPUT_OUTPUT": str(workspace / "reports"),
+            "MZ_INPUT_HISTORY": str(workspace.parent / "outside.json"),
+        })

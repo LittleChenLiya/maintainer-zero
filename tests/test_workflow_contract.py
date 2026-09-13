@@ -58,6 +58,7 @@ def test_reusable_action_is_composite_and_keeps_inputs_bounded():
     assert "--no-build-isolation" in action
     for input_name in ("scenario", "days", "output", "fail-under", "baseline"):
         assert f"  {input_name}:" in action
+    assert "  history:" in action
     assert "  fallback-plan:" in action
     assert "MZ_INPUT_PATH: ${{ github.workspace }}" in action
     assert "MZ_INPUT_METADATA: ${{ inputs.github-metadata }}" in action
@@ -95,6 +96,9 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     assert "if-no-files-found: warn" in workflow
     assert ".continuity/artifact-manifest.json" in workflow
     assert ".continuity/continuity-credential.json" in workflow
+    assert ".continuity/history-summary.json" in workflow
+    assert ".continuity/history-summary.md" in workflow
+    assert ".continuity/baseline-comparison.json" in workflow
     assert "verify-credential" in workflow
     for artifact in ("continuity.sarif", "runbook.md", "CODEOWNERS.draft", "issue-drafts.md"):
         assert f".continuity/recovery/{artifact}" in workflow

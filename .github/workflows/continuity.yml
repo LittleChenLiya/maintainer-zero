@@ -105,6 +105,9 @@ jobs:
             .continuity/report.html
             .continuity/artifact-manifest.json
             .continuity/continuity-credential.json
+            .continuity/history-summary.json
+            .continuity/history-summary.md
+            .continuity/baseline-comparison.json
             .continuity/recovery/continuity.sarif
             .continuity/recovery/runbook.md
             .continuity/recovery/CODEOWNERS.draft

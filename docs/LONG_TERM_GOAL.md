@@ -14,6 +14,7 @@ GitHub composite Action 也暴露该 manifest 的绝对路径并将其纳入连�
 发布验证脚本现在把源码树外的 `artifacts` wheelhouse 作为独立安全目录检查，拒绝 POSIX 符号链接、Windows junction/reparse point、特殊文件及链接归档；本地契约覆盖这些边界，但不替代真实 runner 验证。
 补充覆盖 dangling wheelhouse link：即使目标已失效也会被识别为 unsafe，而不会落入 `mkdir` 的非受控异常路径。
 构建后还会重新检查 wheel/sdist 数量、后缀、普通文件属性和 128 MiB 大小上限，避免特殊文件或异常归档被送入安装烟测。
+每个安装探针现在只使用经过源文件身份/大小/修改时间复核的临时归档副本，隔离校验完成后的替换窗口；副本仍不构成签名或来源证明。
 
 ## 完成定义
 

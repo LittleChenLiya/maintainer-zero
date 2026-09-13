@@ -53,7 +53,7 @@ ci.yml 的 release-smoke job 会在 Ubuntu/Python 3.12 runner 上重复执行同
 - Unix 与 Windows 适配器都只运行本地 CLI，不读取 `GITHUB_TOKEN`、不启用网络、不执行 GitHub 写入；默认只写配置的报告目录。
 - 成功运行才写入 `GITHUB_OUTPUT`；五个 Action 输出必须指向同一输出目录下的绝对报告/恢复路径。
 - `GITHUB_OUTPUT` 必须是绝对路径；在 GitHub runner 提供 `RUNNER_TEMP` 时，输出文件必须位于该临时目录内，拒绝控制字符、符号链接、硬链接、非普通文件和缺失父目录，打开后还要校验文件身份并 `fsync`，避免通过输出文件重定向写入任意路径或留下半写入结果。
-- 发布验证脚本的输出目录及 `artifacts` wheelhouse 逐级拒绝 POSIX 符号链接、Windows junction/reparse point 和特殊文件（包括 dangling link）；构建前后都检查归档必须是非空、大小有界的普通 wheel/sdist 文件，避免构建输出被重定向到验证目录之外。
+- 发布验证脚本的输出目录及 `artifacts` wheelhouse 逐级拒绝 POSIX 符号链接、Windows junction/reparse point 和特殊文件（包括 dangling link）；构建前后都检查归档必须是非空、大小有界的普通 wheel/sdist 文件，并在每个安装探针前复制到独立稳定副本，避免构建输出被重定向或在校验后替换。
 - 本地契约测试覆盖成功产物、`--fail-under`/基线门禁失败、过期元数据默认拒绝及显式允许、以及含空格路径。真实 GitHub-hosted runner（Ubuntu/Windows 和 Python 矩阵）仍需在 CI 中验证，不能用本地测试替代。
 - `init` 创建的 starter `continuity.json` 必须原子替换；重复运行不得覆盖用户配置，写入失败不得留下半成品或临时文件。
 

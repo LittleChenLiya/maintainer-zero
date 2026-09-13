@@ -11,6 +11,8 @@
   instead of falling through to directory creation.
 - Post-build release archives are now rechecked for ordinary non-empty files,
   bounded size, and the expected wheel/sdist pair before installation probes.
+- Installation probes now consume a privately staged archive copy after source
+  identity/size/mtime checks, closing the post-validation replacement window.
 
 - Re-read credential inputs after manifest verification and fail closed when a report or manifest changes during creation, preventing known-stale integrity envelopes.
 

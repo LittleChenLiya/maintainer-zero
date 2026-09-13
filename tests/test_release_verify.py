@@ -109,3 +109,40 @@ def test_release_archive_contract_rejects_special_files_and_zero_size(tmp_path: 
     wheel.write_bytes(b"")
     with pytest.raises(ValueError, match="invalid size"):
         release_verify._safe_release_archives(wheelhouse)
+
+
+def test_release_archive_is_staged_before_install_probe(tmp_path: Path):
+    wheelhouse = tmp_path / "artifacts"
+    install_dir = tmp_path / "install"
+    wheelhouse.mkdir()
+    install_dir.mkdir()
+    archive = wheelhouse / "maintainer_zero.whl"
+    archive.write_bytes(b"stable archive")
+    staged = release_verify._stage_release_archive(archive, install_dir)
+    assert staged.name == archive.name
+    assert staged.read_bytes() == b"stable archive"
+    assert staged.parent == install_dir
+    archive.write_bytes(b"replacement")
+    assert staged.read_bytes() == b"stable archive"
+
+
+def test_release_archive_staging_rejects_source_replacement(tmp_path: Path, monkeypatch):
+    wheelhouse = tmp_path / "artifacts"
+    install_dir = tmp_path / "install"
+    wheelhouse.mkdir()
+    install_dir.mkdir()
+    archive = wheelhouse / "maintainer_zero.whl"
+    archive.write_bytes(b"archive")
+    original_lstat = release_verify.Path.lstat
+    calls = {"count": 0}
+
+    def replace_after_open(path):
+        if path == archive:
+            calls["count"] += 1
+            if calls["count"] == 2:
+                archive.write_bytes(b"changed")
+        return original_lstat(path)
+
+    monkeypatch.setattr(release_verify.Path, "lstat", replace_after_open)
+    with pytest.raises(ValueError, match="changed during staging"):
+        release_verify._stage_release_archive(archive, install_dir)

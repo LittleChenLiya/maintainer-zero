@@ -50,6 +50,48 @@ def _safe_release_archives(wheelhouse: Path) -> list[Path]:
     return archives
 
 
+def _stage_release_archive(archive: Path, target_dir: Path) -> Path:
+    """Copy a checked archive to a private stable path before installation."""
+    target_dir = _safe_existing_directory(target_dir, "release install directory")
+    try:
+        expected = archive.lstat()
+        if _is_link_or_reparse(expected) or not stat.S_ISREG(expected.st_mode):
+            raise ValueError(f"release archive target is unsafe: {archive}")
+        if expected.st_size <= 0 or expected.st_size > _MAX_RELEASE_ARCHIVE_BYTES:
+            raise ValueError(f"release archive has invalid size: {archive}")
+        suffix = ".whl" if archive.name.endswith(".whl") else ".tar.gz"
+        staged = target_dir / archive.name
+        temporary = None
+        with archive.open("rb") as source:
+            opened = os.fstat(source.fileno())
+            if _is_link_or_reparse(opened) or not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (expected.st_dev, expected.st_ino):
+                raise ValueError(f"release archive changed before staging: {archive}")
+            with tempfile.NamedTemporaryFile(mode="wb", dir=target_dir, prefix=".staged-", suffix=suffix, delete=False) as destination:
+                temporary = Path(destination.name)
+                while True:
+                    chunk = source.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    destination.write(chunk)
+                destination.flush()
+                os.fsync(destination.fileno())
+            finished = os.fstat(source.fileno())
+        current = archive.lstat()
+        if (finished.st_dev, finished.st_ino) != (expected.st_dev, expected.st_ino) or (current.st_dev, current.st_ino) != (expected.st_dev, expected.st_ino) or current.st_size != expected.st_size or current.st_mtime_ns != expected.st_mtime_ns:
+            raise ValueError(f"release archive changed during staging: {archive}")
+        staged_info = temporary.lstat()
+        if _is_link_or_reparse(staged_info) or not stat.S_ISREG(staged_info.st_mode) or staged_info.st_size != expected.st_size:
+            raise ValueError(f"staged release archive is unsafe: {archive}")
+        os.replace(temporary, staged)
+        temporary = None
+        return staged
+    except OSError as exc:
+        raise ValueError(f"cannot stage release archive: {archive}") from exc
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
 def _safe_output_directory(path: Path) -> Path:
     """Create an output directory without following symlinked components."""
     target = Path(os.path.abspath(path))
@@ -103,7 +145,8 @@ def verify(root: Path, output: Path) -> None:
         # documented command repeatable without deleting arbitrary user files
         # below the caller-selected output directory.
         with tempfile.TemporaryDirectory(prefix="install-", dir=output) as target:
-            run([sys.executable, "-m", "pip", "install", "--no-deps", "--no-build-isolation", "--target", target, str(archive)])
+            staged_archive = _stage_release_archive(archive, Path(target))
+            run([sys.executable, "-m", "pip", "install", "--no-deps", "--no-build-isolation", "--target", target, str(staged_archive)])
             env = os.environ.copy(); env["PYTHONPATH"] = target
             probe = "from pathlib import Path; import maintainer_zero; p=Path(maintainer_zero.__file__).resolve(); assert p.is_relative_to(Path(r'%s').resolve()); print(p)" % target
             run([sys.executable, "-c", probe], cwd=output, env=env)

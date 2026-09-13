@@ -9,6 +9,8 @@
   and pre-existing linked archives before invoking build tools.
 - Dangling wheelhouse links now fail with the same controlled safety error
   instead of falling through to directory creation.
+- Post-build release archives are now rechecked for ordinary non-empty files,
+  bounded size, and the expected wheel/sdist pair before installation probes.
 
 - Re-read credential inputs after manifest verification and fail closed when a report or manifest changes during creation, preventing known-stale integrity envelopes.
 

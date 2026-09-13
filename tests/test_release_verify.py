@@ -96,3 +96,16 @@ def test_release_verification_rejects_dangling_wheelhouse_link(tmp_path: Path):
         pytest.skip("symlink creation unavailable")
     with pytest.raises(ValueError, match="release artifact directory may not be a symlink"):
         verify(root, output)
+
+
+def test_release_archive_contract_rejects_special_files_and_zero_size(tmp_path: Path):
+    wheelhouse = tmp_path / "artifacts"
+    wheelhouse.mkdir()
+    wheel = wheelhouse / "maintainer_zero.whl"
+    sdist = wheelhouse / "maintainer-zero.tar.gz"
+    wheel.write_bytes(b"wheel")
+    sdist.write_bytes(b"sdist")
+    assert len(release_verify._safe_release_archives(wheelhouse)) == 2
+    wheel.write_bytes(b"")
+    with pytest.raises(ValueError, match="invalid size"):
+        release_verify._safe_release_archives(wheelhouse)

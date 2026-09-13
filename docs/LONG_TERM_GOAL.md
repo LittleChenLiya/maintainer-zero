@@ -13,6 +13,7 @@ GitHub composite Action 也暴露该 manifest 的绝对路径并将其纳入连�
 凭证创建与验证还要求报告本身是 manifest 的精确条目（路径、大小和 SHA-256 一致）；遗漏报告的独立 manifest 会被拒绝，避免完整性声明出现未覆盖的核心工件。
 发布验证脚本现在把源码树外的 `artifacts` wheelhouse 作为独立安全目录检查，拒绝 POSIX 符号链接、Windows junction/reparse point、特殊文件及链接归档；本地契约覆盖这些边界，但不替代真实 runner 验证。
 补充覆盖 dangling wheelhouse link：即使目标已失效也会被识别为 unsafe，而不会落入 `mkdir` 的非受控异常路径。
+构建后还会重新检查 wheel/sdist 数量、后缀、普通文件属性和 128 MiB 大小上限，避免特殊文件或异常归档被送入安装烟测。
 
 ## 完成定义
 

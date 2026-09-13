@@ -6,6 +6,7 @@ from pathlib import Path
 
 DEFAULT_VERIFY_OUTPUT = Path("D:/Codex/maintainer-zero-release-verify")
 _REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+_MAX_RELEASE_ARCHIVE_BYTES = 128 * 1024 * 1024
 
 def run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
     completed = subprocess.run(command, cwd=cwd, env=env, check=True, text=True, capture_output=True)
@@ -27,6 +28,26 @@ def _safe_existing_directory(path: Path, label: str) -> Path:
     if not stat.S_ISDIR(info.st_mode):
         raise ValueError(f"{label} is not a directory: {target}")
     return target
+
+
+def _safe_release_archives(wheelhouse: Path) -> list[Path]:
+    """Return exactly one bounded, ordinary wheel and sdist archive."""
+    _safe_existing_directory(wheelhouse, "release artifact directory")
+    archives = sorted(wheelhouse.glob("*.whl")) + sorted(wheelhouse.glob("*.tar.gz"))
+    if len(archives) != 2:
+        raise RuntimeError(f"expected one wheel and one sdist, found {archives}")
+    for archive in archives:
+        try:
+            info = archive.lstat()
+        except OSError as exc:
+            raise ValueError(f"release archive cannot be inspected: {archive}") from exc
+        if _is_link_or_reparse(info) or not stat.S_ISREG(info.st_mode):
+            raise ValueError(f"release archive target is unsafe: {archive}")
+        if info.st_size <= 0 or info.st_size > _MAX_RELEASE_ARCHIVE_BYTES:
+            raise ValueError(f"release archive has invalid size: {archive}")
+    if not any(path.name.endswith(".whl") for path in archives) or not any(path.name.endswith(".tar.gz") for path in archives):
+        raise RuntimeError(f"expected one wheel and one sdist, found {archives}")
+    return archives
 
 
 def _safe_output_directory(path: Path) -> Path:
@@ -76,9 +97,7 @@ def verify(root: Path, output: Path) -> None:
     run([sys.executable, "-m", "pip", "wheel", str(root), "--no-deps", "--no-build-isolation", "--wheel-dir", str(wheelhouse)])
     build_sdist = "import setuptools.build_meta as b; b.build_sdist(%r)" % str(wheelhouse)
     run([sys.executable, "-c", build_sdist], cwd=root)
-    archives = sorted(wheelhouse.glob("*.whl")) + sorted(wheelhouse.glob("*.tar.gz"))
-    if len(archives) != 2:
-        raise RuntimeError(f"expected one wheel and one sdist, found {archives}")
+    archives = _safe_release_archives(wheelhouse)
     for archive in archives:
         # Keep install probes in a per-run temporary directory. This makes the
         # documented command repeatable without deleting arbitrary user files

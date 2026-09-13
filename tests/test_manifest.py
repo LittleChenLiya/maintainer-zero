@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -166,7 +168,19 @@ def test_verify_manifest_cli_exit_codes(tmp_path: Path, capsys):
 
 
 def test_simulate_writes_manifest_even_when_score_gate_fails(tmp_path: Path):
-    repo = Path(__file__).parent / "fixtures" / "e2e-repository"
+    # The analyzer intentionally rejects fixture directories without Git
+    # metadata; materialize the shared data fixture as a disposable repository.
+    source = Path(__file__).parent / "fixtures" / "e2e-repository"
+    repo = tmp_path / "fixture-repository"
+    shutil.copytree(source, repo)
+    for command in (
+        ["git", "init", "--quiet"],
+        ["git", "config", "user.email", "fixture@example.invalid"],
+        ["git", "config", "user.name", "Fixture Maintainer"],
+        ["git", "add", "."],
+        ["git", "commit", "--quiet", "-m", "initial fixture"],
+    ):
+        subprocess.run(command, cwd=repo, check=True, capture_output=True)
     output = tmp_path / "output"
     assert main(["simulate", str(repo), "--days", "7", "--output", str(output), "--fail-under", "100"]) == 1
     assert (output / "artifact-manifest.json").exists()

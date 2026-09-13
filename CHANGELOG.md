@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Updated the manifest gate regression fixture to initialize a disposable Git
+  repository, matching the analyzer's explicit non-Git input rejection.
+
 - Simulation output preflight now rejects lexical collisions between history or
   custom recovery destinations and generated report artifacts before analyzing
   the repository. GitHub/provider output-cache collision checks no longer follow

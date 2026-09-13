@@ -1,4 +1,5 @@
 import os
+import stat
 import subprocess
 from pathlib import Path
 
@@ -144,6 +145,22 @@ def test_release_source_snapshot_excludes_generated_outputs_and_rejects_links(tm
     unsafe_snapshot.mkdir()
     with pytest.raises(ValueError, match="symlink or reparse point"):
         release_verify._copy_release_source(root, unsafe_snapshot)
+
+
+def test_release_source_snapshot_preserves_regular_file_mode_on_posix(tmp_path: Path):
+    if os.name == "nt":
+        pytest.skip("Windows does not expose POSIX executable mode bits")
+    root = tmp_path / "source"
+    root.mkdir()
+    source_file = root / "entrypoint"
+    source_file.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    os.chmod(source_file, 0o755)
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+
+    release_verify._copy_release_source(root, snapshot)
+
+    assert stat.S_IMODE((snapshot / "entrypoint").stat().st_mode) == 0o755
 
 
 def test_release_source_snapshot_rejects_enumerator_escape(tmp_path: Path, monkeypatch):

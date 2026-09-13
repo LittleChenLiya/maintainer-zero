@@ -105,6 +105,11 @@ def _copy_release_source(root: Path, target: Path) -> None:
                             if not chunk:
                                 break
                             destination_handle.write(chunk)
+                        # Preserve POSIX executable/read-only bits from the
+                        # checkout. A plain temporary-file create defaults to
+                        # the process umask, which can silently change the
+                        # behavior of packaged scripts and sdist metadata.
+                        os.chmod(temporary, stat.S_IMODE(info.st_mode))
                         destination_handle.flush()
                         os.fsync(destination_handle.fileno())
                     finished = os.fstat(source_handle.fileno())

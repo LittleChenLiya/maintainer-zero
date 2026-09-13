@@ -180,6 +180,36 @@ def test_snapshot_fails_closed_when_declaration_changes_during_read(tmp_path, mo
         snapshot_repository(repo_path)
 
 
+def test_snapshot_rechecks_root_after_dependency_scan(tmp_path, monkeypatch):
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo_path, check=True, capture_output=True)
+    package = repo_path / "package.json"
+    package.write_text('{"dependencies": {"safe": "1"}}', encoding="utf-8")
+    original_lstat = Path.lstat
+    root_checks = 0
+
+    def fake_lstat(path, *args, **kwargs):
+        nonlocal root_checks
+        info = original_lstat(path, *args, **kwargs)
+        if path == repo_path:
+            root_checks += 1
+            if root_checks >= 3:
+                class ChangedInfo:
+                    st_mode = info.st_mode
+                    st_file_attributes = getattr(info, "st_file_attributes", 0)
+                    st_dev = info.st_dev
+                    st_ino = info.st_ino
+                    st_size = info.st_size
+                    st_mtime_ns = info.st_mtime_ns + 1
+                return ChangedInfo()
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(ValueError, match="Repository changed during analysis"):
+        snapshot_repository(repo_path)
+
+
 def test_config_is_validated_and_people_can_be_anonymized(tmp_path):
     (tmp_path / "continuity.json").write_text(
         '{"scenarios": ["ci-outage"], "days": 7, '

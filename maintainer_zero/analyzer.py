@@ -230,10 +230,11 @@ def snapshot_repository(repo_path: str | Path) -> RepoSnapshot:
     for relative in (".npmrc", ".pypirc", "release.config.js", ".github/workflows/release.yml", ".github/workflows/publish.yml"):
         if _read_repo_file(path, relative) is not None:
             release_files.append(relative)
+    dependencies = _read_dependencies(path)
     try:
         final_path_stat = path.lstat()
     except OSError as exc:
         raise ValueError(f"Repository changed during analysis: {path}") from exc
     if not _same_directory_stat(initial_path_stat, final_path_stat) or _is_link_like(final_path_stat):
         raise ValueError(f"Repository changed during analysis: {path}")
-    return RepoSnapshot(str(path), path.name, commits, dict(contributors), _read_dependencies(path), workflows, codeowners, release_files)
+    return RepoSnapshot(str(path), path.name, commits, dict(contributors), dependencies, workflows, codeowners, release_files)

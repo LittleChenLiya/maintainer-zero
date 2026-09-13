@@ -126,12 +126,14 @@ def _read_bounded_json(path: Path, max_bytes: int, error_type: type[ValueError],
             info = current.lstat()
             if _is_link_like(info):
                 raise error_type(f"{label} path may not contain a symlink or reparse point")
-        path_stat = path.lstat()
+        path_stat = target.lstat()
         if _is_link_like(path_stat) or not stat.S_ISREG(path_stat.st_mode):
             raise error_type(f"{label} must be a regular file")
-        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        if path_stat.st_size > max_bytes:
+            raise error_type(f"{label} exceeds {max_bytes} bytes")
+        descriptor = os.open(target, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         file_stat = os.fstat(descriptor)
-        if not stat.S_ISREG(file_stat.st_mode):
+        if _is_link_like(file_stat) or not stat.S_ISREG(file_stat.st_mode):
             os.close(descriptor)
             raise error_type(f"{label} must be a regular file")
         if (getattr(path_stat, "st_dev", 0), getattr(path_stat, "st_ino", 0)) != (
@@ -143,7 +145,36 @@ def _read_bounded_json(path: Path, max_bytes: int, error_type: type[ValueError],
             raw = handle.read(max_bytes + 1)
         if len(raw) > max_bytes:
             raise error_type(f"{label} exceeds {max_bytes} bytes")
-        return json.loads(raw)
+        try:
+            after = target.lstat()
+        except OSError as exc:
+            raise error_type(f"{label} changed during reading") from exc
+        if (
+            _is_link_like(after)
+            or not stat.S_ISREG(after.st_mode)
+            or (getattr(path_stat, "st_dev", 0), getattr(path_stat, "st_ino", 0))
+            != (getattr(after, "st_dev", 0), getattr(after, "st_ino", 0))
+            or after.st_size != path_stat.st_size
+            or getattr(after, "st_mtime_ns", None) != getattr(path_stat, "st_mtime_ns", None)
+        ):
+            raise error_type(f"{label} changed during reading")
+
+        def reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+            result: dict[str, Any] = {}
+            for key, value in pairs:
+                if key in result:
+                    raise error_type(f"{label} contains duplicate object key: {key}")
+                result[key] = value
+            return result
+
+        def reject_nonstandard_number(value: str) -> None:
+            raise error_type(f"{label} contains non-standard JSON number: {value}")
+
+        return json.loads(
+            raw,
+            object_pairs_hook=reject_duplicate_keys,
+            parse_constant=reject_nonstandard_number,
+        )
     except error_type:
         raise
     except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:

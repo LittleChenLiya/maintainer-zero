@@ -85,6 +85,62 @@ def test_load_scenario_bounds_untrusted_file(tmp_path):
         load_scenario(path, max_bytes=1)
 
 
+@pytest.mark.parametrize(
+    ("kind", "raw", "error_type", "message"),
+    [
+        ("registry", '{"schema_version":1,"schema_version":1}', ScenarioRegistryError, "duplicate object key"),
+        ("registry", '{"schema_version":NaN}', ScenarioRegistryError, "non-standard JSON number"),
+        ("scenario", '{"schema_version":1,"schema_version":1}', ScenarioSpecError, "duplicate object key"),
+        ("scenario", '{"schema_version":NaN}', ScenarioSpecError, "non-standard JSON number"),
+    ],
+)
+def test_loaders_reject_ambiguous_json_values(tmp_path, kind, raw, error_type, message):
+    path = tmp_path / f"{kind}.json"
+    path.write_text(raw, encoding="utf-8")
+    loader = load_registry if kind == "registry" else load_scenario
+    with pytest.raises(error_type, match=message):
+        loader(path)
+
+
+@pytest.mark.parametrize("kind", ["registry", "scenario"])
+def test_loaders_reject_file_replacement_after_descriptor_read(tmp_path, monkeypatch, kind):
+    path = tmp_path / f"{kind}.json"
+    if kind == "registry":
+        payload = load_bundled_registry()
+        loader = load_registry
+        error_type = ScenarioRegistryError
+    else:
+        payload = load_scenario(EXAMPLES / "dependency-yanked.json")
+        loader = load_scenario
+        error_type = ScenarioSpecError
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    original_lstat = Path.lstat
+    calls = 0
+
+    def fake_lstat(value, *args, **kwargs):
+        nonlocal calls
+        info = original_lstat(value, *args, **kwargs)
+        if value == path:
+            calls += 1
+            # The loader calls lstat for the path walk, initial metadata, and
+            # finally after reading through the descriptor. Simulate a mtime
+            # change in that final observation without changing the fixture.
+            if calls == 3:
+                return SimpleNamespace(
+                    st_mode=info.st_mode,
+                    st_file_attributes=getattr(info, "st_file_attributes", 0),
+                    st_dev=info.st_dev,
+                    st_ino=info.st_ino,
+                    st_size=info.st_size,
+                    st_mtime_ns=info.st_mtime_ns + 1,
+                )
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(error_type, match="changed during reading"):
+        loader(path)
+
+
 def test_scenario_validation_rejects_deep_and_cyclic_values():
     registry = load_bundled_registry()
     deep = registry["scenarios"][0]

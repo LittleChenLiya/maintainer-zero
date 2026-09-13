@@ -220,6 +220,23 @@ def test_action_adapter_rejects_linked_workspace_components(tmp_path):
         })
 
 
+def test_action_adapter_rejects_symlink_before_dotdot_component(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = workspace / "linked"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="symbolic link or reparse point"):
+        build_argv({
+            "MZ_INPUT_WORKSPACE": str(workspace),
+            "MZ_INPUT_PATH": str(linked / ".." / "repository"),
+        })
+
+
 def test_action_adapter_rejects_symlinked_workspace_and_runner_temp(tmp_path):
     real_workspace = tmp_path / "workspace"
     real_workspace.mkdir()

@@ -21,8 +21,9 @@ def _is_link_like(info: os.stat_result) -> bool:
 
 
 def _absolute_path(value: str | Path) -> Path:
-    """Normalize a path lexically without resolving symlinks or reparse points."""
-    return Path(os.path.abspath(os.fspath(value)))
+    """Make a path absolute while preserving ``..`` for component checks."""
+    target = Path(os.fspath(value))
+    return target if target.is_absolute() else Path.cwd() / target
 
 
 def _validate_path_components(
@@ -57,7 +58,8 @@ def _validate_path_components(
         except OSError as exc:
             raise ValueError(f"{label} path could not be inspected") from exc
         if _is_link_like(info):
-            raise ValueError(f"{label} path may not contain a symbolic link or reparse point")
+            scope = "parent path" if index < len(parts) - 1 else "path"
+            raise ValueError(f"{label} {scope} may not contain a symbolic link or reparse point")
         if index < len(parts) - 1 and not stat.S_ISDIR(info.st_mode):
             raise ValueError(f"{label} parent path is not a directory")
         last_info = info
@@ -72,6 +74,8 @@ def _validate_environment(env: dict[str, str]) -> None:
         if any(char in _CONTROL_CHARS for char in env.get(key, "")):
             raise ValueError(f"{key} contains control characters")
     workspace = env.get("MZ_INPUT_WORKSPACE", "").strip()
+    if any(char in _CONTROL_CHARS for char in workspace):
+        raise ValueError("MZ_INPUT_WORKSPACE contains control characters")
     workspace_path = None
     if workspace:
         workspace_path = _validate_path_components(
@@ -123,7 +127,8 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
     output_file = Path(output_file_value)
     if not output_file.is_absolute():
         raise ValueError("GITHUB_OUTPUT must be an absolute path")
-    output_file = _absolute_path(output_file)
+    _validate_path_components(output_file, "GITHUB_OUTPUT")
+    output_file = Path(os.path.normpath(os.fspath(_absolute_path(output_file))))
     runner_temp = env.get("RUNNER_TEMP", "")
     if runner_temp:
         if any(char in _CONTROL_CHARS for char in runner_temp):

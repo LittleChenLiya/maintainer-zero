@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Composite Action path validation now preserves `..` components until each
+  existing component has been inspected, so a symlink cannot be hidden before
+  lexical normalization reaches the workspace boundary.
+
+- Composite Action path validation now preserves `..` components until each
+  existing component has been inspected, so a symlink cannot be hidden before
+  lexical normalization reaches the workspace boundary.
+
 - Release install smoke drills now use a disposable empty Git repository
   created inside the per-install temporary directory, so post-build checks do
   not reopen the mutable live checkout after the isolated source snapshot.

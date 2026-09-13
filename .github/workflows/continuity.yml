@@ -40,12 +40,12 @@ jobs:
         if: success() && runner.os != 'Windows'
         shell: bash
         env:
-          MZ_REPORT_DIR: ${{ steps.drill.outputs.report-directory }}
-          MZ_REPORT_JSON: ${{ steps.drill.outputs.report-json }}
-          MZ_REPORT_MARKDOWN: ${{ steps.drill.outputs.report-markdown }}
-          MZ_REPORT_HTML: ${{ steps.drill.outputs.report-html }}
-          MZ_RECOVERY_DIR: ${{ steps.drill.outputs.recovery-directory }}
-          MZ_MANIFEST: ${{ steps.drill.outputs.artifact-manifest }}
+          MZ_REPORT_DIR: ${{ steps.drill.outputs['report-directory'] }}
+          MZ_REPORT_JSON: ${{ steps.drill.outputs['report-json'] }}
+          MZ_REPORT_MARKDOWN: ${{ steps.drill.outputs['report-markdown'] }}
+          MZ_REPORT_HTML: ${{ steps.drill.outputs['report-html'] }}
+          MZ_RECOVERY_DIR: ${{ steps.drill.outputs['recovery-directory'] }}
+          MZ_MANIFEST: ${{ steps.drill.outputs['artifact-manifest'] }}
         run: |
           test -d "$MZ_REPORT_DIR"
           test -f "$MZ_REPORT_JSON"
@@ -58,12 +58,12 @@ jobs:
         if: success() && runner.os == 'Windows'
         shell: pwsh
         env:
-          MZ_REPORT_DIR: ${{ steps.drill.outputs.report-directory }}
-          MZ_REPORT_JSON: ${{ steps.drill.outputs.report-json }}
-          MZ_REPORT_MARKDOWN: ${{ steps.drill.outputs.report-markdown }}
-          MZ_REPORT_HTML: ${{ steps.drill.outputs.report-html }}
-          MZ_RECOVERY_DIR: ${{ steps.drill.outputs.recovery-directory }}
-          MZ_MANIFEST: ${{ steps.drill.outputs.artifact-manifest }}
+          MZ_REPORT_DIR: ${{ steps.drill.outputs['report-directory'] }}
+          MZ_REPORT_JSON: ${{ steps.drill.outputs['report-json'] }}
+          MZ_REPORT_MARKDOWN: ${{ steps.drill.outputs['report-markdown'] }}
+          MZ_REPORT_HTML: ${{ steps.drill.outputs['report-html'] }}
+          MZ_RECOVERY_DIR: ${{ steps.drill.outputs['recovery-directory'] }}
+          MZ_MANIFEST: ${{ steps.drill.outputs['artifact-manifest'] }}
         run: |
           $files = @($env:MZ_REPORT_JSON, $env:MZ_REPORT_MARKDOWN, $env:MZ_REPORT_HTML, $env:MZ_MANIFEST)
           if (-not (Test-Path -LiteralPath $env:MZ_REPORT_DIR -PathType Container)) { throw "report directory output is missing" }

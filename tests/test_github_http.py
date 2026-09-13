@@ -107,6 +107,12 @@ def test_transport_rejects_unapproved_paths_and_unsafe_config():
             GitHubHTTPTransport(config=HTTPTransportConfig(api_base=base))
     with pytest.raises(GitHubHTTPError, match="max_response_bytes"):
         GitHubHTTPTransport(config=HTTPTransportConfig(max_response_bytes=1_000_001))
+    with pytest.raises(GitHubHTTPError, match="bounded"):
+        GitHubHTTPTransport(config=HTTPTransportConfig(api_base="https://" + "a" * 250 + ".example"))
+    with pytest.raises(GitHubHTTPError, match="bounded"):
+        GitHubHTTPTransport(config=HTTPTransportConfig(api_base="https://api.github.com\n"))
+    with pytest.raises(GitHubHTTPError, match="bounded"):
+        GitHubHTTPTransport(config=HTTPTransportConfig(user_agent="x" * 257))
 
 
 def test_environment_token_requires_explicit_opt_in(monkeypatch):

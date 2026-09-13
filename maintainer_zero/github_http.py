@@ -19,6 +19,8 @@ _RESPONSE_HEADERS = frozenset(("link", "retry-after", "x-ratelimit-reset"))
 _MAX_RESPONSE_HEADER_VALUE = 4096
 _MAX_QUERY_COMPONENT_LENGTH = 128
 _MAX_QUERY_LENGTH = 512
+_MAX_API_BASE_LENGTH = 256
+_MAX_USER_AGENT_LENGTH = 256
 class _RejectRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, *args, **kwargs):
         return None
@@ -73,8 +75,12 @@ class GitHubHTTPTransport:
         ):
             raise GitHubHTTPError("api_base must be an https URL without a trailing slash")
         if (not isinstance(config.user_agent, str) or not config.user_agent.strip()
+                or len(config.user_agent) > _MAX_USER_AGENT_LENGTH
                 or any(char in _CONTROL_CHARS for char in config.user_agent)):
-            raise GitHubHTTPError("user_agent must be a non-empty single-line string")
+            raise GitHubHTTPError("user_agent must be a bounded non-empty single-line string")
+        if (len(config.api_base) > _MAX_API_BASE_LENGTH
+                or any(char in _CONTROL_CHARS for char in config.api_base)):
+            raise GitHubHTTPError("api_base must be a bounded https URL")
         if (isinstance(config.max_response_bytes, bool)
                 or not isinstance(config.max_response_bytes, int)
                 or not 1 <= config.max_response_bytes <= DEFAULT_MAX_RESPONSE_BYTES):

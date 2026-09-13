@@ -93,6 +93,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-13：补齐 GitLab release 字段差异：将 API 的 `released_at` 映射为规范化 `published_at`，并用离线 transport/client/cache 链路验证字段投影与敏感字段剔除。
 - 2026-09-13：统一 GitHub 注入式客户端与其他 provider 的 fail-closed 解析边界：重复 JSON key 和超出 64 位的整数现在在字段投影前降级为 invalid_json，并补充直接客户端负例。
 - 2026-09-13：补齐 GitHub HTTPS transport 的查询边界：参数组件和编码后的 query string 现在有固定长度上限，控制字符或超长 URL 在 opener 调用前拒绝，并补充直接 transport 负例。
+- 2026-09-13：统一 GitHub 与其他 provider 的 transport 配置边界：API base 和 User-Agent 现在有固定长度并拒绝控制字符，避免不安全配置进入请求构造。
 - 2026-09-12：基线比较新增结果分数 schema 校验与有限数值边界，非法超大整数、NaN/Infinity 及原始范围外小数在读取阶段拒绝；新增 4 项负例并通过专项测试。
 - 2026-09-12：benchmark 导出与 baseline 报告读取新增歧义输入防护：重复 JSON key、非标准数值（NaN/Infinity）和超大整数均 fail-closed；分数先验证原始范围再做确定性舍入，独立文本渲染也校验场景/置信度及 Unicode 控制字符。专项与全量回归通过。
 - 2026-09-12：补齐 composite Action 输出边界的 reparse point 模拟测试，覆盖 `GITHUB_OUTPUT` 父目录与最终文件；路径校验现在有 Unix 符号链接、硬链接和 Windows reparse 负例证据。

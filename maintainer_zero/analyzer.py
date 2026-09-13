@@ -60,12 +60,44 @@ def _reject_nonstandard_number(value: str) -> None:
 
 
 def _safe_repo_path(root: Path, relative: str) -> Path | None:
-    """Resolve a repository-relative path without following it outside root."""
+    """Resolve a repository-relative path without following linked components.
+
+    ``Path.resolve`` alone is only a containment check: it can still accept a
+    symlinked parent that resolves back inside the checkout.  Walk each
+    component with ``lstat`` so declarations are never silently read through
+    an internal symlink/junction either.  The final component may be absent
+    because callers use this helper for optional files.
+    """
     candidate = root / relative
     try:
-        candidate.resolve().relative_to(root)
-    except (OSError, RuntimeError, ValueError):
+        candidate.relative_to(root)
+    except ValueError:
         return None
+    current = root
+    parts = Path(relative).parts
+    if not parts or Path(relative).is_absolute() or any(part == ".." for part in parts):
+        return None
+    for index, part in enumerate(parts):
+        if part in ("", "."):
+            continue
+        current /= part
+        # Leave the final component to the bounded descriptor reader.  That
+        # keeps its initial ``lstat`` as the first observation of the file,
+        # while parent components are still checked before path resolution.
+        if index == len(parts) - 1:
+            return candidate
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            # Missing final files are valid optional inputs; a missing parent
+            # means no descendant can be inspected safely.
+            return candidate if index == len(parts) - 1 else None
+        except (OSError, RuntimeError):
+            return None
+        if _is_link_like(info):
+            return None
+        if not stat.S_ISDIR(info.st_mode):
+            return None
     return candidate
 
 
@@ -85,8 +117,26 @@ def _read_repo_file(root: Path, relative: str, *, max_bytes: int = MAX_REPOSITOR
     if initial.st_size > max_bytes:
         raise ValueError(f"Repository file exceeds size limit: {relative}")
     descriptor: int | None = None
+    parent_descriptor: int | None = None
     try:
-        descriptor = os.open(candidate, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        # On platforms with ``dir_fd`` support, resolve every component from
+        # an already-open directory descriptor.  This closes the parent
+        # replacement window that a final-component ``O_NOFOLLOW`` alone
+        # cannot cover (a swapped ``.github`` directory could otherwise
+        # redirect a read outside the selected checkout).  Keep the bounded
+        # path-based fallback for Windows, where dir_fd is unavailable; the
+        # component lstat checks and final identity recheck still fail closed.
+        parts = [part for part in Path(relative).parts if part not in ("", ".")]
+        if os.open in getattr(os, "supports_dir_fd", set()):
+            directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+            parent_descriptor = os.open(root, directory_flags)
+            for part in parts[:-1]:
+                next_descriptor = os.open(part, directory_flags, dir_fd=parent_descriptor)
+                os.close(parent_descriptor)
+                parent_descriptor = next_descriptor
+            descriptor = os.open(parts[-1], os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0), dir_fd=parent_descriptor)
+        else:
+            descriptor = os.open(candidate, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         opened = os.fstat(descriptor)
         if _is_link_like(opened) or not stat.S_ISREG(opened.st_mode):
             raise ValueError(f"Repository file is not a regular file: {relative}")
@@ -117,6 +167,8 @@ def _read_repo_file(root: Path, relative: str, *, max_bytes: int = MAX_REPOSITOR
     finally:
         if descriptor is not None:
             os.close(descriptor)
+        if parent_descriptor is not None:
+            os.close(parent_descriptor)
 
 def _run_git(path: Path, *args: str) -> str:
     try:

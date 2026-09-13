@@ -125,6 +125,23 @@ def test_snapshot_does_not_follow_repository_symlink_outside_root(tmp_path):
     assert snapshot.workflows == []
 
 
+def test_snapshot_ignores_linked_declaration_parent_even_when_target_stays_inside(tmp_path):
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo_path, check=True, capture_output=True)
+    real_github = repo_path / "real-github"
+    (real_github / "workflows").mkdir(parents=True)
+    (real_github / "workflows" / "release.yml").write_text("name: release\n", encoding="utf-8")
+    try:
+        (repo_path / ".github").symlink_to(real_github, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+
+    snapshot = snapshot_repository(repo_path)
+    assert snapshot.workflows == []
+    assert snapshot.release_files == []
+
+
 def test_snapshot_bounds_repository_declaration_files(tmp_path):
     repo_path = tmp_path / "repo"
     repo_path.mkdir()

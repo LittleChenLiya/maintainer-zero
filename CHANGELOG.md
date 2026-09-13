@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Repository declaration paths now walk parent components with `lstat` and,
+  where `dir_fd` is available, open them through stable directory descriptors;
+  linked parents are ignored and a concurrent parent replacement cannot
+  redirect analyzer reads outside the selected checkout.
+
+- Release source snapshot timestamp preservation now handles Windows Python
+  builds where `utime(..., follow_symlinks=False)` is exposed but unsupported,
+  while retaining descriptor/path identity checks before the snapshot is
+  published.
+
 - Repository analysis now validates every checkout path component before the
   Git probe and rechecks the root directory after scanning, rejecting linked or
   reparse-point repository paths instead of silently following them.

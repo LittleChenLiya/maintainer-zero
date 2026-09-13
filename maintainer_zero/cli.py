@@ -90,6 +90,25 @@ def _safe_output_file(path: str | Path) -> Path:
             raise ValueError(f"output path is not a regular file: {target}")
     return target
 
+
+def _safe_output_directory(path: str | Path) -> Path:
+    """Create an output directory without following links or reparse points."""
+    target = Path(os.path.abspath(path))
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts:
+        current /= part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            current.mkdir()
+            info = current.lstat()
+        if _is_link_like(info):
+            raise ValueError(f"output directory may not contain a symlink or reparse point: {current}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValueError(f"output path is not a directory: {current}")
+    return target
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="maintainer-zero", description="Chaos engineering drills for open-source continuity")
     parser.add_argument(
@@ -306,11 +325,13 @@ def _load_metadata_summary(path: str | Path, *, allow_stale: bool = False) -> di
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.command == "init":
-        path = Path(args.path).resolve()
-        path.mkdir(parents=True, exist_ok=True)
-        config = path / "continuity.json"
-        if not config.exists():
-            try:
+        try:
+            # Keep the user-supplied spelling until every path component has
+            # been inspected. Resolving first would follow a symlink and
+            # allow starter configuration to be written outside the target.
+            path = _safe_output_directory(args.path)
+            config = path / "continuity.json"
+            if not config.exists():
                 _atomic_write_text(
                     config,
                     json.dumps(
@@ -327,9 +348,9 @@ def main(argv: list[str] | None = None) -> int:
                     )
                     + "\n",
                 )
-            except OSError as exc:
-                print(f"error: cannot write starter config: {config}")
-                return 2
+        except (OSError, ValueError):
+            print(f"error: cannot write starter config: {Path(os.path.abspath(args.path)) / 'continuity.json'}")
+            return 2
         print(f"Created {config}")
         return 0
     if args.command == "collect-github":

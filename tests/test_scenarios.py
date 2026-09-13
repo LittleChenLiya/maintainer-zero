@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 import json
 import shutil
@@ -107,6 +109,39 @@ def test_init_write_failure_leaves_no_partial_config_or_temp_file(tmp_path, monk
     assert main(["init", str(tmp_path)]) == 2
     assert not (tmp_path / "continuity.json").exists()
     assert not list(tmp_path.glob(".continuity.json.*.tmp"))
+    assert "cannot write starter config" in capsys.readouterr().out
+
+
+def test_init_rejects_symlinked_target_before_writing(tmp_path, capsys):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    assert main(["init", str(linked)]) == 2
+    assert not (outside / "continuity.json").exists()
+    assert "cannot write starter config" in capsys.readouterr().out
+
+
+def test_init_rejects_reparse_target_without_following_it(tmp_path, monkeypatch, capsys):
+    target = tmp_path / "reparse-target"
+    target.mkdir()
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        info = original_lstat(path, *args, **kwargs)
+        if path == target:
+            class ReparseInfo:
+                st_mode = info.st_mode
+                st_file_attributes = 0x400
+            return ReparseInfo()
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    assert main(["init", str(target)]) == 2
+    assert not (target / "continuity.json").exists()
     assert "cannot write starter config" in capsys.readouterr().out
 
 

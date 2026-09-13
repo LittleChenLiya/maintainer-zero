@@ -42,6 +42,57 @@ def test_snapshot_rejects_non_git_directory(tmp_path):
         snapshot_repository(tmp_path)
 
 
+def test_snapshot_rejects_linked_repository_before_git_probe(tmp_path, monkeypatch):
+    real_repo = tmp_path / "real-repo"
+    real_repo.mkdir()
+    linked_repo = tmp_path / "linked-repo"
+    try:
+        linked_repo.symlink_to(real_repo, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+
+    def unexpected_git(*args, **kwargs):
+        raise AssertionError("linked repository must fail before git access")
+
+    monkeypatch.setattr("maintainer_zero.analyzer.subprocess.run", unexpected_git)
+    with pytest.raises(ValueError, match="repository may not be a symlink"):
+        snapshot_repository(linked_repo)
+
+
+def test_snapshot_rejects_linked_repository_parent(tmp_path):
+    real_parent = tmp_path / "real-parent"
+    real_parent.mkdir()
+    repo_path = real_parent / "repo"
+    repo_path.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo_path, check=True, capture_output=True)
+    linked_parent = tmp_path / "linked-parent"
+    try:
+        linked_parent.symlink_to(real_parent, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="repository may not be a symlink"):
+        snapshot_repository(linked_parent / "repo")
+
+
+def test_snapshot_rejects_reparse_repository_without_git_probe(tmp_path, monkeypatch):
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        info = original_lstat(path, *args, **kwargs)
+        if path == repo_path:
+            class ReparseInfo:
+                st_mode = info.st_mode
+                st_file_attributes = 0x400
+            return ReparseInfo()
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(ValueError, match="repository may not be a symlink or reparse point"):
+        snapshot_repository(repo_path)
+
+
 @pytest.mark.parametrize("contents", [
     "{not-json}",
     "[]",

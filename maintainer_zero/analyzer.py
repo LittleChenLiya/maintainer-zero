@@ -18,6 +18,34 @@ def _is_link_like(info: os.stat_result) -> bool:
     return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
 
 
+def _safe_existing_directory(path: str | Path, label: str) -> Path:
+    """Return an existing directory without following linked components."""
+    target = Path(os.path.abspath(path))
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts:
+        current /= part
+        try:
+            info = current.lstat()
+        except OSError as exc:
+            raise ValueError(f"{label} is unavailable") from exc
+        if _is_link_like(info):
+            raise ValueError(f"{label} may not be a symlink or reparse point: {current}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValueError(f"{label} is not a directory: {current}")
+    return target
+
+
+def _same_directory_stat(left: os.stat_result, right: os.stat_result) -> bool:
+    return (
+        (getattr(left, "st_dev", -1), getattr(left, "st_ino", -1))
+        == (getattr(right, "st_dev", -1), getattr(right, "st_ino", -1))
+        and left.st_mode == right.st_mode
+        and left.st_size == right.st_size
+        and left.st_mtime_ns == right.st_mtime_ns
+    )
+
+
 def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
     result: dict[str, object] = {}
     for key, value in pairs:
@@ -141,9 +169,11 @@ def _read_dependencies(path: Path) -> list[str]:
     return sorted(found)
 
 def snapshot_repository(repo_path: str | Path) -> RepoSnapshot:
-    path = Path(repo_path).resolve()
-    if not path.is_dir():
-        raise ValueError(f"Repository does not exist: {path}")
+    path = _safe_existing_directory(repo_path, "repository")
+    try:
+        initial_path_stat = path.lstat()
+    except OSError as exc:
+        raise ValueError(f"Repository is unavailable: {path}") from exc
     # An empty Git response is not evidence of an empty repository.  Refuse
     # to analyze non-Git directories so callers cannot mistake missing git,
     # a broken worktree, or a command failure for a healthy zero-contributor
@@ -200,4 +230,10 @@ def snapshot_repository(repo_path: str | Path) -> RepoSnapshot:
     for relative in (".npmrc", ".pypirc", "release.config.js", ".github/workflows/release.yml", ".github/workflows/publish.yml"):
         if _read_repo_file(path, relative) is not None:
             release_files.append(relative)
+    try:
+        final_path_stat = path.lstat()
+    except OSError as exc:
+        raise ValueError(f"Repository changed during analysis: {path}") from exc
+    if not _same_directory_stat(initial_path_stat, final_path_stat) or _is_link_like(final_path_stat):
+        raise ValueError(f"Repository changed during analysis: {path}")
     return RepoSnapshot(str(path), path.name, commits, dict(contributors), _read_dependencies(path), workflows, codeowners, release_files)

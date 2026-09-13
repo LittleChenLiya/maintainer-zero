@@ -55,7 +55,7 @@ steps:
 
 ## Setup for a repository
 
-The repository now includes a reusable composite Action at its root. After a reviewed release is tagged, a consuming repository can call it from a pinned ref after checkout. On success it also exposes `artifact-manifest`, an absolute path to the local integrity manifest; verify it offline with `maintainer-zero verify-manifest` before sharing artifacts:
+The repository now includes a reusable composite Action at its root. After a reviewed release is tagged, a consuming repository can call it from a pinned ref after checkout. On success it exposes `artifact-manifest` and `integrity-credential`, absolute paths to local integrity artifacts; verify them offline with `maintainer-zero verify-manifest` and `maintainer-zero verify-credential` before sharing artifacts:
 
 ```yaml
 - uses: actions/checkout@v4

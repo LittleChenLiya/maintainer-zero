@@ -119,6 +119,12 @@ The manifest uses relative paths, rejects links and special files, and excludes 
 proves local artifact integrity only; it is not a digital signature and does not prove provenance.
 No artifact is uploaded by this command.
 
+Simulations also write `.continuity/continuity-credential.json`, an offline-verifiable envelope
+that binds `continuity.json` to the manifest and records a deterministic SHA-256 content digest.
+Use `maintainer-zero verify-credential .continuity/continuity-credential.json` to check it,
+or create one for existing files with `maintainer-zero create-credential REPORT MANIFEST`.
+This is explicitly not a digital signature and does not establish source, identity, or authority.
+
 ## What it inspects
 
 - Git commit authors (via `git log`)

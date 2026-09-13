@@ -49,3 +49,13 @@ def test_validate_benchmark_parser_is_read_only():
     args = _build_parser().parse_args(["validate-benchmark", "benchmark.json", "--format", "json"])
     assert args.command == "validate-benchmark"
     assert args.benchmark_validate_format == "json"
+
+def test_verify_credential_parser_is_read_only():
+    args = _build_parser().parse_args(["verify-credential", "credential.json", "--format", "json"])
+    assert args.command == "verify-credential"
+    assert args.credential_format == "json"
+
+def test_create_credential_parser_accepts_report_manifest_and_output():
+    args = _build_parser().parse_args(["create-credential", "report.json", "manifest.json", "--output", "credential.json"])
+    assert args.command == "create-credential"
+    assert args.output == "credential.json"

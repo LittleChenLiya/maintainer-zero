@@ -46,6 +46,7 @@ jobs:
           MZ_REPORT_HTML: ${{ steps.drill.outputs['report-html'] }}
           MZ_RECOVERY_DIR: ${{ steps.drill.outputs['recovery-directory'] }}
           MZ_MANIFEST: ${{ steps.drill.outputs['artifact-manifest'] }}
+          MZ_CREDENTIAL: ${{ steps.drill.outputs['integrity-credential'] }}
         run: |
           test -d "$MZ_REPORT_DIR"
           test -f "$MZ_REPORT_JSON"
@@ -54,6 +55,8 @@ jobs:
           test -d "$MZ_RECOVERY_DIR"
           test -f "$MZ_MANIFEST"
           python -m maintainer_zero verify-manifest "$MZ_MANIFEST"
+          test -f "$MZ_CREDENTIAL"
+          python -m maintainer_zero verify-credential "$MZ_CREDENTIAL"
       - name: Verify Action outputs (Windows)
         if: success() && runner.os == 'Windows'
         shell: pwsh
@@ -64,14 +67,16 @@ jobs:
           MZ_REPORT_HTML: ${{ steps.drill.outputs['report-html'] }}
           MZ_RECOVERY_DIR: ${{ steps.drill.outputs['recovery-directory'] }}
           MZ_MANIFEST: ${{ steps.drill.outputs['artifact-manifest'] }}
+          MZ_CREDENTIAL: ${{ steps.drill.outputs['integrity-credential'] }}
         run: |
-          $files = @($env:MZ_REPORT_JSON, $env:MZ_REPORT_MARKDOWN, $env:MZ_REPORT_HTML, $env:MZ_MANIFEST)
+          $files = @($env:MZ_REPORT_JSON, $env:MZ_REPORT_MARKDOWN, $env:MZ_REPORT_HTML, $env:MZ_MANIFEST, $env:MZ_CREDENTIAL)
           if (-not (Test-Path -LiteralPath $env:MZ_REPORT_DIR -PathType Container)) { throw "report directory output is missing" }
           if (-not (Test-Path -LiteralPath $env:MZ_RECOVERY_DIR -PathType Container)) { throw "recovery directory output is missing" }
           foreach ($file in $files) {
             if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "file output is missing: $file" }
           }
           python -m maintainer_zero verify-manifest $env:MZ_MANIFEST
+          python -m maintainer_zero verify-credential $env:MZ_CREDENTIAL
       - name: Publish job summary (Unix)
         if: always() && runner.os != 'Windows'
         shell: bash
@@ -99,6 +104,7 @@ jobs:
             .continuity/report.md
             .continuity/report.html
             .continuity/artifact-manifest.json
+            .continuity/continuity-credential.json
             .continuity/recovery/continuity.sarif
             .continuity/recovery/runbook.md
             .continuity/recovery/CODEOWNERS.draft

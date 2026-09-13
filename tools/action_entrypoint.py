@@ -107,6 +107,7 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
         f"report-html={output / 'report.html'}\n"
         f"recovery-directory={output / 'recovery'}\n"
         f"artifact-manifest={output / 'artifact-manifest.json'}\n"
+        f"integrity-credential={output / 'continuity-credential.json'}\n"
     )
     flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
     nofollow = getattr(os, "O_NOFOLLOW", 0)

@@ -70,6 +70,9 @@ outputs:
   artifact-manifest:
     description: Absolute path to the local artifact integrity manifest
     value: ${{ steps.drill_unix.outputs['artifact-manifest'] || steps.drill_windows.outputs['artifact-manifest'] }}
+  integrity-credential:
+    description: Absolute path to the offline-verifiable integrity credential
+    value: ${{ steps.drill_unix.outputs['integrity-credential'] || steps.drill_windows.outputs['integrity-credential'] }}
 
 runs:
   using: composite

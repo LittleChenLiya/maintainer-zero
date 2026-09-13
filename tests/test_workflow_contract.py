@@ -81,7 +81,7 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     assert "Verify Action outputs (Windows)" in workflow
     assert "python -m maintainer_zero verify-manifest \"$MZ_MANIFEST\"" in workflow
     assert "python -m maintainer_zero verify-manifest $env:MZ_MANIFEST" in workflow
-    for output_name in ("report-directory", "report-json", "report-markdown", "report-html", "recovery-directory", "artifact-manifest"):
+    for output_name in ("report-directory", "report-json", "report-markdown", "report-html", "recovery-directory", "artifact-manifest", "integrity-credential"):
         assert f"steps.drill.outputs['{output_name}']" in workflow
     assert "Publish job summary (Unix)" in workflow
     assert "Publish job summary (Windows)" in workflow
@@ -94,5 +94,7 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     assert "if: always()" in workflow
     assert "if-no-files-found: warn" in workflow
     assert ".continuity/artifact-manifest.json" in workflow
+    assert ".continuity/continuity-credential.json" in workflow
+    assert "verify-credential" in workflow
     for artifact in ("continuity.sarif", "runbook.md", "CODEOWNERS.draft", "issue-drafts.md"):
         assert f".continuity/recovery/{artifact}" in workflow

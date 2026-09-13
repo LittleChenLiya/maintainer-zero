@@ -151,4 +151,7 @@ def test_simulate_writes_manifest_even_when_score_gate_fails(tmp_path: Path):
     output = tmp_path / "output"
     assert main(["simulate", str(repo), "--days", "7", "--output", str(output), "--fail-under", "100"]) == 1
     assert (output / "artifact-manifest.json").exists()
+    assert (output / "continuity-credential.json").exists()
+    from maintainer_zero.credential import verify_credential
+    assert verify_credential(output / "continuity-credential.json")["verified"] is True
     assert verify_manifest(output / "artifact-manifest.json")["verified"] == 7

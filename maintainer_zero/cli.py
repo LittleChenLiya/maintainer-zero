@@ -38,6 +38,7 @@ from .scenario_registry import ScenarioSpecError, load_registry, load_scenario, 
 from .history import HistoryError, append_history, render_trend_markdown
 from .demos import DemoError, load_demo_suite, run_demo_suite
 from .manifest import ManifestError, verify_manifest, write_manifest
+from .credential import CredentialError, create_credential, verify_credential
 from .fallback import FallbackPlanError, load_fallback_plan, summarize_fallback_plan
 from .benchmark import BenchmarkError, build_benchmark, load_benchmark, render_benchmark_text
 from . import __version__
@@ -123,6 +124,13 @@ def _build_parser() -> argparse.ArgumentParser:
     verify = sub.add_parser("verify-manifest", help="verify a local artifact manifest without executing repository code")
     verify.add_argument("path")
     verify.add_argument("--format", choices=("text", "json"), default="text", dest="manifest_format")
+    credential = sub.add_parser("verify-credential", help="verify an offline integrity credential without executing repository code")
+    credential.add_argument("path")
+    credential.add_argument("--format", choices=("text", "json"), default="text", dest="credential_format")
+    create_credential_parser = sub.add_parser("create-credential", help="create an offline integrity credential for an existing report and manifest")
+    create_credential_parser.add_argument("report")
+    create_credential_parser.add_argument("manifest")
+    create_credential_parser.add_argument("--output", default=None, metavar="PATH")
     collect = sub.add_parser("collect-github", help="explicitly collect bounded, read-only GitHub metadata")
     collect.add_argument("repository", metavar="OWNER/REPOSITORY")
     collect.add_argument("--output", default="github-metadata.json", metavar="PATH")
@@ -567,6 +575,25 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"Manifest verified: {summary['verified']} artifact(s)")
         return 0
+    if args.command == "verify-credential":
+        try:
+            summary = verify_credential(args.path)
+        except CredentialError as exc:
+            print(f"error: {exc}")
+            return 2
+        if args.credential_format == "json":
+            print(json.dumps(summary, indent=2, ensure_ascii=False))
+        else:
+            print(f"Credential verified: {summary['report']} + {summary['manifest']}")
+        return 0
+    if args.command == "create-credential":
+        try:
+            path = create_credential(args.report, args.manifest, args.output)
+        except CredentialError as exc:
+            print(f"error: {exc}")
+            return 2
+        print(f"Integrity credential written to {path.resolve()}")
+        return 0
     if args.command in {"demo", "demos"}:
         try:
             suite = load_demo_suite(args.path)
@@ -701,6 +728,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}")
         return 2
     print(f"Artifact manifest: {manifest_path}")
+    try:
+        credential_path = create_credential(
+            Path(args.output) / "continuity.json",
+            manifest_path,
+        )
+    except CredentialError as exc:
+        print(f"error: {exc}")
+        return 2
+    print(f"Integrity credential: {credential_path}")
     if baseline_failed:
         return 1
     if fail_under is not None:

@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- GitLab release records now map the provider-specific `released_at` timestamp to the canonical `published_at` field, with an offline transport/client/cache regression covering projection and sensitive-field removal.
 - Provider header parsing now rejects Unicode or oversized numeric hints safely and preserves a partial/page-limit result when GitLab advertises more pages than the local bound.
 - Provider HTTPS transport now bounds API-base, User-Agent, query component, and encoded query lengths before invoking the opener.
 - Provider pagination now honors bounded GitLab X-Next-Page headers in addition to Link headers, while preserving the fixed page-count limit.

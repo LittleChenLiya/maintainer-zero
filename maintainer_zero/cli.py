@@ -419,7 +419,12 @@ def main(argv: list[str] | None = None) -> int:
             # allow starter configuration to be written outside the target.
             path = _safe_output_directory(args.path)
             config = path / "continuity.json"
-            if not config.exists():
+            # ``Path.exists()`` follows links and returns false for dangling
+            # links.  Validate the target by identity first so an existing
+            # link or special file cannot be silently treated as a preserved
+            # user configuration.
+            _safe_output_file(config)
+            if not os.path.lexists(config):
                 _atomic_write_text(
                     config,
                     json.dumps(

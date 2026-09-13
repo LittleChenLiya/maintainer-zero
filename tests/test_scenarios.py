@@ -180,6 +180,21 @@ def test_init_rejects_symlinked_target_before_writing(tmp_path, capsys):
     assert "cannot write starter config" in capsys.readouterr().out
 
 
+def test_init_rejects_symlinked_config_without_following_existing_file(tmp_path, capsys):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    outside_config = outside / "continuity.json"
+    outside_config.write_text('{"days": 14}', encoding="utf-8")
+    linked_config = tmp_path / "continuity.json"
+    try:
+        linked_config.symlink_to(outside_config)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    assert main(["init", str(tmp_path)]) == 2
+    assert outside_config.read_text(encoding="utf-8") == '{"days": 14}'
+    assert "cannot write starter config" in capsys.readouterr().out
+
+
 def test_init_rejects_reparse_target_without_following_it(tmp_path, monkeypatch, capsys):
     target = tmp_path / "reparse-target"
     target.mkdir()

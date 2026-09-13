@@ -370,6 +370,13 @@ def main(argv: list[str] | None = None) -> int:
             # Validate all user-controlled bounds and URL/identifier policy
             # before constructing a transport (and therefore before any I/O).
             validate_provider_identifier(args.provider, args.identifier)
+            # ``urlsplit`` deliberately strips some C0 controls.  Reject them
+            # explicitly so an injected transport cannot bypass the HTTPS
+            # transport's header/path safety checks.
+            if not isinstance(args.api_base, str) or any(
+                ord(char) < 32 or ord(char) == 127 for char in args.api_base
+            ):
+                raise ProviderHTTPError("api_base must be an https URL without a trailing slash")
             parsed_base = urlsplit(args.api_base)
             if (
                 parsed_base.scheme != "https"
@@ -400,6 +407,14 @@ def main(argv: list[str] | None = None) -> int:
                 api_base=args.api_base,
                 max_response_bytes=args.max_response_bytes,
             )
+            # Check output targets and collisions before collecting.  This
+            # prevents a network request when local destination policy already
+            # guarantees failure, and preserves atomic-output semantics.
+            if args.cache_output and output_path.resolve() == Path(args.cache_output).resolve():
+                raise ValueError("--output and --cache-output must be different files")
+            _safe_output_file(output_path)
+            if args.cache_output:
+                _safe_output_file(args.cache_output)
             transport = ProviderHTTPTransport.from_environment(
                 args.provider,
                 allow_environment=args.allow_environment_token,
@@ -418,8 +433,6 @@ def main(argv: list[str] | None = None) -> int:
                 include_repository=args.include_repository,
                 reviews_pr=args.reviews_pr,
             )
-            if args.cache_output and output_path.resolve() == Path(args.cache_output).resolve():
-                raise ValueError("--output and --cache-output must be different files")
             _atomic_write_text(output_path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
             if args.cache_output:
                 save_metadata_cache(

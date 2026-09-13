@@ -198,6 +198,69 @@ def test_collect_provider_rejects_unsafe_api_base_without_output(
     assert not output.exists()
 
 
+def test_collect_provider_rejects_control_character_api_base_before_transport(
+    tmp_path, monkeypatch
+):
+    called = False
+
+    class UnexpectedTransport:
+        @classmethod
+        def from_environment(cls, *args, **kwargs):
+            nonlocal called
+            called = True
+            raise AssertionError("unsafe API base must fail before transport construction")
+
+    monkeypatch.setattr("maintainer_zero.cli.ProviderHTTPTransport", UnexpectedTransport)
+    output = tmp_path / "metadata.json"
+    assert main(
+        [
+            "collect-provider",
+            "forgejo",
+            "acme/demo",
+            "--api-base",
+            "https://forgejo.example/\x1f",
+            "--allow-network",
+            "--output",
+            str(output),
+        ]
+    ) == 2
+    assert called is False
+    assert not output.exists()
+
+
+def test_collect_provider_rejects_unsafe_output_before_transport(tmp_path, monkeypatch):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    called = False
+
+    class UnexpectedTransport:
+        @classmethod
+        def from_environment(cls, *args, **kwargs):
+            nonlocal called
+            called = True
+            raise AssertionError("unsafe output must fail before transport construction")
+
+    monkeypatch.setattr("maintainer_zero.cli.ProviderHTTPTransport", UnexpectedTransport)
+    assert main(
+        [
+            "collect-provider",
+            "gitlab",
+            "42",
+            "--api-base",
+            "https://gitlab.example",
+            "--allow-network",
+            "--output",
+            str(linked / "metadata.json"),
+        ]
+    ) == 2
+    assert called is False
+
+
 def test_collect_provider_rejects_output_cache_collision(tmp_path, monkeypatch):
     class FakeTransport:
         @classmethod

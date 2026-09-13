@@ -136,7 +136,7 @@ def verify(root: Path, output: Path) -> None:
     else:
         wheelhouse.mkdir()
         _safe_existing_directory(wheelhouse, "release artifact directory")
-    run([sys.executable, "-m", "pip", "wheel", str(root), "--no-deps", "--no-build-isolation", "--wheel-dir", str(wheelhouse)])
+    run([sys.executable, "-m", "pip", "wheel", str(root), "--no-deps", "--no-index", "--no-build-isolation", "--wheel-dir", str(wheelhouse)])
     build_sdist = "import setuptools.build_meta as b; b.build_sdist(%r)" % str(wheelhouse)
     run([sys.executable, "-c", build_sdist], cwd=root)
     archives = _safe_release_archives(wheelhouse)
@@ -146,7 +146,7 @@ def verify(root: Path, output: Path) -> None:
         # below the caller-selected output directory.
         with tempfile.TemporaryDirectory(prefix="install-", dir=output) as target:
             staged_archive = _stage_release_archive(archive, Path(target))
-            run([sys.executable, "-m", "pip", "install", "--no-deps", "--no-build-isolation", "--target", target, str(staged_archive)])
+            run([sys.executable, "-m", "pip", "install", "--no-deps", "--no-index", "--no-build-isolation", "--target", target, str(staged_archive)])
             env = os.environ.copy(); env["PYTHONPATH"] = target
             probe = "from pathlib import Path; import maintainer_zero; p=Path(maintainer_zero.__file__).resolve(); assert p.is_relative_to(Path(r'%s').resolve()); print(p)" % target
             run([sys.executable, "-c", probe], cwd=output, env=env)

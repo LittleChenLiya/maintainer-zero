@@ -63,6 +63,39 @@ def test_report_evidence_is_structured_and_sanitized(tmp_path):
     assert "secret-value" not in rendered
     assert "[REDACTED]" in rendered
 
+
+def test_report_metadata_evidence_does_not_bypass_secret_redaction(tmp_path):
+    """The derived evidence sidecar must obey the same secret boundary."""
+    summary = {
+        "source": "github-metadata",
+        "read_only": True,
+        "permissions": {"issues": True},
+        "fields": {"issues": "token=sidecar-secret"},
+        "unknown": [],
+    }
+    outputs = tmp_path / "metadata-evidence"
+    write_report(outputs, RepoSnapshot(".", "demo"), [result("safe")], summary)
+    rendered = "\n".join(path.read_text(encoding="utf-8") for path in outputs.iterdir())
+    assert "sidecar-secret" not in rendered
+    assert rendered.count("[REDACTED]") >= 2
+
+
+def test_report_escapes_markdown_image_and_link_syntax_in_values(tmp_path):
+    """Repository-controlled report values cannot trigger remote Markdown loads."""
+    malicious = "![tracking](https://example.invalid/pixel) [click](https://example.invalid)"
+    drill = DrillResult(
+        malicious, 50, "low", [], {malicious: malicious},
+        [Finding("high", malicious, "safe", "safe", malicious)],
+        [{"day": 0, "event": malicious, "impact": malicious}],
+        [Evidence("fixture", malicious, malicious, malicious)],
+    )
+    outputs = tmp_path / "markdown-boundary"
+    write_report(outputs, RepoSnapshot(".", malicious), [drill])
+    markdown = (outputs / "report.md").read_text(encoding="utf-8")
+    assert "![tracking](https://example.invalid/pixel)" not in markdown
+    assert "[click](https://example.invalid)" not in markdown
+    assert "\\!\\[tracking\\]\\(https://example.invalid/pixel\\)" in markdown
+
 def test_report_write_failure_keeps_existing_artifact_intact(tmp_path, monkeypatch):
     import maintainer_zero.report as report_module
     outputs = tmp_path / "out"

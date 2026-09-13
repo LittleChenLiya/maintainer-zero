@@ -168,6 +168,82 @@ def test_cli_history_rejects_replaced_report_before_appending(tmp_path: Path):
     assert not history.exists()
 
 
+@pytest.mark.parametrize(
+    "history_name",
+    [
+        "continuity.json",
+        "history-summary.json",
+        "history-summary.md",
+        "artifact-manifest.json",
+        "continuity-credential.json",
+        "recovery/runbook.md",
+    ],
+)
+def test_cli_rejects_history_path_colliding_with_generated_artifact(
+    tmp_path: Path, history_name: str
+):
+    """Preflight collisions before report generation or history mutation."""
+    repo = _git_fixture(tmp_path)
+    output = tmp_path / "collision-output"
+    history = output / history_name
+
+    assert main(
+        [
+            "simulate",
+            str(repo),
+            "--days",
+            "7",
+            "--output",
+            str(output),
+            "--history",
+            str(history),
+        ]
+    ) == 2
+    assert not output.exists()
+
+
+def test_cli_rejects_recovery_directory_nested_under_generated_file(
+    tmp_path: Path,
+):
+    repo = _git_fixture(tmp_path)
+    output = tmp_path / "collision-output"
+
+    assert main(
+        [
+            "simulate",
+            str(repo),
+            "--days",
+            "7",
+            "--output",
+            str(output),
+            "--recovery-output",
+            str(output / "continuity.json"),
+        ]
+    ) == 2
+    assert not output.exists()
+
+
+def test_cli_rejects_history_directory_containing_generated_artifact(
+    tmp_path: Path,
+):
+    repo = _git_fixture(tmp_path)
+    output = tmp_path / "collision-output"
+
+    assert main(
+        [
+            "simulate",
+            str(repo),
+            "--days",
+            "7",
+            "--output",
+            str(output),
+            "--history",
+            str(output / "recovery"),
+        ]
+    ) == 2
+    assert not output.exists()
+
+
 def test_cli_fallback_plan_is_reported_as_unexecuted_declaration(tmp_path: Path):
     repo = _git_fixture(tmp_path)
     plan = tmp_path / "fallback.json"

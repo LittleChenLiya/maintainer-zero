@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Simulation output preflight now rejects lexical collisions between history or
+  custom recovery destinations and generated report artifacts before analyzing
+  the repository. GitHub/provider output-cache collision checks no longer follow
+  filesystem links, and mandatory manifest artifacts are not silently dropped
+  after a concurrent deletion.
+
+- Report metadata evidence now shares the report redaction and Markdown escaping
+  boundary, including URL credentials and common provider token shapes.
+
 - Repository snapshots now require local directory-based Git metadata and
   capture `HEAD` plus the advertised ref set before and after analysis. Linked
   worktrees are rejected, and a branch/ref movement during collection fails

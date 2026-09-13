@@ -172,6 +172,86 @@ def _safe_output_directory(path: str | Path) -> Path:
             raise ValueError(f"output path is not a directory: {current}")
     return target
 
+
+def _lexical_absolute_path(path: str | Path) -> Path:
+    """Normalize a user path without resolving symlinks or reparse points."""
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
+    return Path(os.path.normpath(os.fspath(target)))
+
+
+def _same_or_nested_path(parent: Path, candidate: Path) -> bool:
+    """Compare lexical paths while respecting platform case rules."""
+    parent_text = os.path.normcase(os.path.normpath(os.fspath(parent)))
+    candidate_text = os.path.normcase(os.path.normpath(os.fspath(candidate)))
+    try:
+        return os.path.commonpath((parent_text, candidate_text)) == parent_text
+    except ValueError:
+        # Different Windows drives (or malformed mixed path flavors) cannot
+        # overlap, and must not make a preflight check fail open.
+        return False
+
+
+def _validate_simulation_output_paths(args: argparse.Namespace) -> None:
+    """Reject output-path collisions before simulation mutates any artifact.
+
+    ``simulate`` writes a fixed set of report, recovery, manifest, and
+    credential files.  A caller-controlled history path must remain free to
+    live alongside those files (for example ``.continuity/history.json``),
+    but must never alias one of them.  Recovery output may be customized, so
+    also reject a recovery directory that would be nested below a path the
+    report generation is about to replace.
+    """
+    output_root = _lexical_absolute_path(args.output)
+    recovery_root = _lexical_absolute_path(
+        args.recovery_output if args.recovery_output else output_root / "recovery"
+    )
+    output_files = [
+        output_root / "continuity.json",
+        output_root / "report.md",
+        output_root / "report.html",
+        output_root / "artifact-manifest.json",
+        output_root / "continuity-credential.json",
+    ]
+    if args.history:
+        output_files.extend((output_root / "history-summary.json", output_root / "history-summary.md"))
+    if args.baseline:
+        output_files.append(output_root / "baseline-comparison.json")
+    recovery_files = [
+        recovery_root / "runbook.md",
+        recovery_root / "CODEOWNERS.draft",
+        recovery_root / "issue-drafts.md",
+        recovery_root / "continuity.sarif",
+    ]
+
+    # A recovery root cannot be a file that report/manifest/credential output
+    # will replace, nor a descendant of one (e.g. OUTPUT/continuity.json/x).
+    # The latter matters when the named artifact does not exist yet: creating
+    # the nested recovery directory would otherwise fail only after reports
+    # have already replaced older output.
+    for target in output_files:
+        if _same_or_nested_path(target, recovery_root):
+            raise ValueError("recovery output collides with a generated artifact path")
+
+    if args.history:
+        history_path = _lexical_absolute_path(args.history)
+        if history_path == output_root:
+            raise ValueError("history output collides with the report output directory")
+        if history_path == recovery_root:
+            raise ValueError("history output collides with the recovery output directory")
+        for target in output_files + recovery_files:
+            if _same_or_nested_path(target, history_path) or _same_or_nested_path(history_path, target):
+                raise ValueError("history output collides with a generated artifact path")
+
+
+def _output_paths_collide(left: str | Path, right: str | Path) -> bool:
+    """Compare destinations lexically without following filesystem links."""
+    def lexical(value: str | Path) -> str:
+        return os.path.normcase(os.path.normpath(os.path.abspath(os.fspath(value))))
+
+    return lexical(left) == lexical(right)
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="maintainer-zero", description="Chaos engineering drills for open-source continuity")
     parser.add_argument(
@@ -458,7 +538,7 @@ def main(argv: list[str] | None = None) -> int:
             _safe_output_file(output_path)
             if args.cache_output:
                 _safe_output_file(args.cache_output)
-            if args.cache_output and output_path.resolve() == Path(args.cache_output).resolve():
+            if args.cache_output and _output_paths_collide(output_path, args.cache_output):
                 raise ValueError("--output and --cache-output must be different files")
         except (OSError, ValueError) as exc:
             print(f"error: {exc}")
@@ -484,7 +564,7 @@ def main(argv: list[str] | None = None) -> int:
                 reviews_pr=args.reviews_pr,
                 include_repository=args.include_repository,
             )
-            if args.cache_output and output_path.resolve() == Path(args.cache_output).resolve():
+            if args.cache_output and _output_paths_collide(output_path, args.cache_output):
                 raise ValueError("--output and --cache-output must be different files")
             _atomic_write_text(output_path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
             if args.cache_output:
@@ -552,7 +632,7 @@ def main(argv: list[str] | None = None) -> int:
             # Check output targets and collisions before collecting.  This
             # prevents a network request when local destination policy already
             # guarantees failure, and preserves atomic-output semantics.
-            if args.cache_output and output_path.resolve() == Path(args.cache_output).resolve():
+            if args.cache_output and _output_paths_collide(output_path, args.cache_output):
                 raise ValueError("--output and --cache-output must be different files")
             _safe_output_file(output_path)
             if args.cache_output:
@@ -757,6 +837,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         return 0
     try:
+        _validate_simulation_output_paths(args)
         repo = snapshot_repository(args.path)
         config = _load_config(Path(args.path).resolve())
         # Load the baseline before writing the new report.  This is important
@@ -848,7 +929,13 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.output) / "history-summary.md",
         Path(args.output) / "baseline-comparison.json",
     ]
-    manifest_artifacts = [path for path in manifest_artifacts if path.exists()]
+    # The core report/recovery artifacts are mandatory: never drop one merely
+    # because a concurrent deletion made ``exists()`` false. Optional trend
+    # sidecars are included only when present, while dangling links and special
+    # files remain in the candidate set so ``write_manifest`` rejects them.
+    mandatory_artifacts = manifest_artifacts[:7]
+    optional_artifacts = [path for path in manifest_artifacts[7:] if os.path.lexists(path)]
+    manifest_artifacts = mandatory_artifacts + optional_artifacts
     try:
         manifest_path = write_manifest(Path(args.output), manifest_artifacts)
     except ManifestError as exc:

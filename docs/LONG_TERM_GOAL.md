@@ -1,5 +1,7 @@
 # 长期目标：将 Maintainer-Zero 做成可信、可复用的开源连续性演练工具
 
+- 2026-09-13：模拟入口在分析前预检 history 与自定义 recovery 输出的词法冲突，避免输出文件互相覆盖；GitHub/provider 的 output/cache 比较不再跟随链接，manifest 核心工件缺失时不再静默降级；报告派生 metadata evidence 复用凭证脱敏与 Markdown 转义边界。
+
 - 2026-09-13：收紧 composite Action 的输入路径边界：workspace、仓库、输出、baseline、metadata、history、fallback plan 与 runner 临时目录现在使用不跟随链接的词法绝对路径，并逐组件拒绝符号链接、junction/reparse point 和非目录父级；新增 workspace/runner-temp 链接负例。
 
 - 2026-09-13：本地 Git 分析现在要求 checkout 内的目录型 `.git` 元数据，拒绝 linked worktree 的 `.git` 文件；并在 Git 历史采集前后比较 `HEAD` 与完整 refs 摘要，分支或 ref 在分析期间变化时 fail-closed，避免把不同历史状态拼成一个快照。

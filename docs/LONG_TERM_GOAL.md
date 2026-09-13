@@ -1,5 +1,7 @@
 # 长期目标：将 Maintainer-Zero 做成可信、可复用的开源连续性演练工具
 
+- 2026-09-13：收紧 composite Action 的输入路径边界：workspace、仓库、输出、baseline、metadata、history、fallback plan 与 runner 临时目录现在使用不跟随链接的词法绝对路径，并逐组件拒绝符号链接、junction/reparse point 和非目录父级；新增 workspace/runner-temp 链接负例。
+
 ## 总目标
 
 把 `D:\maintainer-zero` 从本地启发式 MVP 推进到可用于真实 GitHub 仓库的连续性灾难演练平台。每个阶段必须交付可运行代码、自动化测试、可解释报告、明确的隐私边界和文档，并在本地 Git 中形成独立提交。
@@ -17,6 +19,8 @@
 2026-09-13：发布验证的 wheel 与 sdist 现在统一从同一个无链接源码快照构建，避免构建后端直接执行 live checkout；这仍是本地隔离烟测，不替代真实 CI runner 或签名发布。
 
 2026-09-13：发布验证的源码快照现在逐级拒绝链接/reparse/special checkout 路径；目录枚举后复核身份与修改时间，普通文件通过 `O_NOFOLLOW` 描述符复制并在替换前后复核，避免并发变化将隔离构建重定向到 checkout 外。该保护仍不替代真实 GitHub runner 或签名验证。
+
+2026-09-13：发布安装烟测的完整 `simulate` 现在针对每个临时安装目录内新建的空 Git 仓库执行，不再把 live checkout 作为已构建发行版的输入，避免源码快照完成后再次打开可变工作树。
 
 2026-09-13：源码快照复制还保留主机可表达的普通文件权限位，避免隔离构建让可执行打包脚本静默失去执行属性；Windows 仍受其文件权限语义限制。
 

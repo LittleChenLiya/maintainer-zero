@@ -79,6 +79,18 @@ def test_action_adapter_requires_runner_output_to_be_absolute_and_in_runner_temp
         })
 
 
+def test_action_adapter_normalizes_dotdot_before_runner_temp_boundary(tmp_path):
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    outside = tmp_path / "outside-output"
+    with pytest.raises(ValueError, match="inside RUNNER_TEMP"):
+        _write_outputs({
+            "MZ_INPUT_OUTPUT": str(tmp_path / "reports"),
+            "GITHUB_OUTPUT": str(runner_temp / "nested" / ".." / ".." / outside.name),
+            "RUNNER_TEMP": str(runner_temp),
+        })
+
+
 def test_action_adapter_rejects_symlinked_github_output(tmp_path):
     target = tmp_path / "target"
     target.write_text("existing\n", encoding="utf-8")
@@ -188,6 +200,49 @@ def test_action_adapter_bounds_baseline_and_metadata_to_workspace(tmp_path):
     for key in ("MZ_INPUT_BASELINE", "MZ_INPUT_METADATA"):
         with pytest.raises(ValueError, match="inside the GitHub workspace"):
             build_argv({"MZ_INPUT_WORKSPACE": str(workspace), "MZ_INPUT_PATH": str(workspace), "MZ_INPUT_OUTPUT": str(workspace / "reports"), key: str(workspace.parent / "outside.json")})
+
+
+def test_action_adapter_rejects_linked_workspace_components(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    target = tmp_path / "target"
+    target.mkdir()
+    linked = workspace / "linked"
+    try:
+        linked.symlink_to(target, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="symbolic link or reparse point"):
+        build_argv({
+            "MZ_INPUT_WORKSPACE": str(workspace),
+            "MZ_INPUT_PATH": str(linked),
+            "MZ_INPUT_OUTPUT": str(workspace / "reports"),
+        })
+
+
+def test_action_adapter_rejects_symlinked_workspace_and_runner_temp(tmp_path):
+    real_workspace = tmp_path / "workspace"
+    real_workspace.mkdir()
+    linked_workspace = tmp_path / "workspace-link"
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    linked_temp = tmp_path / "runner-temp-link"
+    try:
+        linked_workspace.symlink_to(real_workspace, target_is_directory=True)
+        linked_temp.symlink_to(runner_temp, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="symbolic link or reparse point"):
+        build_argv({
+            "MZ_INPUT_WORKSPACE": str(linked_workspace),
+            "MZ_INPUT_PATH": str(real_workspace),
+        })
+    with pytest.raises(ValueError, match="symbolic link or reparse point"):
+        _write_outputs({
+            "MZ_INPUT_OUTPUT": str(real_workspace / "reports"),
+            "GITHUB_OUTPUT": str(runner_temp / "github-output"),
+            "RUNNER_TEMP": str(linked_temp),
+        })
 
 
 def test_action_adapter_passes_fallback_plan_as_one_workspace_argv(tmp_path):

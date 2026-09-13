@@ -20,26 +20,69 @@ def _is_link_like(info: os.stat_result) -> bool:
     return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
 
 
+def _absolute_path(value: str | Path) -> Path:
+    """Normalize a path lexically without resolving symlinks or reparse points."""
+    return Path(os.path.abspath(os.fspath(value)))
+
+
+def _validate_path_components(
+    value: str | Path,
+    label: str,
+    *,
+    require_existing: bool = False,
+    require_directory: bool = False,
+) -> Path:
+    """Reject linked path components before any Action path is consumed."""
+    target = _absolute_path(value)
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    missing = False
+    last_info: os.stat_result | None = None
+    for index, part in enumerate(parts):
+        current /= part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            missing = True
+            if require_existing:
+                raise ValueError(f"{label} does not exist")
+            break
+        except OSError as exc:
+            raise ValueError(f"{label} path could not be inspected") from exc
+        if _is_link_like(info):
+            raise ValueError(f"{label} path may not contain a symbolic link or reparse point")
+        if index < len(parts) - 1 and not stat.S_ISDIR(info.st_mode):
+            raise ValueError(f"{label} parent path is not a directory")
+        last_info = info
+    if require_directory and (missing or last_info is None or not stat.S_ISDIR(last_info.st_mode)):
+        raise ValueError(f"{label} must be an existing directory")
+    return target
+
+
 def _validate_environment(env: dict[str, str]) -> None:
     """Reject control characters and workspace escapes in Action inputs."""
     for key in _PATH_INPUTS:
         if any(char in _CONTROL_CHARS for char in env.get(key, "")):
             raise ValueError(f"{key} contains control characters")
     workspace = env.get("MZ_INPUT_WORKSPACE", "").strip()
-    if not workspace:
-        return
-    workspace_path = Path(workspace).resolve()
+    workspace_path = None
+    if workspace:
+        workspace_path = _validate_path_components(
+            workspace, "MZ_INPUT_WORKSPACE", require_existing=True, require_directory=True
+        )
     for key in _PATH_INPUTS:
         value = env.get(key, "")
         if not value:
             continue
         candidate = Path(value)
-        if not candidate.is_absolute():
+        if workspace_path is not None and not candidate.is_absolute():
             candidate = workspace_path / candidate
-        try:
-            candidate.resolve().relative_to(workspace_path)
-        except ValueError as exc:
-            raise ValueError(f"{key} must remain inside the GitHub workspace") from exc
+        candidate = _validate_path_components(candidate, key)
+        if workspace_path is not None:
+            try:
+                candidate.relative_to(workspace_path)
+            except ValueError as exc:
+                raise ValueError(f"{key} must remain inside the GitHub workspace") from exc
 
 
 def _truthy(value: str) -> bool:
@@ -64,7 +107,7 @@ def build_argv(environ: dict[str, str] | None = None) -> list[str]:
 def _write_outputs(environ: dict[str, str] | None = None) -> None:
     env = os.environ if environ is None else environ
     _validate_environment(env)
-    output = Path(env.get("MZ_INPUT_OUTPUT", ".continuity")).resolve()
+    output = _validate_path_components(env.get("MZ_INPUT_OUTPUT", ".continuity"), "MZ_INPUT_OUTPUT")
     output_file_value = env.get("GITHUB_OUTPUT")
     if not output_file_value:
         return
@@ -73,13 +116,16 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
     output_file = Path(output_file_value)
     if not output_file.is_absolute():
         raise ValueError("GITHUB_OUTPUT must be an absolute path")
+    output_file = _absolute_path(output_file)
     runner_temp = env.get("RUNNER_TEMP", "")
     if runner_temp:
         if any(char in _CONTROL_CHARS for char in runner_temp):
             raise ValueError("RUNNER_TEMP contains control characters")
-        runner_temp_path = Path(runner_temp).resolve()
+        runner_temp_path = _validate_path_components(
+            runner_temp, "RUNNER_TEMP", require_existing=True, require_directory=True
+        )
         try:
-            output_file.resolve().relative_to(runner_temp_path)
+            output_file.relative_to(runner_temp_path)
         except ValueError as exc:
             raise ValueError("GITHUB_OUTPUT must remain inside RUNNER_TEMP") from exc
     current = Path(output_file.anchor) if output_file.anchor else Path()

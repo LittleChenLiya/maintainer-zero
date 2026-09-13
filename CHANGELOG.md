@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Release install smoke drills now use a disposable empty Git repository
+  created inside the per-install temporary directory, so post-build checks do
+  not reopen the mutable live checkout after the isolated source snapshot.
+
+- Composite Action path validation now normalizes inputs lexically and inspects
+  every existing workspace, repository, output, baseline, metadata, history,
+  fallback-plan, and runner-temp component without resolving links; linked or
+  reparse-point components fail closed before the adapter hands paths to the
+  CLI.
+
 - Repository declaration paths now walk parent components with `lstat` and,
   where `dir_fd` is available, open them through stable directory descriptors;
   linked parents are ignored and a concurrent parent replacement cannot

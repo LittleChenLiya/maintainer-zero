@@ -237,6 +237,16 @@ def test_action_adapter_rejects_symlink_before_dotdot_component(tmp_path):
         })
 
 
+def test_action_adapter_rejects_lexical_dotdot_escape_after_missing_component(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    with pytest.raises(ValueError, match="inside the GitHub workspace"):
+        build_argv({
+            "MZ_INPUT_WORKSPACE": str(workspace),
+            "MZ_INPUT_PATH": str(workspace / "missing" / ".." / ".." / "outside"),
+        })
+
+
 def test_action_adapter_rejects_symlinked_workspace_and_runner_temp(tmp_path):
     real_workspace = tmp_path / "workspace"
     real_workspace.mkdir()

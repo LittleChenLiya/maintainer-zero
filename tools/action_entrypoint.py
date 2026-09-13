@@ -81,6 +81,7 @@ def _validate_environment(env: dict[str, str]) -> None:
         workspace_path = _validate_path_components(
             workspace, "MZ_INPUT_WORKSPACE", require_existing=True, require_directory=True
         )
+        workspace_path = Path(os.path.normpath(os.fspath(workspace_path)))
     for key in _PATH_INPUTS:
         value = env.get(key, "")
         if not value:
@@ -90,6 +91,7 @@ def _validate_environment(env: dict[str, str]) -> None:
             candidate = workspace_path / candidate
         candidate = _validate_path_components(candidate, key)
         if workspace_path is not None:
+            candidate = Path(os.path.normpath(os.fspath(candidate)))
             try:
                 candidate.relative_to(workspace_path)
             except ValueError as exc:
@@ -137,7 +139,7 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
             runner_temp, "RUNNER_TEMP", require_existing=True, require_directory=True
         )
         try:
-            output_file.relative_to(runner_temp_path)
+            output_file.relative_to(Path(os.path.normpath(os.fspath(runner_temp_path))))
         except ValueError as exc:
             raise ValueError("GITHUB_OUTPUT must remain inside RUNNER_TEMP") from exc
     current = Path(output_file.anchor) if output_file.anchor else Path()

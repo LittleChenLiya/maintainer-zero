@@ -91,3 +91,27 @@ def test_demo_cli_rejects_symlinked_output_parent(tmp_path, monkeypatch, capsys)
         pytest.skip("symlink creation unavailable")
     assert main(["demo", str(DEMO_PATH), "--format", "json", "--output", str(linked / "demo.json")]) == 2
     assert "cannot write demo output" in capsys.readouterr().out
+
+
+def test_demo_loader_rejects_ambiguous_json_and_replaced_file(tmp_path, monkeypatch):
+    path = tmp_path / "demo.json"
+    path.write_text('{"schema_version": 1, "schema_version": 1, "demos": []}', encoding="utf-8")
+    with pytest.raises(DemoError, match="duplicate object key"):
+        load_demo_suite(path)
+    path.write_text('{"schema_version": 1, "demos": []}', encoding="utf-8")
+    original_lstat = Path.lstat
+    calls = 0
+
+    def fake_lstat(value, *args, **kwargs):
+        nonlocal calls
+        info = original_lstat(value, *args, **kwargs)
+        if value == path:
+            calls += 1
+            if calls == 2:
+                path.write_text('{"schema_version": 1, "demos": []}', encoding="utf-8")
+                info = original_lstat(value, *args, **kwargs)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(DemoError, match="changed during reading"):
+        load_demo_suite(path)

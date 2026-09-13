@@ -57,6 +57,16 @@ def test_plan_rejects_descriptor_redirect_before_parsing(tmp_path: Path, monkeyp
         load_fallback_plan(path)
 
 
+def test_plan_rejects_ambiguous_json_and_nonstandard_numbers(tmp_path: Path):
+    path = tmp_path / "fallback.json"
+    _write(path, '{"schema_version":1,"schema_version":1,"dependencies":[]}')
+    with pytest.raises(FallbackPlanError, match="duplicate object key"):
+        load_fallback_plan(path)
+    _write(path, '{"schema_version":1,"dependencies":[],"marker":NaN}')
+    with pytest.raises(FallbackPlanError, match="non-standard JSON number"):
+        load_fallback_plan(path)
+
+
 def test_validate_fallback_plan_command_is_read_only_and_supports_json(tmp_path: Path, capsys):
     path = tmp_path / "fallback.json"
     _write(path, "{\"schema_version\":1,\"dependencies\":[]}")

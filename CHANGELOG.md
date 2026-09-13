@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Continuity history reads now reject duplicate JSON keys and non-standard
+  numbers, enforce the existing size bound before parsing, and recheck file
+  identity, size, and mtime after descriptor reads so trend evidence fails
+  closed if the history file is replaced during loading.
+
+- Data-only demo suites and dependency fallback plans now reject ambiguous
+  duplicate JSON keys and non-standard numbers; external demo files use the
+  same bounded descriptor, link/special-file, and replacement-race checks as
+  other local input artifacts, while fallback reads recheck mtime as well.
+
 - `simulate --history` now reloads the generated report through the bounded
   report validator before appending trend history, so a report replaced by a
   link, special file, oversized payload, or concurrent rewrite cannot bypass

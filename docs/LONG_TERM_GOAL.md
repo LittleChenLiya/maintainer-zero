@@ -15,8 +15,16 @@
 清单 JSON 的重复键和非标准数值会 fail-closed。声明文件超限或在读取期间变化时，演练
 不会把缺失数据误判为低风险。
 
+2026-09-13：同仓库趋势历史读取现在同样拒绝重复 JSON 键与 NaN/Infinity，先执行大小
+上限检查，并在描述符读取后复核文件身份、大小和 mtime；历史文件替换或重写期间会
+fail-closed，避免趋势摘要来自不一致的证据。
+
 2026-09-13：`simulate --history` 追加趋势前改用与 baseline 相同的有界报告加载器，
 避免输出报告在生成后被替换为链接、特殊文件、超限内容或并发重写时绕过输入校验。
+
+2026-09-13：data-only demo 与依赖 fallback 计划的 JSON 读取现在拒绝重复键和
+NaN/Infinity；外部 demo 文件使用有界描述符读取并复核替换竞态，fallback 计划
+额外复核读取后的 mtime，避免声明性证据在加载窗口内被静默替换。
 manifest 校验会在全部工件检查完成后再次确认 manifest 文件身份、大小和修改时间未变化；期间发生替换或重写会 fail-closed。
 当前增量同时附带 `continuity-credential.json`：它以独立 envelope 绑定报告和 manifest 的大小、SHA-256 及组合摘要，支持 `verify-credential` 离线校验。该凭证明确不是数字签名，不证明来源、身份或授权。
 GitHub composite Action 也暴露该 manifest 的绝对路径并将其纳入连续性 workflow artifact；Action 仍只做本地分析，不上传源码或执行 GitHub 写操作。

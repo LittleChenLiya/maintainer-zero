@@ -18,6 +18,19 @@ class FallbackPlanError(ValueError):
     """Raised when a fallback plan is not a bounded data-only document."""
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise FallbackPlanError(f"fallback plan contains duplicate object key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_nonstandard_number(value: str) -> None:
+    raise FallbackPlanError(f"fallback plan contains non-standard JSON number: {value}")
+
+
 def _link_like(info: os.stat_result) -> bool:
     return stat.S_ISLNK(info.st_mode) or bool(
         getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
@@ -69,12 +82,22 @@ def load_fallback_plan(path: str | Path) -> dict[str, object]:
         if len(raw) > MAX_PLAN_BYTES:
             raise FallbackPlanError(f"fallback plan exceeds {MAX_PLAN_BYTES} bytes")
         after = target.lstat()
-        if (after.st_dev, after.st_ino) != (info.st_dev, info.st_ino) or after.st_size != info.st_size:
+        if (
+            _link_like(after)
+            or not stat.S_ISREG(after.st_mode)
+            or (after.st_dev, after.st_ino) != (info.st_dev, info.st_ino)
+            or after.st_size != info.st_size
+            or getattr(after, "st_mtime_ns", None) != getattr(info, "st_mtime_ns", None)
+        ):
             raise FallbackPlanError("fallback plan changed during reading")
-        payload = json.loads(raw.decode("utf-8"))
+        payload = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_object_keys,
+            parse_constant=_reject_nonstandard_number,
+        )
     except FallbackPlanError:
         raise
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
         raise FallbackPlanError("invalid fallback plan JSON") from exc
     if not isinstance(payload, dict) or set(payload) != {"schema_version", "dependencies"}:
         raise FallbackPlanError("fallback plan fields are invalid")

@@ -108,6 +108,9 @@ _FIELD_ALIASES: dict[str, dict[str, dict[str, str]]] = {
         "releases": {
             "id": "id", "draft": "draft", "prerelease": "prerelease",
             "created_at": "created_at", "published_at": "published_at",
+            # GitLab calls this timestamp `released_at`; normalize it to the
+            # provider-neutral `published_at` field.
+            "released_at": "published_at",
         },
     },
     "forgejo": {

@@ -34,7 +34,7 @@ def test_gitlab_transport_client_cache_and_validation_form_one_offline_flow(tmp_
             body = []
         elif path.endswith("/releases"):
             assert query == {"page": ["1"], "per_page": ["25"]}
-            body = []
+            body = [{"id": 3, "released_at": "2026-01-01T00:00:00Z", "name": "private"}]
         else:  # pragma: no cover - the allowlisted client should never reach this
             raise AssertionError(path)
         return type("Response", (), {"status": 200, "headers": {}, "read": lambda self, limit: json.dumps(body).encode()})()
@@ -52,6 +52,7 @@ def test_gitlab_transport_client_cache_and_validation_form_one_offline_flow(tmp_
     assert payload["provider"] == "gitlab"
     assert payload["data"]["repository"] == {"default_branch": "main", "visibility": "public"}
     assert payload["data"]["issues"] == [{"number": 9, "state": "opened"}]
+    assert payload["data"]["releases"] == [{"id": 3, "published_at": "2026-01-01T00:00:00Z"}]
     serialized = json.dumps(payload)
     assert "private" not in serialized
     assert "web_url" not in serialized

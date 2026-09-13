@@ -450,6 +450,19 @@ def main(argv: list[str] | None = None) -> int:
         if not args.allow_network:
             print("error: network collection requires explicit --allow-network")
             return 2
+        output_path = Path(args.output)
+        try:
+            # Validate local destinations before constructing a transport or
+            # making any network request.  An unsafe output path must fail
+            # closed without consuming the explicitly granted read budget.
+            _safe_output_file(output_path)
+            if args.cache_output:
+                _safe_output_file(args.cache_output)
+            if args.cache_output and output_path.resolve() == Path(args.cache_output).resolve():
+                raise ValueError("--output and --cache-output must be different files")
+        except (OSError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 2
         try:
             # Keep the default call shape compatible with injected test/integration
             # transports while propagating an explicitly tighter bound to the
@@ -471,7 +484,6 @@ def main(argv: list[str] | None = None) -> int:
                 reviews_pr=args.reviews_pr,
                 include_repository=args.include_repository,
             )
-            output_path = Path(args.output)
             if args.cache_output and output_path.resolve() == Path(args.cache_output).resolve():
                 raise ValueError("--output and --cache-output must be different files")
             _atomic_write_text(output_path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")

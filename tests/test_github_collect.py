@@ -144,6 +144,32 @@ def test_cli_rejects_symlinked_snapshot_output_parent(tmp_path, monkeypatch):
     assert main(["collect-github", "acme/demo", "--allow-network", "--output", str(linked / "snapshot.json")]) == 2
 
 
+def test_cli_rejects_unsafe_snapshot_output_before_transport(tmp_path, monkeypatch):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    called = False
+
+    class UnexpectedTransport:
+        @classmethod
+        def from_environment(cls, **kwargs):
+            nonlocal called
+            called = True
+            raise AssertionError("unsafe output must fail before transport construction")
+
+    monkeypatch.setattr("maintainer_zero.cli.GitHubHTTPTransport", UnexpectedTransport)
+    result = main([
+        "collect-github", "acme/demo", "--allow-network",
+        "--output", str(linked / "snapshot.json"),
+    ])
+    assert result == 2
+    assert called is False
+
+
 def test_cli_propagates_tighter_response_bound_to_transport_and_client(tmp_path, monkeypatch):
     seen = {}
 

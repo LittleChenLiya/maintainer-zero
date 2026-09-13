@@ -33,6 +33,21 @@ CLI 参数
 
 数据流必须保持单向：采集层不能为获得好看的分数补造事实，报告层不能把未知状态改写成“安全”。GitHub 元数据证据只作为上下文，除非场景明确声明输入契约，否则不参与分数计算。
 
+### Provider 采集链
+
+`collect-provider` 将显式 HTTPS transport、provider-specific client 和 canonical mapper 串成一条可审阅的只读链：
+
+```text
+HTTPS GET (fixed path/query)
+  -> bounded response + header filter
+  -> provider field projection
+  -> canonical metadata validation
+  -> optional local cache envelope
+  -> validate-metadata / simulate context
+```
+
+GitLab 分页使用 `per_page`，Forgejo 使用 `limit`；任何权限、传输、解析或大小失败都保留为 unavailable/unknown。缓存和报告只保存 canonical 标量字段，不保存 owner、URL、正文或 token。
+
 `validate-fallback-plan` 是 fallback 计划的独立只读审阅入口；它与 `simulate --fallback-plan` 共用同一严格 loader，便于在 CI 或代码审查中先验证契约。两条路径都将冷构建状态视为声明，不执行命令、不联网，也不把 `passed` 解释为本地运行证明。
 
 ### 数据契约

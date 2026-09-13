@@ -83,6 +83,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-13：新增 collect-provider CLI，将 GitLab/Forgejo 的注入式客户端与 HTTPS transport 接入可直接运行的命令；网络、HTTPS API base、分页/超时/响应大小和环境 token 均显式 opt-in，输出与 cache 复用原子写入和同一 canonical 校验。真实 provider 访问仍需用户授权，GitLab reviews 保持 unknown。
 - 2026-09-13：修正 provider 分页参数差异：GitLab 使用 per_page，Forgejo 使用 limit，并新增契约测试；避免服务端忽略未知参数后让页大小与 partial 语义失真。
 - 2026-09-13：collect-provider 在构造 transport 前校验 cache TTL（1 至 30 天），非法缓存配置不会触发网络请求或留下半套快照。
+- 2026-09-13：新增离线 provider 采集链回归：fake HTTPS opener → GitLab 字段投影 → canonical 校验 → cache → validate-metadata CLI；验证分页参数、敏感字段剔除和无真实网络连接。
 - 2026-09-12：基线比较新增结果分数 schema 校验与有限数值边界，非法超大整数、NaN/Infinity 及原始范围外小数在读取阶段拒绝；新增 4 项负例并通过专项测试。
 - 2026-09-12：benchmark 导出与 baseline 报告读取新增歧义输入防护：重复 JSON key、非标准数值（NaN/Infinity）和超大整数均 fail-closed；分数先验证原始范围再做确定性舍入，独立文本渲染也校验场景/置信度及 Unicode 控制字符。专项与全量回归通过。
 - 2026-09-12：补齐 composite Action 输出边界的 reparse point 模拟测试，覆盖 `GITHUB_OUTPUT` 父目录与最终文件；路径校验现在有 Unix 符号链接、硬链接和 Windows reparse 负例证据。

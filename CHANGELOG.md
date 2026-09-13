@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- Added an offline provider-flow regression covering HTTPS transport, GitLab projection, canonical validation, cache persistence, and the CLI validator without connecting to a real service.
 - collect-provider now validates cache TTL bounds before constructing a transport, so invalid cache configuration cannot trigger a network request or partial snapshot output.
 - Provider collection now uses each adapter's bounded pagination contract (per_page for GitLab and limit for Forgejo), preventing ignored query parameters from silently changing page sizes.
 - Added explicit collect-provider CLI support for GitLab and Forgejo. The command validates provider identifiers, HTTPS API bases, pagination/timeout/response bounds, and requires --allow-network; environment tokens remain opt-in and outputs/caches use the existing bounded atomic writers.

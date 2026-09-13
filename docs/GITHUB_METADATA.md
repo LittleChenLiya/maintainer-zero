@@ -151,7 +151,7 @@ Forgejo 使用 `FORGEJO_TOKEN`）；transport 不写入快照、不自动重试�
     maintainer-zero collect-provider gitlab 42 --api-base https://gitlab.example --allow-network --output gitlab-metadata.json
     maintainer-zero collect-provider forgejo acme/demo --api-base https://forgejo.example --allow-network --include-repository --output forgejo-metadata.json
 
-collect-provider 复用 ProviderHTTPTransport 与 ReadOnlyProviderClient，只允许 GitLab/Forgejo 固定路径的 HTTPS GET。分页参数按平台契约发送：GitLab 使用 per_page，Forgejo 使用 limit，避免服务端忽略未知参数后悄悄改变页面大小。--allow-network 是必需的；环境变量 token 只有在 --allow-environment-token 下才读取。--reviews-pr 只请求一个明确的 PR，GitLab reviews 暂不映射并保持 unknown。--cache-output 可写入同样受限的本地 cache envelope；cache TTL 必须在 1 到 30 天之间，且在网络请求前校验；输出和 cache 不能是同一个文件，所有写入均使用本地原子替换。该命令没有任何远程写操作或自动重试。
+collect-provider 复用 ProviderHTTPTransport 与 ReadOnlyProviderClient，只允许 GitLab/Forgejo 固定路径的 HTTPS GET。分页参数按平台契约发送：GitLab 使用 per_page 并识别有界的 X-Next-Page，Forgejo 使用 limit 并识别 Link: rel="next"，避免服务端忽略未知参数后悄悄改变页面大小。--allow-network 是必需的；环境变量 token 只有在 --allow-environment-token 下才读取。--reviews-pr 只请求一个明确的 PR，GitLab reviews 暂不映射并保持 unknown。--cache-output 可写入同样受限的本地 cache envelope；cache TTL 必须在 1 到 30 天之间，且在网络请求前校验；输出和 cache 不能是同一个文件，所有写入均使用本地原子替换。该命令没有任何远程写操作或自动重试。
 
 `maintainer_zero.github_client.ReadOnlyGitHubClient` 提供了一个不绑定 HTTP 库的
 传输边界。调用方注入 `fetch(path, params, timeout)`，自行决定认证、代理和网络

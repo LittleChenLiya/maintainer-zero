@@ -117,8 +117,20 @@ def _header(headers: Mapping[str, str] | None, name: str) -> str | None:
     return None
 
 
-def _has_next(headers: Mapping[str, str] | None) -> bool:
-    return bool(re.search(r'<[^>]+>;\s*rel="next"', _header(headers, "link") or "", re.I))
+def _has_next(provider: str, headers: Mapping[str, str] | None, page: int) -> bool:
+    """Return whether a bounded provider response advertises another page."""
+    if re.search(r'<[^>]+>;\s*rel="next"', _header(headers, "link") or "", re.I):
+        return True
+    if provider != "gitlab":
+        return False
+    # GitLab commonly uses X-Next-Page rather than RFC 5988 Link.  Treat only
+    # a short, positive page number after the page just fetched as authoritative
+    # and let the client's max_pages bound the resulting requests.
+    value = (_header(headers, "x-next-page") or "").strip()
+    if not value or len(value) > 2 or not value.isdigit():
+        return False
+    next_page = int(value)
+    return 1 <= next_page <= 50 and next_page > page
 
 
 def _rate_limit_hints(headers: Mapping[str, str] | None) -> tuple[int | None, int | None]:
@@ -251,7 +263,7 @@ class ReadOnlyProviderClient:
                 records.extend(projected[: MAX_COLLECTION_ITEMS - len(records)])
                 return records, _status(True, page, True, "item_limit")
             records.extend(projected)
-            if len(payload) < self.page_size and not _has_next(response.headers):
+            if len(payload) < self.page_size and not _has_next(self.provider, response.headers, page):
                 return records, _status(True, page, False)
         return records, _status(True, self.max_pages, True, "page_limit")
 

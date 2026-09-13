@@ -87,6 +87,22 @@ def test_forgejo_client_uses_forgejo_limit_pagination_parameter():
     assert all("per_page" not in params for params in calls)
 
 
+def test_gitlab_client_honors_x_next_page_when_page_is_short():
+    calls = []
+
+    def fetch(path, params, timeout):
+        calls.append((path, dict(params)))
+        page = int(params["page"])
+        body = [{"iid": page}] if page < 2 else []
+        headers = {"X-Next-Page": "2"} if page == 1 else {}
+        return TransportResponse(200, json.dumps(body), headers)
+
+    payload = ReadOnlyProviderClient("gitlab", fetch, page_size=25).collect("42")
+
+    assert payload["data"]["issues"] == [{"number": 1}]
+    assert [params["page"] for path, params in calls if path.endswith("/issues")] == ["1", "2"]
+
+
 def test_provider_client_rejects_duplicate_or_nested_records_fail_closed():
     duplicate = lambda *_: TransportResponse(200, b'[{"iid":1,"iid":2}]', {})
     payload = ReadOnlyProviderClient("gitlab", duplicate).collect("42")

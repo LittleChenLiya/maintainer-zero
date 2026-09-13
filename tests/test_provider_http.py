@@ -15,7 +15,7 @@ from maintainer_zero.provider_http import (
 
 class FakeResponse:
     status = 200
-    headers = {"Link": '<https://gitlab.example/api/v4/projects/42/issues?page=2>; rel="next"', "X-Secret": "drop"}
+    headers = {"Link": '<https://gitlab.example/api/v4/projects/42/issues?page=2>; rel="next"', "X-Next-Page": "2", "X-Secret": "drop"}
 
     def read(self, limit):
         assert limit > 0
@@ -44,7 +44,8 @@ def test_transport_is_get_only_and_projects_safe_headers():
     assert request.get_header("Private-token") == "secret-token"
     assert timeout == 2.5
     assert response.headers == {
-        "link": '<https://gitlab.example/api/v4/projects/42/issues?page=2>; rel="next"'
+        "link": '<https://gitlab.example/api/v4/projects/42/issues?page=2>; rel="next"',
+        "x-next-page": "2",
     }
     assert "secret-token" not in repr(transport)
     assert "secret-token" not in repr(response)

@@ -214,8 +214,12 @@ class ReadOnlyProviderClient:
     def _collect_array(self, source: str, path: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         records: list[dict[str, Any]] = []
         total_bytes = 0
+        # GitLab uses per_page while Forgejo/Gitea uses limit. Keep the
+        # provider-specific spelling so an ignored parameter cannot silently
+        # change page sizes and invalidate truncation semantics.
+        page_size_key = "per_page" if self.provider == "gitlab" else "limit"
         for page in range(1, self.max_pages + 1):
-            response = self._call(path, {"page": str(page), "per_page": str(self.page_size)})
+            response = self._call(path, {"page": str(page), page_size_key: str(self.page_size)})
             if response is None:
                 return [], _status(False, page - 1, False, "transport_error")
             if response.status_code != 200:

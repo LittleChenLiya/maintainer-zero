@@ -73,6 +73,20 @@ def test_forgejo_client_preserves_rate_limit_hints_and_unknowns():
     assert "issues" in summarize_metadata(payload)["unknown"]
 
 
+def test_forgejo_client_uses_forgejo_limit_pagination_parameter():
+    calls = []
+
+    def fetch(path, params, timeout):
+        calls.append(dict(params))
+        return TransportResponse(200, b"[]", {})
+
+    ReadOnlyProviderClient("forgejo", fetch, page_size=17).collect("acme/demo")
+
+    assert calls
+    assert all(params["limit"] == "17" for params in calls)
+    assert all("per_page" not in params for params in calls)
+
+
 def test_provider_client_rejects_duplicate_or_nested_records_fail_closed():
     duplicate = lambda *_: TransportResponse(200, b'[{"iid":1,"iid":2}]', {})
     payload = ReadOnlyProviderClient("gitlab", duplicate).collect("42")

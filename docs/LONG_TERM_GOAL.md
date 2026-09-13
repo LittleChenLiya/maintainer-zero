@@ -8,6 +8,8 @@
 
 当前增量：模拟输出附带 `artifact-manifest.json`，可用 `verify-manifest` 在本地离线校验大小与 SHA-256。它不包含自身 hash，不是数字签名，也不证明来源可信。
 
+2026-09-13：发布验证的 wheel 与 sdist 现在统一从同一个无链接源码快照构建，避免构建后端直接执行 live checkout；这仍是本地隔离烟测，不替代真实 CI runner 或签名发布。
+
 2026-09-13：发布验证的源码快照现在逐级拒绝链接/reparse/special checkout 路径；目录枚举后复核身份与修改时间，普通文件通过 `O_NOFOLLOW` 描述符复制并在替换前后复核，避免并发变化将隔离构建重定向到 checkout 外。该保护仍不替代真实 GitHub runner 或签名验证。
 
 2026-09-13：`continuity.json` 读取现在采用有界、fail-closed 文件边界：拒绝符号链接、Windows reparse point 和特殊文件，限制 1 MiB 大小，拒绝重复键与 NaN/Infinity，并在读取后复核文件身份、大小和 mtime，避免配置竞态改变演练结论。

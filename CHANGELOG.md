@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Release verification now builds both wheel and sdist artifacts from the same
+  link-free source snapshot, keeping packaging backend execution outside the
+  live checkout.
+
 - Release source snapshots now validate every checkout path component and
   recheck directory identity after enumeration. Regular source files are copied
   through bounded, `O_NOFOLLOW` descriptor reads with identity/mtime checks, so

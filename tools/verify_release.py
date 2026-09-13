@@ -51,6 +51,10 @@ def _copy_release_source(root: Path, target: Path) -> None:
     """Copy packaging inputs to an isolated, link-free source snapshot."""
     root = _safe_existing_directory(root, "release source checkout")
     target = _safe_existing_directory(target, "release source snapshot")
+    try:
+        root_info = root.lstat()
+    except OSError as exc:
+        raise ValueError(f"cannot inspect release source: {root}") from exc
 
     def copy_entry(source: Path, destination: Path) -> None:
         try:
@@ -118,10 +122,20 @@ def _copy_release_source(root: Path, target: Path) -> None:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)
 
-    for entry in sorted(root.iterdir(), key=lambda item: item.name.casefold()):
+    try:
+        entries = sorted(root.iterdir(), key=lambda item: item.name.casefold())
+    except OSError as exc:
+        raise ValueError(f"cannot enumerate release source: {root}") from exc
+    for entry in entries:
         if entry.name in _SOURCE_SKIP_DIRS or entry.name.startswith(".continuity") or entry.name.startswith(".release") or entry.name.endswith(".egg-info"):
             continue
         copy_entry(entry, target / entry.name)
+    try:
+        finished_root = root.lstat()
+    except OSError as exc:
+        raise ValueError(f"release source changed during snapshot: {root}") from exc
+    if not _same_source_stat(root_info, finished_root) or _is_link_or_reparse(finished_root):
+        raise ValueError(f"release source changed during snapshot: {root}")
 
 
 def _safe_release_archives(wheelhouse: Path) -> list[Path]:
@@ -269,12 +283,12 @@ def verify(root: Path, output: Path) -> None:
     else:
         wheelhouse.mkdir()
         _safe_existing_directory(wheelhouse, "release artifact directory")
-    run([sys.executable, "-m", "pip", "wheel", str(root), "--no-deps", "--no-index", "--no-build-isolation", "--wheel-dir", str(wheelhouse)])
-    # Build sdist from an isolated source snapshot so setuptools cannot dirty
-    # or lock the user's checkout while creating its temporary package tree.
-    with tempfile.TemporaryDirectory(prefix="sdist-source-", dir=output) as source_dir:
+    # Build both artifacts from one isolated source snapshot so packaging
+    # backends cannot dirty, lock, or execute against the user's checkout.
+    with tempfile.TemporaryDirectory(prefix="release-source-", dir=output) as source_dir:
         source_snapshot = Path(source_dir)
         _copy_release_source(root, source_snapshot)
+        run([sys.executable, "-m", "pip", "wheel", str(source_snapshot), "--no-deps", "--no-index", "--no-build-isolation", "--wheel-dir", str(wheelhouse)], cwd=source_snapshot)
         build_sdist = "import setuptools.build_meta as b; b.build_sdist(%r)" % str(wheelhouse)
         run([sys.executable, "-c", build_sdist], cwd=source_snapshot)
     archives = _safe_release_archives(wheelhouse)
@@ -332,13 +346,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, default=DEFAULT_VERIFY_OUTPUT)
     args = parser.parse_args(argv)
     try:
-        # Keep the caller-supplied output spelling intact until ``verify``
-        # applies its component-by-component link/reparse checks. Resolving
-        # first would turn an unsafe symlink into its outside target and could
-        # bypass the intended boundary check.
-        # Preserve the caller-supplied root spelling until ``verify`` applies
+        # Preserve caller-supplied paths until ``verify`` applies
         # component-by-component link/reparse checks. Resolving first would
-        # follow an unsafe source-checkout link and bypass that boundary.
+        # follow an unsafe link and bypass the intended boundary check.
         verify(args.root, args.output)
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError, subprocess.CalledProcessError) as exc:
         print(f"error: release verification failed: {exc.__class__.__name__}")

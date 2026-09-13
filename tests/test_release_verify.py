@@ -28,7 +28,8 @@ def test_release_verification_install_probe_is_offline_safe():
     source = (Path(__file__).parents[1] / "tools" / "verify_release.py").read_text(encoding="utf-8")
     assert "--no-build-isolation" in source, "release install must not resolve build dependencies from the network"
     assert source.count("--no-index") >= 2, "release build and install must not query package indexes"
-    assert "sdist-source-" in source
+    assert "release-source-" in source
+    assert '"-m", "pip", "wheel", str(source_snapshot)' in source
     assert "_copy_release_source(root, source_snapshot)" in source
     assert "cwd=source_snapshot" in source
     assert "cwd=root" not in source

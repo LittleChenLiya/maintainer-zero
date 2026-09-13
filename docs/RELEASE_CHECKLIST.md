@@ -33,7 +33,8 @@ runner 上验证安装、GITHUB_OUTPUT 解析和矩阵行为。
 确保这条本地证据不会因构建依赖或安装元数据解析而访问包索引。
 发布验证 CLI 对输入、输出边界和构建阶段异常统一返回 2，并只输出稳定错误类别，便于 CI 调用方区分验证失败与成功。
 脚本会构建一个 wheel 和一个 sdist，在源码树外分别安装，并确认包内版本化 scenario
-registry、data-only demo fixture 均可加载；随后确认默认 `demo` 从包内 fixture 读取、
+registry、data-only demo fixture 均可加载；并确认发行版元数据版本与 `maintainer_zero.__version__` 一致，
+随后确认默认 `demo` 从包内 fixture 读取、
 输出 3 个结果且通过回归门禁；随后用每个已安装归档运行完整 `simulate`，
 生成并离线验证 `artifact-manifest.json` 与 `continuity-credential.json`。输出目录是临时产物，不应提交到 Git。
 
@@ -60,6 +61,7 @@ ci.yml 的 release-smoke job 会在 Ubuntu/Python 3.12 runner 上重复执行同
 - `GITHUB_OUTPUT` 必须是绝对路径；在 GitHub runner 提供 `RUNNER_TEMP` 时，输出文件必须位于该临时目录内，拒绝控制字符、符号链接、硬链接、非普通文件和缺失父目录，打开后还要校验文件身份并 `fsync`，避免通过输出文件重定向写入任意路径或留下半写入结果。
 - 发布验证脚本的输出目录及 `artifacts` wheelhouse 逐级拒绝 POSIX 符号链接、Windows junction/reparse point 和特殊文件（包括 dangling link）；构建前后都检查归档必须是非空、大小有界的普通 wheel/sdist 文件，并在每个安装探针前复制到独立稳定副本。复制后还会通过稳定描述符重新计算源归档和副本的 SHA-256，避免仅靠 inode、大小和 mtime 漏过同 inode 的内容替换。
 - 本地契约测试覆盖成功产物、`--fail-under`/基线门禁失败、过期元数据默认拒绝及显式允许、以及含空格路径。真实 GitHub-hosted runner（Ubuntu/Windows 和 Python 矩阵）仍需在 CI 中验证，不能用本地测试替代。
+- 启用 Action 的 `history` 输入时，还应确认 `history-summary.json` 与 `history-summary.md` 出现在 manifest、credential 验证和上传 artifact 中；历史文件必须位于 workspace 内。
 - `init` 创建的 starter `continuity.json` 必须原子替换；重复运行不得覆盖用户配置，写入失败不得留下半成品或临时文件。
 
 Action 调用方应固定经过审阅的 tag 或 commit，保留 `contents: read`，并避免在不可信 fork 场景使用 `pull_request_target`。

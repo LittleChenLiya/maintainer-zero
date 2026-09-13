@@ -1,4 +1,5 @@
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -36,6 +37,7 @@ def test_release_install_probe_validates_packaged_data_contracts():
     assert "load_bundled_registry" in source
     assert "scenario_ids(registry)" in source
     assert "load_demo_suite()" in source
+    assert "installed_version('maintainer-zero') == maintainer_zero.__version__" in source
     assert "verify-manifest" in source and "verify-credential" in source, "release smoke must verify generated integrity artifacts"
 
 
@@ -49,6 +51,17 @@ def test_release_verification_cli_returns_controlled_error_for_unsafe_output(tmp
     root = Path(__file__).parents[1]
     assert release_verify.main(["--root", str(root), "--output", str(root / "release-output")]) == 2
     assert capsys.readouterr().out.strip() == "error: release verification failed: ValueError"
+
+
+def test_release_verification_cli_returns_controlled_error_for_build_failure(monkeypatch, capsys, tmp_path: Path):
+    root = Path(__file__).parents[1]
+
+    def fail(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, ["python", "-m", "pip", "wheel"])
+
+    monkeypatch.setattr(release_verify, "run", fail)
+    assert release_verify.main(["--root", str(root), "--output", str(tmp_path / "release")]) == 2
+    assert capsys.readouterr().out.strip() == "error: release verification failed: CalledProcessError"
 
 
 def test_release_verification_rejects_symlinked_output_component(tmp_path: Path):

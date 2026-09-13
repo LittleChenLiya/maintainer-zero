@@ -17,7 +17,7 @@ GitHub composite Action 也暴露该 manifest 的绝对路径并将其纳入连�
 每个安装探针现在只使用经过源文件身份/大小/修改时间复核的临时归档副本，隔离校验完成后的替换窗口；副本仍不构成签名或来源证明。
 复制后还会通过稳定描述符重新计算源归档与副本的 SHA-256，检测同 inode、同大小且恢复修改时间的内容替换；该校验仍不提供来源或发布者证明。
 发布验证的构建与安装命令还显式禁用包索引访问（`--no-index`），使离线证据不依赖网络可用性。
-每个 wheel/sdist 的隔离安装探针现在还直接加载打包后的版本化 scenario registry 与 data-only demo fixture，并运行完整三场景 `simulate`，再用安装包自身的 CLI 离线验证 manifest 与 integrity credential，覆盖最终用户主路径而不读取源码树中的包。
+每个 wheel/sdist 的隔离安装探针现在还直接加载打包后的版本化 scenario registry 与 data-only demo fixture，并比较发行版元数据版本与运行时 `maintainer_zero.__version__`，再运行完整三场景 `simulate`，用安装包自身的 CLI 离线验证 manifest 与 integrity credential，覆盖最终用户主路径而不读取源码树中的包。
 发布验证入口现在对安全边界和构建异常提供受控退出码 2 与稳定错误类别，便于 CI 自动化消费。
 
 ## 完成定义

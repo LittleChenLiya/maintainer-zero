@@ -2,8 +2,11 @@
 
 ## Unreleased
 
+- Action integration coverage now exercises the optional workspace-local `history` input end to end, including manifest and integrity-credential verification of trend sidecars.
+
 - Release install probes now load the packaged scenario registry and data-only demo fixture,
-  catching package-data omissions that a module import alone would miss.
+  and compare installed distribution metadata with `maintainer_zero.__version__`,
+  catching package-data or version-drift omissions that a module import alone would miss.
 - Credential creation and verification now require the bound report to be an
   exact artifact-manifest entry (matching path, size, and SHA-256), so a valid
   manifest cannot silently omit the report covered by the credential.

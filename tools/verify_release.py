@@ -191,10 +191,12 @@ def verify(root: Path, output: Path) -> None:
             probe = (
                 "from pathlib import Path; "
                 "import maintainer_zero; "
+                "from importlib.metadata import version as installed_version; "
                 "from maintainer_zero.demos import load_demo_suite; "
                 "from maintainer_zero.scenario_registry import load_bundled_registry, scenario_ids; "
                 "p=Path(maintainer_zero.__file__).resolve(); "
                 "assert p.is_relative_to(Path(r'%s').resolve()); "
+                "assert installed_version('maintainer-zero') == maintainer_zero.__version__; "
                 "registry=load_bundled_registry(); "
                 "assert registry.get('schema_version') == 1 and registry.get('scenarios'); "
                 "assert scenario_ids(registry) == tuple(sorted(item['id'] for item in registry['scenarios'])); "
@@ -233,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         verify(args.root.resolve(), args.output.resolve())
-    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError, subprocess.CalledProcessError) as exc:
         print(f"error: release verification failed: {exc.__class__.__name__}")
         return 2
     return 0

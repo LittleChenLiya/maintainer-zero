@@ -154,6 +154,23 @@ def verify(root: Path, output: Path) -> None:
             payload = json.loads(rendered)
             if payload.get("schema_version") != 1 or len(payload.get("results", [])) != 3:
                 raise RuntimeError(f"unexpected demo payload from {archive.name}")
+            # Exercise the packaged user's primary path as well: a full local
+            # drill must emit both integrity artifacts and verify them without
+            # importing the source checkout's package.
+            drill_output = Path(target) / "continuity-smoke"
+            run([
+                sys.executable, "-m", "maintainer_zero", "simulate",
+                str(root), "--scenario", "all", "--days", "7",
+                "--output", str(drill_output),
+            ], cwd=output, env=env)
+            run([
+                sys.executable, "-m", "maintainer_zero", "verify-manifest",
+                str(drill_output / "artifact-manifest.json"),
+            ], cwd=output, env=env)
+            run([
+                sys.executable, "-m", "maintainer_zero", "verify-credential",
+                str(drill_output / "continuity-credential.json"),
+            ], cwd=output, env=env)
     print(f"verified {len(archives)} artifacts outside source checkout: {output}")
 
 def main() -> int:

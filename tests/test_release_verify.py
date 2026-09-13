@@ -26,6 +26,7 @@ def test_release_verification_install_probe_is_offline_safe():
     source = (Path(__file__).parents[1] / "tools" / "verify_release.py").read_text(encoding="utf-8")
     assert "--no-build-isolation" in source, "release install must not resolve build dependencies from the network"
     assert source.count("--no-index") >= 2, "release build and install must not query package indexes"
+    assert "verify-manifest" in source and "verify-credential" in source, "release smoke must verify generated integrity artifacts"
 
 
 def test_release_verification_rejects_output_inside_source_checkout(tmp_path: Path):

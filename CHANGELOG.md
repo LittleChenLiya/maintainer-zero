@@ -15,6 +15,8 @@
   identity/size/mtime checks, closing the post-validation replacement window.
 - Release build and install probes now pass `--no-index` as well as bounded
   dependency/build-isolation flags, making the verification path explicitly offline.
+- Release smoke now runs a full packaged `simulate` and verifies its manifest
+  and integrity credential for both wheel and sdist installs.
 
 - Re-read credential inputs after manifest verification and fail closed when a report or manifest changes during creation, preventing known-stale integrity envelopes.
 

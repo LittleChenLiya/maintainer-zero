@@ -32,7 +32,8 @@ runner 上验证安装、GITHUB_OUTPUT 解析和矩阵行为。
 发布脚本的 wheel 构建与安装探针均使用 `--no-index`、`--no-deps` 和 `--no-build-isolation`，
 确保这条本地证据不会因构建依赖或安装元数据解析而访问包索引。
 脚本会构建一个 wheel 和一个 sdist，在源码树外分别安装，并确认默认 `demo` 从包内
-fixture 读取、输出 3 个结果且通过回归门禁。输出目录是临时产物，不应提交到 Git。
+fixture 读取、输出 3 个结果且通过回归门禁；随后用每个已安装归档运行完整 `simulate`，
+生成并离线验证 `artifact-manifest.json` 与 `continuity-credential.json`。输出目录是临时产物，不应提交到 Git。
 
 每次模拟还应验证 artifact manifest：它只记录本轮实际生成工件的相对路径、大小和 SHA-256，
 不包含自身摘要；这是完整性校验，不是签名或来源证明。manifest 校验必须离线完成，失败返回 2。

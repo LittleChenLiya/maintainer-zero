@@ -110,6 +110,36 @@ def test_action_entrypoint_baseline_regression_returns_gate_failure(tmp_path: Pa
     assert not regressed_github_output.exists()
 
 
+def test_action_entrypoint_history_sidecars_are_manifested_and_credential_bound(tmp_path: Path):
+    repo = _git_fixture(tmp_path)
+    output = tmp_path / "history-output"
+    github_output = tmp_path / "history-github-output"
+    history = tmp_path / "history.json"
+
+    assert run(_env(
+        repo, output, github_output,
+        MZ_INPUT_HISTORY=str(history),
+    )) == 0
+    assert history.exists()
+    assert (output / "history-summary.json").exists()
+    assert (output / "history-summary.md").exists()
+
+    manifest = json.loads((output / "artifact-manifest.json").read_text(encoding="utf-8"))
+    paths = {item["path"] for item in manifest["artifacts"]}
+    assert {"history-summary.json", "history-summary.md"}.issubset(paths)
+    credential = json.loads((output / "continuity-credential.json").read_text(encoding="utf-8"))
+    assert credential["report"]["path"] == "continuity.json"
+    assert credential["manifest"]["path"] == "artifact-manifest.json"
+
+    # The same verification commands used by the workflow must cover optional
+    # trend sidecars as well as the required report and manifest envelope.
+    from maintainer_zero.manifest import verify_manifest
+    from maintainer_zero.credential import verify_credential
+
+    assert verify_manifest(output / "artifact-manifest.json")["verified"] == len(paths)
+    assert verify_credential(output / "continuity-credential.json")["verified"] is True
+
+
 def test_action_entrypoint_stale_metadata_requires_explicit_opt_in(tmp_path: Path):
     repo = _git_fixture(tmp_path)
     cache = tmp_path / "github-cache.json"

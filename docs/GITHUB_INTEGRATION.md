@@ -65,6 +65,7 @@ The repository now includes a reusable composite Action at its root. After a rev
   with:
     scenario: all
     output: .continuity
+    history: .continuity/history.json
     fail-under: "70"
 ```
 

@@ -121,12 +121,40 @@ def _copy_release_source(root: Path, target: Path) -> None:
                             os.chmod(temporary, mode)
                         destination_handle.flush()
                         os.fsync(destination_handle.fileno())
-                    # ``copy2`` used by the former implementation retained
-                    # timestamps. Keep that packaging-visible metadata while
-                    # the temporary pathname is still private, so generated
-                    # sdists do not vary solely because of snapshot timing.
-                    os.utime(temporary, ns=(info.st_atime_ns, info.st_mtime_ns), follow_symlinks=False)
-                    finished = os.fstat(source_handle.fileno())
+                        # ``copy2`` used by the former implementation retained
+                        # timestamps. Keep that packaging-visible metadata while
+                        # the temporary pathname is still private, so generated
+                        # sdists do not vary solely because of snapshot timing.
+                        # Some Windows Python builds expose ``follow_symlinks``
+                        # but raise ``NotImplementedError`` for ``utime``. The
+                        # temporary file is still held open here; on that
+                        # platform-specific fallback, verify its identity again
+                        # before publishing it with ``os.replace``.
+                        temporary_info = os.fstat(destination_handle.fileno())
+                        try:
+                            os.utime(temporary, ns=(info.st_atime_ns, info.st_mtime_ns), follow_symlinks=False)
+                        except NotImplementedError:
+                            os.utime(temporary, ns=(info.st_atime_ns, info.st_mtime_ns))
+                        temporary_after_times = os.fstat(destination_handle.fileno())
+                        if (
+                            (temporary_info.st_dev, temporary_info.st_ino)
+                            != (temporary_after_times.st_dev, temporary_after_times.st_ino)
+                            or temporary_info.st_mode != temporary_after_times.st_mode
+                            or temporary_info.st_size != temporary_after_times.st_size
+                        ):
+                            raise ValueError(f"release snapshot temporary changed during timestamp update: {source}")
+                        try:
+                            temporary_path_info = temporary.lstat()
+                        except OSError as exc:
+                            raise ValueError(f"release snapshot temporary disappeared during timestamp update: {source}") from exc
+                        if (
+                            (temporary_path_info.st_dev, temporary_path_info.st_ino)
+                            != (temporary_after_times.st_dev, temporary_after_times.st_ino)
+                            or _is_link_or_reparse(temporary_path_info)
+                            or not stat.S_ISREG(temporary_path_info.st_mode)
+                        ):
+                            raise ValueError(f"release snapshot temporary redirected during timestamp update: {source}")
+                        finished = os.fstat(source_handle.fileno())
             finally:
                 if descriptor != -1:
                     os.close(descriptor)
@@ -342,11 +370,17 @@ def verify(root: Path, output: Path) -> None:
                 raise RuntimeError(f"unexpected demo payload from {archive.name}")
             # Exercise the packaged user's primary path as well: a full local
             # drill must emit both integrity artifacts and verify them without
-            # importing the source checkout's package.
+            # importing the source checkout's package. Build a disposable empty
+            # Git repository for this probe instead of handing the live checkout
+            # to the installed CLI; this keeps the smoke test independent from
+            # concurrent source-tree changes after the release snapshot.
+            drill_repository = Path(target) / "smoke-repository"
+            drill_repository.mkdir()
+            run(["git", "init", "--quiet"], cwd=drill_repository)
             drill_output = Path(target) / "continuity-smoke"
             run([
                 sys.executable, "-m", "maintainer_zero", "simulate",
-                str(root), "--scenario", "all", "--days", "7",
+                str(drill_repository), "--scenario", "all", "--days", "7",
                 "--output", str(drill_output),
             ], cwd=output, env=env)
             run([

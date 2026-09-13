@@ -188,6 +188,32 @@ def test_release_source_snapshot_preserves_regular_file_mtime(tmp_path: Path):
     assert (snapshot / "metadata.txt").stat().st_mtime_ns == expected_ns[1]
 
 
+def test_release_source_snapshot_uses_utime_compatibility_fallback(tmp_path: Path, monkeypatch):
+    root = tmp_path / "source"
+    root.mkdir()
+    source_file = root / "metadata.txt"
+    source_file.write_text("stable metadata\n", encoding="utf-8")
+    expected_ns = (1_234_567_890_000_000_000, 1_234_567_891_000_000_000)
+    os.utime(source_file, ns=expected_ns)
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    original_utime = release_verify.os.utime
+    calls = []
+
+    def compatibility_utime(path, *, ns, **kwargs):
+        calls.append(kwargs)
+        if kwargs.get("follow_symlinks") is False:
+            raise NotImplementedError("follow_symlinks unavailable")
+        return original_utime(path, ns=ns)
+
+    monkeypatch.setattr(release_verify.os, "utime", compatibility_utime)
+    release_verify._copy_release_source(root, snapshot)
+
+    assert calls[0] == {"follow_symlinks": False}
+    assert calls[1] == {}
+    assert (snapshot / "metadata.txt").stat().st_mtime_ns == expected_ns[1]
+
+
 def test_release_source_snapshot_rejects_enumerator_escape(tmp_path: Path, monkeypatch):
     root = tmp_path / "source"
     root.mkdir()

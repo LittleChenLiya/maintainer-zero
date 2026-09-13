@@ -109,7 +109,16 @@ def _copy_release_source(root: Path, target: Path) -> None:
                         # checkout. A plain temporary-file create defaults to
                         # the process umask, which can silently change the
                         # behavior of packaged scripts and sdist metadata.
-                        os.chmod(temporary, stat.S_IMODE(info.st_mode))
+                        mode = stat.S_IMODE(info.st_mode)
+                        # Prefer descriptor-based chmod where available so a
+                        # replacement of the random temporary pathname cannot
+                        # redirect the permission update. Windows does not
+                        # expose ``fchmod``; its path-based fallback remains
+                        # limited to the private temporary file.
+                        if hasattr(os, "fchmod"):
+                            os.fchmod(destination_handle.fileno(), mode)
+                        else:
+                            os.chmod(temporary, mode)
                         destination_handle.flush()
                         os.fsync(destination_handle.fileno())
                     finished = os.fstat(source_handle.fileno())

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -44,6 +45,51 @@ def _same_directory_stat(left: os.stat_result, right: os.stat_result) -> bool:
         and left.st_size == right.st_size
         and left.st_mtime_ns == right.st_mtime_ns
     )
+
+
+def _git_metadata_stat(root: Path) -> os.stat_result:
+    """Return the checkout's local ``.git`` directory stat.
+
+    Git accepts a ``.git`` file for linked worktrees and follows it to a
+    separate administrative directory. That indirection is outside the
+    selected checkout boundary, so reject it before invoking Git. The stat is
+    also used to detect metadata replacement while a snapshot is collected.
+    """
+    metadata = root / ".git"
+    try:
+        info = metadata.lstat()
+    except FileNotFoundError as exc:
+        raise ValueError(f"Not a Git repository: {root}") from exc
+    except OSError as exc:
+        raise ValueError(f"Cannot inspect Git metadata: {metadata}") from exc
+    if _is_link_like(info) or not stat.S_ISDIR(info.st_mode):
+        raise ValueError(f"Git metadata must be a local directory: {metadata}")
+    return info
+
+
+def _git_snapshot_identity(root: Path) -> tuple[str, str]:
+    """Capture the commit/ref state used by ``git log --all``.
+
+    A stable checkout directory and ``.git`` directory do not guarantee a
+    stable history: a branch or tag can move while analysis is running.
+    Capture ``HEAD`` plus the complete advertised ref set so a later check can
+    fail closed if the Git evidence changed during collection. Empty
+    repositories legitimately return status 1 from ``show-ref``.
+    """
+    try:
+        head = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--verify", "--quiet", "HEAD"],
+            check=False, capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+        refs = subprocess.run(
+            ["git", "-C", str(root), "show-ref", "--head"],
+            check=False, capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+    except (OSError, UnicodeError) as exc:
+        raise ValueError(f"Cannot inspect Git state: {root}") from exc
+    if head.returncode not in (0, 1) or refs.returncode not in (0, 1):
+        raise ValueError(f"Cannot inspect Git state: {root}")
+    return head.stdout.strip(), hashlib.sha256(refs.stdout.encode("utf-8")).hexdigest()
 
 
 def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -226,6 +272,7 @@ def snapshot_repository(repo_path: str | Path) -> RepoSnapshot:
         initial_path_stat = path.lstat()
     except OSError as exc:
         raise ValueError(f"Repository is unavailable: {path}") from exc
+    initial_git_stat = _git_metadata_stat(path)
     # An empty Git response is not evidence of an empty repository.  Refuse
     # to analyze non-Git directories so callers cannot mistake missing git,
     # a broken worktree, or a command failure for a healthy zero-contributor
@@ -243,6 +290,7 @@ def snapshot_repository(repo_path: str | Path) -> RepoSnapshot:
         raise ValueError(f"Not a Git repository: {path}") from exc
     if probe.stdout.strip().lower() != "true":
         raise ValueError(f"Not a Git repository: {path}")
+    initial_git_identity = _git_snapshot_identity(path)
     raw = _run_git(path, "log", "--all", "--format=%an%x1f", "--name-only")
     contributors: Counter[str] = Counter()
     commits = 0
@@ -283,6 +331,19 @@ def snapshot_repository(repo_path: str | Path) -> RepoSnapshot:
         if _read_repo_file(path, relative) is not None:
             release_files.append(relative)
     dependencies = _read_dependencies(path)
+    final_git_identity = _git_snapshot_identity(path)
+    if final_git_identity != initial_git_identity:
+        raise ValueError(f"Git history changed during analysis: {path}")
+    try:
+        final_git_stat = (path / ".git").lstat()
+    except OSError as exc:
+        raise ValueError(f"Git metadata changed during analysis: {path}") from exc
+    if (
+        _is_link_like(final_git_stat)
+        or not stat.S_ISDIR(final_git_stat.st_mode)
+        or not _same_directory_stat(initial_git_stat, final_git_stat)
+    ):
+        raise ValueError(f"Git metadata changed during analysis: {path}")
     try:
         final_path_stat = path.lstat()
     except OSError as exc:

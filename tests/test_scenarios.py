@@ -5,6 +5,7 @@ import json
 import shutil
 import subprocess
 
+import maintainer_zero.analyzer as analyzer
 from maintainer_zero.analyzer import snapshot_repository
 from maintainer_zero.cli import _anonymize_snapshot, _build_parser, _load_config, main
 from maintainer_zero.models import RepoSnapshot
@@ -40,6 +41,38 @@ def test_ci_drill_detects_release_path():
 def test_snapshot_rejects_non_git_directory(tmp_path):
     with pytest.raises(ValueError, match="Not a Git repository"):
         snapshot_repository(tmp_path)
+
+
+def test_snapshot_rejects_linked_git_metadata_before_git_probe(tmp_path, monkeypatch):
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    outside = tmp_path / "git-metadata"
+    outside.mkdir()
+    (outside / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    try:
+        (repo_path / ".git").symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+
+    def unexpected_git(*args, **kwargs):
+        raise AssertionError("linked Git metadata must fail before git access")
+
+    monkeypatch.setattr("maintainer_zero.analyzer.subprocess.run", unexpected_git)
+    with pytest.raises(ValueError, match="Git metadata must be a local directory"):
+        snapshot_repository(repo_path)
+
+
+def test_snapshot_rejects_git_history_change_during_analysis(tmp_path, monkeypatch):
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo_path, check=True, capture_output=True)
+    identities = iter([
+        ("head-before", "refs-before"),
+        ("head-after", "refs-after"),
+    ])
+    monkeypatch.setattr(analyzer, "_git_snapshot_identity", lambda path: next(identities))
+    with pytest.raises(ValueError, match="Git history changed during analysis"):
+        snapshot_repository(repo_path)
 
 
 def test_snapshot_rejects_linked_repository_before_git_probe(tmp_path, monkeypatch):

@@ -2,6 +2,8 @@
 
 - 2026-09-13：收紧 composite Action 的输入路径边界：workspace、仓库、输出、baseline、metadata、history、fallback plan 与 runner 临时目录现在使用不跟随链接的词法绝对路径，并逐组件拒绝符号链接、junction/reparse point 和非目录父级；新增 workspace/runner-temp 链接负例。
 
+- 2026-09-13：本地 Git 分析现在要求 checkout 内的目录型 `.git` 元数据，拒绝 linked worktree 的 `.git` 文件；并在 Git 历史采集前后比较 `HEAD` 与完整 refs 摘要，分支或 ref 在分析期间变化时 fail-closed，避免把不同历史状态拼成一个快照。
+
 - 2026-09-13：Action 路径检查会保留 `..` 组件直到逐级 `lstat` 完成，避免通过“链接目录/..”把符号链接藏在词法归一化之前；新增该顺序的回归覆盖。
 
 ## 总目标

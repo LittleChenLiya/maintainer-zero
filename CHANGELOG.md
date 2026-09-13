@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Repository snapshots now require local directory-based Git metadata and
+  capture `HEAD` plus the advertised ref set before and after analysis. Linked
+  worktrees are rejected, and a branch/ref movement during collection fails
+  closed instead of mixing Git history from different states.
+
 - Composite Action path validation now preserves `..` components until each
   existing component has been inspected, so a symlink cannot be hidden before
   lexical normalization reaches the workspace boundary.

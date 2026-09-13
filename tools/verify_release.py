@@ -5,10 +5,28 @@ import stat
 from pathlib import Path
 
 DEFAULT_VERIFY_OUTPUT = Path("D:/Codex/maintainer-zero-release-verify")
+_REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 
 def run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
     completed = subprocess.run(command, cwd=cwd, env=env, check=True, text=True, capture_output=True)
     return completed.stdout
+
+
+def _is_link_or_reparse(info: os.stat_result) -> bool:
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & _REPARSE_POINT)
+
+
+def _safe_existing_directory(path: Path, label: str) -> Path:
+    target = Path(os.path.abspath(path))
+    try:
+        info = target.lstat()
+    except OSError as exc:
+        raise ValueError(f"{label} is unavailable") from exc
+    if _is_link_or_reparse(info):
+        raise ValueError(f"{label} may not be a symlink or reparse point: {target}")
+    if not stat.S_ISDIR(info.st_mode):
+        raise ValueError(f"{label} is not a directory: {target}")
+    return target
 
 
 def _safe_output_directory(path: Path) -> Path:
@@ -23,8 +41,8 @@ def _safe_output_directory(path: Path) -> Path:
         except FileNotFoundError:
             current.mkdir()
             info = current.lstat()
-        if stat.S_ISLNK(info.st_mode):
-            raise ValueError(f"release verification output may not contain a symlink: {current}")
+        if _is_link_or_reparse(info):
+            raise ValueError(f"release verification output may not contain a symlink or reparse point: {current}")
         if not stat.S_ISDIR(info.st_mode):
             raise ValueError(f"release verification output is not a directory: {current}")
     return target
@@ -43,10 +61,16 @@ def verify(root: Path, output: Path) -> None:
     # Remove only files produced by this script so rerunning the documented
     # command cannot count stale archives or collide with old install targets.
     if wheelhouse.exists():
-        for archive in (*wheelhouse.glob("*.whl"), *wheelhouse.glob("*.tar.gz")):
+        _safe_existing_directory(wheelhouse, "release artifact directory")
+        archives_to_remove = (*wheelhouse.glob("*.whl"), *wheelhouse.glob("*.tar.gz"))
+        for archive in archives_to_remove:
+            info = archive.lstat()
+            if _is_link_or_reparse(info) or not stat.S_ISREG(info.st_mode):
+                raise ValueError(f"release archive target is unsafe: {archive}")
             archive.unlink()
     else:
         wheelhouse.mkdir()
+        _safe_existing_directory(wheelhouse, "release artifact directory")
     run([sys.executable, "-m", "pip", "wheel", str(root), "--no-deps", "--no-build-isolation", "--wheel-dir", str(wheelhouse)])
     build_sdist = "import setuptools.build_meta as b; b.build_sdist(%r)" % str(wheelhouse)
     run([sys.executable, "-c", build_sdist], cwd=root)

@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+import tools.verify_release as release_verify
 from tools.verify_release import DEFAULT_VERIFY_OUTPUT, verify
 
 
@@ -41,5 +42,44 @@ def test_release_verification_rejects_symlinked_output_component(tmp_path: Path)
         linked.symlink_to(outside, target_is_directory=True)
     except (OSError, NotImplementedError):
         pytest.skip("symlink creation unavailable")
-    with pytest.raises(ValueError, match="may not contain a symlink"):
+    with pytest.raises(ValueError, match="may not contain a symlink or reparse point"):
         verify(root, linked / "release")
+
+
+def test_release_verification_rejects_reparse_output_component(tmp_path: Path, monkeypatch):
+    linked = tmp_path / "junction-like"
+    linked.mkdir()
+    original = release_verify._is_link_or_reparse
+
+    # Simulate the Windows reparse attribute without requiring junction
+    # privileges on the test host. The helper must still fail closed.
+    original_lstat = release_verify.Path.lstat
+
+    def fake_lstat(path):
+        info = original_lstat(path)
+        if path == linked:
+            class ReparseInfo:
+                st_mode = info.st_mode
+                st_file_attributes = release_verify._REPARSE_POINT
+            return ReparseInfo()
+        return info
+
+    monkeypatch.setattr(release_verify.Path, "lstat", fake_lstat)
+    with pytest.raises(ValueError, match="symlink or reparse point"):
+        release_verify._safe_output_directory(linked / "release")
+
+
+def test_release_verification_rejects_linked_archive_in_existing_wheelhouse(tmp_path: Path):
+    root = Path(__file__).parents[1]
+    output = tmp_path / "release"
+    wheelhouse = output / "artifacts"
+    wheelhouse.mkdir(parents=True)
+    target = tmp_path / "outside.whl"
+    target.write_bytes(b"not an archive")
+    linked = wheelhouse / "stale.whl"
+    try:
+        linked.symlink_to(target)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    with pytest.raises(ValueError, match="archive target is unsafe"):
+        verify(root, output)

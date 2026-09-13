@@ -11,6 +11,7 @@
 GitHub composite Action 也暴露该 manifest 的绝对路径并将其纳入连续性 workflow artifact；Action 仍只做本地分析，不上传源码或执行 GitHub 写操作。
 创建凭证时会在 manifest 校验后重新读取并比较报告与 manifest；发现校验窗口内的替换或内容变化即 fail-closed，避免生成已知过期的凭证。该检查不提供并发写入锁，也不改变“不是数字签名”的边界。
 凭证创建与验证还要求报告本身是 manifest 的精确条目（路径、大小和 SHA-256 一致）；遗漏报告的独立 manifest 会被拒绝，避免完整性声明出现未覆盖的核心工件。
+发布验证脚本现在把源码树外的 `artifacts` wheelhouse 作为独立安全目录检查，拒绝 POSIX 符号链接、Windows junction/reparse point、特殊文件及链接归档；本地契约覆盖这些边界，但不替代真实 runner 验证。
 
 ## 完成定义
 

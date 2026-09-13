@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `simulate --history` now reloads the generated report through the bounded
+  report validator before appending trend history, so a report replaced by a
+  link, special file, oversized payload, or concurrent rewrite cannot bypass
+  the local input boundary.
+
 - Repository declaration files used by the local analyzer (`package.json`,
   requirements files, CODEOWNERS, release files, and workflow YAML) now use
   bounded descriptor reads with link/special-file rejection and identity/mtime

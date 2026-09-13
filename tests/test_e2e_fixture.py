@@ -7,6 +7,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from maintainer_zero.cli import main
 
 
@@ -147,6 +149,23 @@ def test_cli_history_and_baseline_sidecars_use_atomic_replacement(tmp_path: Path
     assert (second / "baseline-comparison.json").exists()
     assert not list(second.glob(".history-summary.json.*.tmp"))
     assert not list(second.glob(".baseline-comparison.json.*.tmp"))
+
+
+def test_cli_history_rejects_replaced_report_before_appending(tmp_path: Path):
+    repo = _git_fixture(tmp_path)
+    output = tmp_path / "output"
+    history = tmp_path / "history.json"
+    outside = tmp_path / "outside-report.json"
+    outside.write_text("{}", encoding="utf-8")
+    assert main(["simulate", str(repo), "--days", "7", "--output", str(output)]) == 0
+    report = output / "continuity.json"
+    report.unlink()
+    try:
+        report.symlink_to(outside)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    assert main(["simulate", str(repo), "--days", "7", "--output", str(output), "--history", str(history)]) == 2
+    assert not history.exists()
 
 
 def test_cli_fallback_plan_is_reported_as_unexecuted_declaration(tmp_path: Path):

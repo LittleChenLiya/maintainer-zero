@@ -71,6 +71,29 @@ def test_release_verification_cli_rejects_symlinked_output_before_resolving(tmp_
     assert not (outside / "release").exists()
 
 
+def test_release_verification_cli_rejects_symlinked_source_before_build(tmp_path: Path, monkeypatch, capsys):
+    real_root = tmp_path / "real-source"
+    real_root.mkdir()
+    linked_root = tmp_path / "linked-source"
+    try:
+        linked_root.symlink_to(real_root, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    called = False
+
+    def unexpected_run(*args, **kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("unsafe source root must fail before build")
+
+    monkeypatch.setattr(release_verify, "run", unexpected_run)
+    assert release_verify.main([
+        "--root", str(linked_root), "--output", str(tmp_path / "release"),
+    ]) == 2
+    assert called is False
+    assert "error: release verification failed: ValueError" in capsys.readouterr().out
+
+
 def test_release_verification_cli_returns_controlled_error_for_build_failure(monkeypatch, capsys, tmp_path: Path):
     root = Path(__file__).parents[1]
 
@@ -120,6 +143,41 @@ def test_release_source_snapshot_excludes_generated_outputs_and_rejects_links(tm
     unsafe_snapshot.mkdir()
     with pytest.raises(ValueError, match="symlink or reparse point"):
         release_verify._copy_release_source(root, unsafe_snapshot)
+
+
+def test_release_source_snapshot_rejects_enumerator_escape(tmp_path: Path, monkeypatch):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "pyproject.toml").write_text("[build-system]\nrequires=[]\nbuild-backend='setuptools.build_meta'\n", encoding="utf-8")
+    outside = tmp_path / "outside.txt"
+    outside.write_text("must not be copied", encoding="utf-8")
+    original_iterdir = Path.iterdir
+
+    def escaped_iterdir(path):
+        if path == root:
+            return iter([outside])
+        return original_iterdir(path)
+
+    monkeypatch.setattr(Path, "iterdir", escaped_iterdir)
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    with pytest.raises(ValueError, match="escapes checkout"):
+        release_verify._copy_release_source(root, snapshot)
+    assert not (snapshot / "outside.txt").exists()
+
+
+def test_release_source_snapshot_rejects_linked_checkout(tmp_path: Path):
+    root = tmp_path / "source"
+    root.mkdir()
+    linked = tmp_path / "linked-source"
+    try:
+        linked.symlink_to(root, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    with pytest.raises(ValueError, match="release source checkout may not be a symlink"):
+        release_verify._copy_release_source(linked, snapshot)
 
 
 def test_release_verification_rejects_reparse_output_component(tmp_path: Path, monkeypatch):

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Release source snapshots now validate every checkout path component and
+  recheck directory identity after enumeration. Regular source files are copied
+  through bounded, `O_NOFOLLOW` descriptor reads with identity/mtime checks, so
+  concurrent replacement cannot redirect an isolated build outside the selected
+  checkout.
+
 - Continuity history reads now reject duplicate JSON keys and non-standard
   numbers, enforce the existing size bound before parsing, and recheck file
   identity, size, and mtime after descriptor reads so trend evidence fails

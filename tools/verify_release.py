@@ -1,6 +1,6 @@
 """Build and verify wheel/sdist artifacts outside the source checkout."""
 from __future__ import annotations
-import argparse, hashlib, json, os, shutil, subprocess, sys, tempfile
+import argparse, hashlib, json, os, subprocess, sys, tempfile
 import stat
 from pathlib import Path
 
@@ -21,23 +21,42 @@ def _is_link_or_reparse(info: os.stat_result) -> bool:
 
 def _safe_existing_directory(path: Path, label: str) -> Path:
     target = Path(os.path.abspath(path))
-    try:
-        info = target.lstat()
-    except OSError as exc:
-        raise ValueError(f"{label} is unavailable") from exc
-    if _is_link_or_reparse(info):
-        raise ValueError(f"{label} may not be a symlink or reparse point: {target}")
-    if not stat.S_ISDIR(info.st_mode):
-        raise ValueError(f"{label} is not a directory: {target}")
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts:
+        current /= part
+        try:
+            info = current.lstat()
+        except OSError as exc:
+            raise ValueError(f"{label} is unavailable") from exc
+        if _is_link_or_reparse(info):
+            raise ValueError(f"{label} may not be a symlink or reparse point: {current}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValueError(f"{label} is not a directory: {current}")
     return target
+
+
+def _same_source_stat(left: os.stat_result, right: os.stat_result) -> bool:
+    """Compare the source identity and metadata used by snapshot races."""
+    return (
+        (getattr(left, "st_dev", -1), getattr(left, "st_ino", -1))
+        == (getattr(right, "st_dev", -1), getattr(right, "st_ino", -1))
+        and left.st_mode == right.st_mode
+        and left.st_size == right.st_size
+        and left.st_mtime_ns == right.st_mtime_ns
+    )
 
 
 def _copy_release_source(root: Path, target: Path) -> None:
     """Copy packaging inputs to an isolated, link-free source snapshot."""
-    root = root.resolve()
+    root = _safe_existing_directory(root, "release source checkout")
     target = _safe_existing_directory(target, "release source snapshot")
 
     def copy_entry(source: Path, destination: Path) -> None:
+        try:
+            source.resolve(strict=False).relative_to(root)
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise ValueError(f"release source entry escapes checkout: {source}") from exc
         try:
             info = source.lstat()
         except OSError as exc:
@@ -46,17 +65,58 @@ def _copy_release_source(root: Path, target: Path) -> None:
             raise ValueError(f"release source may not contain a symlink or reparse point: {source}")
         if stat.S_ISDIR(info.st_mode):
             destination.mkdir()
-            for child in sorted(source.iterdir(), key=lambda item: item.name.casefold()):
+            try:
+                children = sorted(source.iterdir(), key=lambda item: item.name.casefold())
+            except OSError as exc:
+                raise ValueError(f"cannot enumerate release source: {source}") from exc
+            for child in children:
                 if child.name in _SOURCE_SKIP_DIRS or child.name.startswith(".continuity") or child.name.startswith(".release") or child.name.endswith(".egg-info"):
                     continue
                 copy_entry(child, destination / child.name)
+            try:
+                finished = source.lstat()
+            except OSError as exc:
+                raise ValueError(f"release source changed during snapshot: {source}") from exc
+            if not _same_source_stat(info, finished) or _is_link_or_reparse(finished):
+                raise ValueError(f"release source changed during snapshot: {source}")
             return
         if not stat.S_ISREG(info.st_mode):
             raise ValueError(f"release source contains a special file: {source}")
+        temporary: Path | None = None
         try:
-            shutil.copy2(source, destination)
+            # Open through a descriptor and recheck its identity before and
+            # after copying. O_NOFOLLOW (where available) also closes the
+            # final-component symlink race between lstat and open.
+            descriptor = os.open(source, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            try:
+                opened = os.fstat(descriptor)
+                if _is_link_or_reparse(opened) or not stat.S_ISREG(opened.st_mode) or not _same_source_stat(info, opened):
+                    raise ValueError(f"release source changed before snapshot: {source}")
+                with os.fdopen(descriptor, "rb") as source_handle:
+                    descriptor = -1
+                    with tempfile.NamedTemporaryFile(mode="wb", dir=destination.parent, prefix=f".{destination.name}.", suffix=".tmp", delete=False) as destination_handle:
+                        temporary = Path(destination_handle.name)
+                        while True:
+                            chunk = source_handle.read(_RELEASE_CHUNK)
+                            if not chunk:
+                                break
+                            destination_handle.write(chunk)
+                        destination_handle.flush()
+                        os.fsync(destination_handle.fileno())
+                    finished = os.fstat(source_handle.fileno())
+            finally:
+                if descriptor != -1:
+                    os.close(descriptor)
+            current = source.lstat()
+            if not _same_source_stat(info, finished) or not _same_source_stat(info, current):
+                raise ValueError(f"release source changed during snapshot: {source}")
+            os.replace(temporary, destination)
+            temporary = None
         except OSError as exc:
-            raise ValueError(f"cannot copy release source: {source}") from exc
+            raise ValueError(f"cannot snapshot release source: {source}") from exc
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
 
     for entry in sorted(root.iterdir(), key=lambda item: item.name.casefold()):
         if entry.name in _SOURCE_SKIP_DIRS or entry.name.startswith(".continuity") or entry.name.startswith(".release") or entry.name.endswith(".egg-info"):
@@ -184,7 +244,7 @@ def _safe_output_directory(path: Path) -> Path:
     return target
 
 def verify(root: Path, output: Path) -> None:
-    root = root.resolve()
+    root = _safe_existing_directory(root, "release source checkout")
     output = Path(os.path.abspath(output))
     if output == root or output.is_relative_to(root):
         raise ValueError("release verification output must be outside the source checkout")
@@ -276,7 +336,10 @@ def main(argv: list[str] | None = None) -> int:
         # applies its component-by-component link/reparse checks. Resolving
         # first would turn an unsafe symlink into its outside target and could
         # bypass the intended boundary check.
-        verify(args.root.resolve(), args.output)
+        # Preserve the caller-supplied root spelling until ``verify`` applies
+        # component-by-component link/reparse checks. Resolving first would
+        # follow an unsafe source-checkout link and bypass that boundary.
+        verify(args.root, args.output)
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError, subprocess.CalledProcessError) as exc:
         print(f"error: release verification failed: {exc.__class__.__name__}")
         return 2

@@ -25,6 +25,21 @@ MAX_HISTORY_BYTES = 10_000_000
 _HISTORY_KEYS = frozenset({"schema_version", "repository", "repository_id", "rule_version", "tool_version", "entries"})
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject ambiguous JSON objects instead of silently keeping the last key."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise HistoryError(f"history contains duplicate object key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_nonstandard_number(value: str) -> None:
+    """Reject NaN/Infinity, which are outside the JSON data contract."""
+    raise HistoryError(f"history contains non-standard JSON number: {value}")
+
+
 class HistoryError(ValueError):
     """Raised when a history file is malformed or belongs to another repository."""
 
@@ -65,6 +80,10 @@ def _prepare_history_path(path: str | Path, *, create_parents: bool) -> Path:
 def _read_history(path: Path) -> dict[str, Any]:
     try:
         info = path.lstat()
+        if _is_link_like(info) or not stat.S_ISREG(info.st_mode):
+            raise HistoryError("history file must be a regular file")
+        if info.st_size > MAX_HISTORY_BYTES:
+            raise HistoryError(f"history file exceeds {MAX_HISTORY_BYTES} bytes")
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         opened = os.fstat(descriptor)
         if _is_link_like(info) or not stat.S_ISREG(info.st_mode) or not stat.S_ISREG(opened.st_mode):
@@ -77,7 +96,24 @@ def _read_history(path: Path) -> dict[str, Any]:
             raw = handle.read(MAX_HISTORY_BYTES + 1)
         if len(raw) > MAX_HISTORY_BYTES:
             raise HistoryError(f"history file exceeds {MAX_HISTORY_BYTES} bytes")
-        payload = json.loads(raw)
+        try:
+            after = path.lstat()
+        except OSError as exc:
+            raise HistoryError("history file changed during reading") from exc
+        if (
+            _is_link_like(after)
+            or not stat.S_ISREG(after.st_mode)
+            or (getattr(info, "st_dev", 0), getattr(info, "st_ino", 0))
+            != (getattr(after, "st_dev", 0), getattr(after, "st_ino", 0))
+            or after.st_size != info.st_size
+            or getattr(after, "st_mtime_ns", None) != getattr(info, "st_mtime_ns", None)
+        ):
+            raise HistoryError("history file changed during reading")
+        payload = json.loads(
+            raw,
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=_reject_nonstandard_number,
+        )
     except HistoryError:
         raise
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:

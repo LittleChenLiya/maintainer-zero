@@ -197,6 +197,40 @@ def test_history_rejects_oversized_file_before_json_parse(tmp_path):
         load_history(path)
 
 
+def test_history_rejects_duplicate_keys_and_nonstandard_numbers(tmp_path):
+    path = tmp_path / "history.json"
+    path.write_text('{"schema_version": 1, "schema_version": 1}', encoding="utf-8")
+    with pytest.raises(HistoryError, match="duplicate object key"):
+        load_history(path)
+    path.write_text('{"schema_version": NaN}', encoding="utf-8")
+    with pytest.raises(HistoryError, match="non-standard JSON number"):
+        load_history(path)
+
+
+def test_history_fails_closed_when_replaced_during_read(tmp_path, monkeypatch):
+    path = tmp_path / "history.json"
+    append_history(path, report(score=80), recorded_at="2026-01-01T00:00:00Z")
+    original_lstat = Path.lstat
+    calls = 0
+
+    def fake_lstat(current, *args, **kwargs):
+        nonlocal calls
+        info = original_lstat(current, *args, **kwargs)
+        if current == path:
+            calls += 1
+            # _prepare_history_path and _read_history inspect the target
+            # before opening it; replace it just before _read_history's
+            # post-read identity check.
+            if calls == 3:
+                path.write_text(path.read_text(encoding="utf-8").replace("\"overall_score\": 80", "\"overall_score\": 81"), encoding="utf-8")
+                info = original_lstat(current, *args, **kwargs)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(HistoryError, match="changed during reading"):
+        load_history(path)
+
+
 def test_trend_markdown_is_path_free_and_marks_unknown_values():
     summary = trend_summary({"schema_version": 1, "repository": {"name": "repo|name", "path": "C:/private/secret"}, "entries": []})
     rendered = render_trend_markdown(summary)

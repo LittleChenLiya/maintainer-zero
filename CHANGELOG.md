@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Release install probes now load the packaged scenario registry and data-only demo fixture,
+  catching package-data omissions that a module import alone would miss.
 - Credential creation and verification now require the bound report to be an
   exact artifact-manifest entry (matching path, size, and SHA-256), so a valid
   manifest cannot silently omit the report covered by the credential.
@@ -13,10 +15,15 @@
   bounded size, and the expected wheel/sdist pair before installation probes.
 - Installation probes now consume a privately staged archive copy after source
   identity/size/mtime checks, closing the post-validation replacement window.
+- Staged release archives are now rehashed through stable descriptors and
+  compared with their source bytes, detecting same-inode replacements that
+  preserve size and timestamps.
 - Release build and install probes now pass `--no-index` as well as bounded
   dependency/build-isolation flags, making the verification path explicitly offline.
 - Release smoke now runs a full packaged `simulate` and verifies its manifest
   and integrity credential for both wheel and sdist installs.
+- The release verifier CLI now converts validation and build exceptions into a
+  stable exit code 2 and bounded error category for CI callers.
 
 - Re-read credential inputs after manifest verification and fail closed when a report or manifest changes during creation, preventing known-stale integrity envelopes.
 

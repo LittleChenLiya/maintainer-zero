@@ -31,8 +31,10 @@ runner 上验证安装、GITHUB_OUTPUT 解析和矩阵行为。
 以及内置注册表可加载。验证目录是临时产物，不应提交到 Git。
 发布脚本的 wheel 构建与安装探针均使用 `--no-index`、`--no-deps` 和 `--no-build-isolation`，
 确保这条本地证据不会因构建依赖或安装元数据解析而访问包索引。
-脚本会构建一个 wheel 和一个 sdist，在源码树外分别安装，并确认默认 `demo` 从包内
-fixture 读取、输出 3 个结果且通过回归门禁；随后用每个已安装归档运行完整 `simulate`，
+发布验证 CLI 对输入、输出边界和构建阶段异常统一返回 2，并只输出稳定错误类别，便于 CI 调用方区分验证失败与成功。
+脚本会构建一个 wheel 和一个 sdist，在源码树外分别安装，并确认包内版本化 scenario
+registry、data-only demo fixture 均可加载；随后确认默认 `demo` 从包内 fixture 读取、
+输出 3 个结果且通过回归门禁；随后用每个已安装归档运行完整 `simulate`，
 生成并离线验证 `artifact-manifest.json` 与 `continuity-credential.json`。输出目录是临时产物，不应提交到 Git。
 
 每次模拟还应验证 artifact manifest：它只记录本轮实际生成工件的相对路径、大小和 SHA-256，
@@ -56,7 +58,7 @@ ci.yml 的 release-smoke job 会在 Ubuntu/Python 3.12 runner 上重复执行同
 - Unix 与 Windows 适配器都只运行本地 CLI，不读取 `GITHUB_TOKEN`、不启用网络、不执行 GitHub 写入；默认只写配置的报告目录。
 - 成功运行才写入 `GITHUB_OUTPUT`；五个 Action 输出必须指向同一输出目录下的绝对报告/恢复路径。
 - `GITHUB_OUTPUT` 必须是绝对路径；在 GitHub runner 提供 `RUNNER_TEMP` 时，输出文件必须位于该临时目录内，拒绝控制字符、符号链接、硬链接、非普通文件和缺失父目录，打开后还要校验文件身份并 `fsync`，避免通过输出文件重定向写入任意路径或留下半写入结果。
-- 发布验证脚本的输出目录及 `artifacts` wheelhouse 逐级拒绝 POSIX 符号链接、Windows junction/reparse point 和特殊文件（包括 dangling link）；构建前后都检查归档必须是非空、大小有界的普通 wheel/sdist 文件，并在每个安装探针前复制到独立稳定副本，避免构建输出被重定向或在校验后替换。
+- 发布验证脚本的输出目录及 `artifacts` wheelhouse 逐级拒绝 POSIX 符号链接、Windows junction/reparse point 和特殊文件（包括 dangling link）；构建前后都检查归档必须是非空、大小有界的普通 wheel/sdist 文件，并在每个安装探针前复制到独立稳定副本。复制后还会通过稳定描述符重新计算源归档和副本的 SHA-256，避免仅靠 inode、大小和 mtime 漏过同 inode 的内容替换。
 - 本地契约测试覆盖成功产物、`--fail-under`/基线门禁失败、过期元数据默认拒绝及显式允许、以及含空格路径。真实 GitHub-hosted runner（Ubuntu/Windows 和 Python 矩阵）仍需在 CI 中验证，不能用本地测试替代。
 - `init` 创建的 starter `continuity.json` 必须原子替换；重复运行不得覆盖用户配置，写入失败不得留下半成品或临时文件。
 

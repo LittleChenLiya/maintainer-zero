@@ -1,12 +1,13 @@
 """Build and verify wheel/sdist artifacts outside the source checkout."""
 from __future__ import annotations
-import argparse, json, os, subprocess, sys, tempfile
+import argparse, hashlib, json, os, subprocess, sys, tempfile
 import stat
 from pathlib import Path
 
 DEFAULT_VERIFY_OUTPUT = Path("D:/Codex/maintainer-zero-release-verify")
 _REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 _MAX_RELEASE_ARCHIVE_BYTES = 128 * 1024 * 1024
+_RELEASE_CHUNK = 1024 * 1024
 
 def run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
     completed = subprocess.run(command, cwd=cwd, env=env, check=True, text=True, capture_output=True)
@@ -50,6 +51,38 @@ def _safe_release_archives(wheelhouse: Path) -> list[Path]:
     return archives
 
 
+def _digest_release_file(path: Path, expected: os.stat_result) -> tuple[int, str]:
+    """Hash a release file through a stable descriptor and pathname."""
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        with path.open("rb") as handle:
+            opened = os.fstat(handle.fileno())
+            if (_is_link_or_reparse(opened) or not stat.S_ISREG(opened.st_mode)
+                    or (opened.st_dev, opened.st_ino) != (expected.st_dev, expected.st_ino)):
+                raise ValueError(f"release archive changed before hashing: {path}")
+            for chunk in iter(lambda: handle.read(_RELEASE_CHUNK), b""):
+                total += len(chunk)
+                if total > _MAX_RELEASE_ARCHIVE_BYTES:
+                    raise ValueError(f"release archive exceeds size limit: {path}")
+                digest.update(chunk)
+            finished = os.fstat(handle.fileno())
+    except OSError as exc:
+        raise ValueError(f"cannot hash release archive: {path}") from exc
+    try:
+        current = path.lstat()
+    except OSError as exc:
+        raise ValueError(f"cannot inspect release archive after hashing: {path}") from exc
+    if ((finished.st_dev, finished.st_ino) != (expected.st_dev, expected.st_ino)
+            or (current.st_dev, current.st_ino) != (expected.st_dev, expected.st_ino)
+            or finished.st_size != expected.st_size
+            or current.st_size != expected.st_size
+            or finished.st_mtime_ns != expected.st_mtime_ns
+            or current.st_mtime_ns != expected.st_mtime_ns):
+        raise ValueError(f"release archive changed during hashing: {path}")
+    return total, digest.hexdigest()
+
+
 def _stage_release_archive(archive: Path, target_dir: Path) -> Path:
     """Copy a checked archive to a private stable path before installation."""
     target_dir = _safe_existing_directory(target_dir, "release install directory")
@@ -79,6 +112,13 @@ def _stage_release_archive(archive: Path, target_dir: Path) -> Path:
         current = archive.lstat()
         if (finished.st_dev, finished.st_ino) != (expected.st_dev, expected.st_ino) or (current.st_dev, current.st_ino) != (expected.st_dev, expected.st_ino) or current.st_size != expected.st_size or current.st_mtime_ns != expected.st_mtime_ns:
             raise ValueError(f"release archive changed during staging: {archive}")
+        # Stat identity cannot detect an attacker that replaces bytes and
+        # restores size/mtime. Re-hash the source after copying and compare it
+        # with the digest computed from the bytes that were staged.
+        source_size, source_digest = _digest_release_file(archive, current)
+        staged_size, staged_digest = _digest_release_file(temporary, temporary.lstat())
+        if source_size != staged_size or source_digest != staged_digest:
+            raise ValueError(f"release archive content changed during staging: {archive}")
         staged_info = temporary.lstat()
         if _is_link_or_reparse(staged_info) or not stat.S_ISREG(staged_info.st_mode) or staged_info.st_size != expected.st_size:
             raise ValueError(f"staged release archive is unsafe: {archive}")
@@ -148,7 +188,20 @@ def verify(root: Path, output: Path) -> None:
             staged_archive = _stage_release_archive(archive, Path(target))
             run([sys.executable, "-m", "pip", "install", "--no-deps", "--no-index", "--no-build-isolation", "--target", target, str(staged_archive)])
             env = os.environ.copy(); env["PYTHONPATH"] = target
-            probe = "from pathlib import Path; import maintainer_zero; p=Path(maintainer_zero.__file__).resolve(); assert p.is_relative_to(Path(r'%s').resolve()); print(p)" % target
+            probe = (
+                "from pathlib import Path; "
+                "import maintainer_zero; "
+                "from maintainer_zero.demos import load_demo_suite; "
+                "from maintainer_zero.scenario_registry import load_bundled_registry, scenario_ids; "
+                "p=Path(maintainer_zero.__file__).resolve(); "
+                "assert p.is_relative_to(Path(r'%s').resolve()); "
+                "registry=load_bundled_registry(); "
+                "assert registry.get('schema_version') == 1 and registry.get('scenarios'); "
+                "assert scenario_ids(registry) == tuple(sorted(item['id'] for item in registry['scenarios'])); "
+                "suite=load_demo_suite(); "
+                "assert suite.get('schema_version') == 1 and suite.get('demos'); "
+                "print(p)"
+            ) % target
             run([sys.executable, "-c", probe], cwd=output, env=env)
             rendered = run([sys.executable, "-m", "maintainer_zero", "demo", "--format", "json", "--fail-on-regression"], cwd=output, env=env)
             payload = json.loads(rendered)
@@ -173,11 +226,17 @@ def verify(root: Path, output: Path) -> None:
             ], cwd=output, env=env)
     print(f"verified {len(archives)} artifacts outside source checkout: {output}")
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(__file__).parents[1])
     parser.add_argument("--output", type=Path, default=DEFAULT_VERIFY_OUTPUT)
-    args = parser.parse_args(); verify(args.root.resolve(), args.output.resolve()); return 0
+    args = parser.parse_args(argv)
+    try:
+        verify(args.root.resolve(), args.output.resolve())
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        print(f"error: release verification failed: {exc.__class__.__name__}")
+        return 2
+    return 0
 
 if __name__ == "__main__":
     raise SystemExit(main())

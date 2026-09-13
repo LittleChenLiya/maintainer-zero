@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -26,6 +27,15 @@ def test_release_verification_install_probe_is_offline_safe():
     source = (Path(__file__).parents[1] / "tools" / "verify_release.py").read_text(encoding="utf-8")
     assert "--no-build-isolation" in source, "release install must not resolve build dependencies from the network"
     assert source.count("--no-index") >= 2, "release build and install must not query package indexes"
+
+
+def test_release_install_probe_validates_packaged_data_contracts():
+    source = (Path(__file__).parents[1] / "tools" / "verify_release.py").read_text(encoding="utf-8")
+    # Importing the package is insufficient: wheels/sdists must retain the
+    # bundled, data-only registry and demo fixture used by end users.
+    assert "load_bundled_registry" in source
+    assert "scenario_ids(registry)" in source
+    assert "load_demo_suite()" in source
     assert "verify-manifest" in source and "verify-credential" in source, "release smoke must verify generated integrity artifacts"
 
 
@@ -33,6 +43,12 @@ def test_release_verification_rejects_output_inside_source_checkout(tmp_path: Pa
     root = Path(__file__).parents[1]
     with pytest.raises(ValueError, match="outside the source checkout"):
         verify(root, root / "release-output")
+
+
+def test_release_verification_cli_returns_controlled_error_for_unsafe_output(tmp_path: Path, capsys):
+    root = Path(__file__).parents[1]
+    assert release_verify.main(["--root", str(root), "--output", str(root / "release-output")]) == 2
+    assert capsys.readouterr().out.strip() == "error: release verification failed: ValueError"
 
 
 def test_release_verification_rejects_symlinked_output_component(tmp_path: Path):
@@ -137,12 +153,16 @@ def test_release_archive_staging_rejects_source_replacement(tmp_path: Path, monk
     archive.write_bytes(b"archive")
     original_lstat = release_verify.Path.lstat
     calls = {"count": 0}
+    original_mtime_ns = archive.stat().st_mtime_ns
 
     def replace_after_open(path):
         if path == archive:
             calls["count"] += 1
             if calls["count"] == 2:
                 archive.write_bytes(b"changed")
+                # Preserve size and timestamp so metadata-only checks cannot
+                # detect this same-inode content replacement.
+                os.utime(archive, ns=(original_mtime_ns, original_mtime_ns))
         return original_lstat(path)
 
     monkeypatch.setattr(release_verify.Path, "lstat", replace_after_open)

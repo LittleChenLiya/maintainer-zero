@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Repository analysis now validates every checkout path component before the
+  Git probe and rechecks the root directory after scanning, rejecting linked or
+  reparse-point repository paths instead of silently following them.
+
 - Release verification now builds both wheel and sdist artifacts from the same
   link-free source snapshot, keeping packaging backend execution outside the
   live checkout.
@@ -11,6 +15,14 @@
   through bounded, `O_NOFOLLOW` descriptor reads with identity/mtime checks, so
   concurrent replacement cannot redirect an isolated build outside the selected
   checkout.
+
+- Release source snapshots preserve regular-file mode bits where the host
+  exposes them, so executable packaging scripts do not silently become
+  non-executable in the isolated wheel/sdist build.
+
+- Release source snapshots also preserve regular-file timestamps (without
+  following a replacement symlink), keeping timestamp-sensitive package
+  metadata reproducible across the isolated build boundary.
 
 - Continuity history reads now reject duplicate JSON keys and non-standard
   numbers, enforce the existing size bound before parsing, and recheck file

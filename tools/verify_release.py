@@ -121,6 +121,11 @@ def _copy_release_source(root: Path, target: Path) -> None:
                             os.chmod(temporary, mode)
                         destination_handle.flush()
                         os.fsync(destination_handle.fileno())
+                    # ``copy2`` used by the former implementation retained
+                    # timestamps. Keep that packaging-visible metadata while
+                    # the temporary pathname is still private, so generated
+                    # sdists do not vary solely because of snapshot timing.
+                    os.utime(temporary, ns=(info.st_atime_ns, info.st_mtime_ns), follow_symlinks=False)
                     finished = os.fstat(source_handle.fileno())
             finally:
                 if descriptor != -1:

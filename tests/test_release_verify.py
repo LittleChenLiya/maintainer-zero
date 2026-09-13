@@ -163,6 +163,21 @@ def test_release_source_snapshot_preserves_regular_file_mode_on_posix(tmp_path: 
     assert stat.S_IMODE((snapshot / "entrypoint").stat().st_mode) == 0o755
 
 
+def test_release_source_snapshot_preserves_regular_file_mtime(tmp_path: Path):
+    root = tmp_path / "source"
+    root.mkdir()
+    source_file = root / "metadata.txt"
+    source_file.write_text("stable metadata\n", encoding="utf-8")
+    expected_ns = (1_234_567_890_000_000_000, 1_234_567_891_000_000_000)
+    os.utime(source_file, ns=expected_ns)
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+
+    release_verify._copy_release_source(root, snapshot)
+
+    assert (snapshot / "metadata.txt").stat().st_mtime_ns == expected_ns[1]
+
+
 def test_release_source_snapshot_rejects_enumerator_escape(tmp_path: Path, monkeypatch):
     root = tmp_path / "source"
     root.mkdir()

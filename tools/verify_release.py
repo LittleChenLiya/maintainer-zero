@@ -1,6 +1,6 @@
 """Build and verify wheel/sdist artifacts outside the source checkout."""
 from __future__ import annotations
-import argparse, hashlib, json, os, subprocess, sys, tempfile
+import argparse, hashlib, json, os, shutil, subprocess, sys, tempfile
 import stat
 from pathlib import Path
 
@@ -8,6 +8,7 @@ DEFAULT_VERIFY_OUTPUT = Path("D:/Codex/maintainer-zero-release-verify")
 _REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 _MAX_RELEASE_ARCHIVE_BYTES = 128 * 1024 * 1024
 _RELEASE_CHUNK = 1024 * 1024
+_SOURCE_SKIP_DIRS = {".git", ".hg", ".svn", ".pytest_cache", "build", "dist"}
 
 def run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
     completed = subprocess.run(command, cwd=cwd, env=env, check=True, text=True, capture_output=True)
@@ -29,6 +30,38 @@ def _safe_existing_directory(path: Path, label: str) -> Path:
     if not stat.S_ISDIR(info.st_mode):
         raise ValueError(f"{label} is not a directory: {target}")
     return target
+
+
+def _copy_release_source(root: Path, target: Path) -> None:
+    """Copy packaging inputs to an isolated, link-free source snapshot."""
+    root = root.resolve()
+    target = _safe_existing_directory(target, "release source snapshot")
+
+    def copy_entry(source: Path, destination: Path) -> None:
+        try:
+            info = source.lstat()
+        except OSError as exc:
+            raise ValueError(f"cannot inspect release source: {source}") from exc
+        if _is_link_or_reparse(info):
+            raise ValueError(f"release source may not contain a symlink or reparse point: {source}")
+        if stat.S_ISDIR(info.st_mode):
+            destination.mkdir()
+            for child in sorted(source.iterdir(), key=lambda item: item.name.casefold()):
+                if child.name in _SOURCE_SKIP_DIRS or child.name.startswith(".continuity") or child.name.startswith(".release") or child.name.endswith(".egg-info"):
+                    continue
+                copy_entry(child, destination / child.name)
+            return
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError(f"release source contains a special file: {source}")
+        try:
+            shutil.copy2(source, destination)
+        except OSError as exc:
+            raise ValueError(f"cannot copy release source: {source}") from exc
+
+    for entry in sorted(root.iterdir(), key=lambda item: item.name.casefold()):
+        if entry.name in _SOURCE_SKIP_DIRS or entry.name.startswith(".continuity") or entry.name.startswith(".release") or entry.name.endswith(".egg-info"):
+            continue
+        copy_entry(entry, target / entry.name)
 
 
 def _safe_release_archives(wheelhouse: Path) -> list[Path]:
@@ -177,8 +210,13 @@ def verify(root: Path, output: Path) -> None:
         wheelhouse.mkdir()
         _safe_existing_directory(wheelhouse, "release artifact directory")
     run([sys.executable, "-m", "pip", "wheel", str(root), "--no-deps", "--no-index", "--no-build-isolation", "--wheel-dir", str(wheelhouse)])
-    build_sdist = "import setuptools.build_meta as b; b.build_sdist(%r)" % str(wheelhouse)
-    run([sys.executable, "-c", build_sdist], cwd=root)
+    # Build sdist from an isolated source snapshot so setuptools cannot dirty
+    # or lock the user's checkout while creating its temporary package tree.
+    with tempfile.TemporaryDirectory(prefix="sdist-source-", dir=output) as source_dir:
+        source_snapshot = Path(source_dir)
+        _copy_release_source(root, source_snapshot)
+        build_sdist = "import setuptools.build_meta as b; b.build_sdist(%r)" % str(wheelhouse)
+        run([sys.executable, "-c", build_sdist], cwd=source_snapshot)
     archives = _safe_release_archives(wheelhouse)
     for archive in archives:
         # Keep install probes in a per-run temporary directory. This makes the
@@ -234,7 +272,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, default=DEFAULT_VERIFY_OUTPUT)
     args = parser.parse_args(argv)
     try:
-        verify(args.root.resolve(), args.output.resolve())
+        # Keep the caller-supplied output spelling intact until ``verify``
+        # applies its component-by-component link/reparse checks. Resolving
+        # first would turn an unsafe symlink into its outside target and could
+        # bypass the intended boundary check.
+        verify(args.root.resolve(), args.output)
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError, subprocess.CalledProcessError) as exc:
         print(f"error: release verification failed: {exc.__class__.__name__}")
         return 2

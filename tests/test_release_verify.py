@@ -28,6 +28,10 @@ def test_release_verification_install_probe_is_offline_safe():
     source = (Path(__file__).parents[1] / "tools" / "verify_release.py").read_text(encoding="utf-8")
     assert "--no-build-isolation" in source, "release install must not resolve build dependencies from the network"
     assert source.count("--no-index") >= 2, "release build and install must not query package indexes"
+    assert "sdist-source-" in source
+    assert "_copy_release_source(root, source_snapshot)" in source
+    assert "cwd=source_snapshot" in source
+    assert "cwd=root" not in source
 
 
 def test_release_install_probe_validates_packaged_data_contracts():
@@ -53,6 +57,20 @@ def test_release_verification_cli_returns_controlled_error_for_unsafe_output(tmp
     assert capsys.readouterr().out.strip() == "error: release verification failed: ValueError"
 
 
+def test_release_verification_cli_rejects_symlinked_output_before_resolving(tmp_path: Path, capsys):
+    root = Path(__file__).parents[1]
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked-output"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    assert release_verify.main(["--root", str(root), "--output", str(linked / "release")]) == 2
+    assert capsys.readouterr().out.strip() == "error: release verification failed: ValueError"
+    assert not (outside / "release").exists()
+
+
 def test_release_verification_cli_returns_controlled_error_for_build_failure(monkeypatch, capsys, tmp_path: Path):
     root = Path(__file__).parents[1]
 
@@ -75,6 +93,33 @@ def test_release_verification_rejects_symlinked_output_component(tmp_path: Path)
         pytest.skip("symlink creation unavailable")
     with pytest.raises(ValueError, match="may not contain a symlink or reparse point"):
         verify(root, linked / "release")
+
+
+def test_release_source_snapshot_excludes_generated_outputs_and_rejects_links(tmp_path: Path):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "pyproject.toml").write_text("[build-system]\nrequires=[]\nbuild-backend='setuptools.build_meta'\n", encoding="utf-8")
+    package = root / "maintainer_zero"
+    package.mkdir()
+    (package / "__init__.py").write_text("__version__ = '0.0.0'\n", encoding="utf-8")
+    (root / ".continuity").mkdir()
+    (root / ".continuity" / "generated.json").write_text("{}", encoding="utf-8")
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    release_verify._copy_release_source(root, snapshot)
+    assert (snapshot / "pyproject.toml").exists()
+    assert (snapshot / "maintainer_zero" / "__init__.py").exists()
+    assert not (snapshot / ".continuity").exists()
+
+    linked = root / "linked"
+    try:
+        linked.symlink_to(package, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    unsafe_snapshot = tmp_path / "unsafe-snapshot"
+    unsafe_snapshot.mkdir()
+    with pytest.raises(ValueError, match="symlink or reparse point"):
+        release_verify._copy_release_source(root, unsafe_snapshot)
 
 
 def test_release_verification_rejects_reparse_output_component(tmp_path: Path, monkeypatch):

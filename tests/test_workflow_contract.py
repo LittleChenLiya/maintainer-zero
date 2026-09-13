@@ -70,12 +70,19 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     workflow = (WORKFLOWS / "continuity.yml").read_text(encoding="utf-8")
 
     assert "uses: ./" in workflow
+    assert "id: drill" in workflow
     assert "runs-on: ${{ matrix.os }}" in workflow
     assert re.search(r"matrix:\s+os: \[ubuntu-latest, windows-latest\]", workflow)
     assert "actions/setup-python@v5" in workflow
     assert "python-version: \"3.12\"" in workflow
     assert "scenario: all" in workflow
     assert "output: .continuity" in workflow
+    assert "Verify Action outputs (Unix)" in workflow
+    assert "Verify Action outputs (Windows)" in workflow
+    assert "python -m maintainer_zero verify-manifest \"$MZ_MANIFEST\"" in workflow
+    assert "python -m maintainer_zero verify-manifest $env:MZ_MANIFEST" in workflow
+    for output_name in ("report-directory", "report-json", "report-markdown", "report-html", "recovery-directory", "artifact-manifest"):
+        assert f"steps.drill.outputs.{output_name}" in workflow
     assert "Publish job summary (Unix)" in workflow
     assert "Publish job summary (Windows)" in workflow
     assert "if: always() && runner.os != 'Windows'" in workflow

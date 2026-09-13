@@ -31,10 +31,47 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run local continuity drills
+        id: drill
         uses: ./
         with:
           scenario: all
           output: .continuity
+      - name: Verify Action outputs (Unix)
+        if: success() && runner.os != 'Windows'
+        shell: bash
+        env:
+          MZ_REPORT_DIR: ${{ steps.drill.outputs.report-directory }}
+          MZ_REPORT_JSON: ${{ steps.drill.outputs.report-json }}
+          MZ_REPORT_MARKDOWN: ${{ steps.drill.outputs.report-markdown }}
+          MZ_REPORT_HTML: ${{ steps.drill.outputs.report-html }}
+          MZ_RECOVERY_DIR: ${{ steps.drill.outputs.recovery-directory }}
+          MZ_MANIFEST: ${{ steps.drill.outputs.artifact-manifest }}
+        run: |
+          test -d "$MZ_REPORT_DIR"
+          test -f "$MZ_REPORT_JSON"
+          test -f "$MZ_REPORT_MARKDOWN"
+          test -f "$MZ_REPORT_HTML"
+          test -d "$MZ_RECOVERY_DIR"
+          test -f "$MZ_MANIFEST"
+          python -m maintainer_zero verify-manifest "$MZ_MANIFEST"
+      - name: Verify Action outputs (Windows)
+        if: success() && runner.os == 'Windows'
+        shell: pwsh
+        env:
+          MZ_REPORT_DIR: ${{ steps.drill.outputs.report-directory }}
+          MZ_REPORT_JSON: ${{ steps.drill.outputs.report-json }}
+          MZ_REPORT_MARKDOWN: ${{ steps.drill.outputs.report-markdown }}
+          MZ_REPORT_HTML: ${{ steps.drill.outputs.report-html }}
+          MZ_RECOVERY_DIR: ${{ steps.drill.outputs.recovery-directory }}
+          MZ_MANIFEST: ${{ steps.drill.outputs.artifact-manifest }}
+        run: |
+          $files = @($env:MZ_REPORT_JSON, $env:MZ_REPORT_MARKDOWN, $env:MZ_REPORT_HTML, $env:MZ_MANIFEST)
+          if (-not (Test-Path -LiteralPath $env:MZ_REPORT_DIR -PathType Container)) { throw "report directory output is missing" }
+          if (-not (Test-Path -LiteralPath $env:MZ_RECOVERY_DIR -PathType Container)) { throw "recovery directory output is missing" }
+          foreach ($file in $files) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "file output is missing: $file" }
+          }
+          python -m maintainer_zero verify-manifest $env:MZ_MANIFEST
       - name: Publish job summary (Unix)
         if: always() && runner.os != 'Windows'
         shell: bash

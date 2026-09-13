@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Credential creation now rejects output paths for any artifact already
+  listed in the manifest, so it cannot invalidate newly bound evidence.
+
 - Manifest verification now confirms that the manifest file remains the same
   regular file (including size and modification time) after every artifact is
   checked, closing a replacement window between manifest parsing and the final

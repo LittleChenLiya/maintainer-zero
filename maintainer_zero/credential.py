@@ -74,6 +74,22 @@ def _require_report_binding(manifest_payload: dict[str, Any], report_name: str, 
                 raise CredentialError("credential report does not match manifest entry")
             return
     raise CredentialError("credential report is not listed in manifest")
+
+
+def _reject_manifest_output_collision(
+    manifest_payload: dict[str, Any], output_name: str
+) -> None:
+    """Do not replace any artifact already covered by the manifest.
+
+    ``create-credential`` writes atomically, but replacing another manifest
+    artifact would still make the manifest unverifiable immediately after a
+    successful command. The output is constrained to the shared root, so a
+    case-folded name comparison is sufficient for POSIX and Windows names.
+    """
+    key = output_name.casefold()
+    for item in manifest_payload["artifacts"]:
+        if item["path"].casefold() == key:
+            raise CredentialError("credential output must not replace a manifest artifact")
 def _write(path: Path, text: str) -> None:
     _safe_directory(path.parent)
     if os.path.lexists(path):
@@ -107,6 +123,7 @@ def create_credential(report: str | Path, manifest: str | Path, output: str | Pa
     target = Path(os.path.abspath(output)) if output is not None else root / "continuity-credential.json"
     if target.parent != root: raise CredentialError("credential output must share a directory with report and manifest")
     if target in {report_path, manifest_path}: raise CredentialError("credential output must not replace report or manifest")
+    _reject_manifest_output_collision(manifest_payload, target.name)
     text = json.dumps(_payload(report_path.name, report_raw, manifest_path.name, manifest_raw), indent=2, ensure_ascii=False, sort_keys=True) + "\n"
     if len(text.encode("utf-8")) > MAX_CREDENTIAL_BYTES: raise CredentialError("credential exceeds size limit")
     _write(target, text); return target

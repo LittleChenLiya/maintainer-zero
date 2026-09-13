@@ -83,6 +83,9 @@ def test_create_credential_rejects_output_collision(tmp_path: Path):
         create_credential(report, manifest, report)
     with pytest.raises(CredentialError, match="must not replace"):
         create_credential(report, manifest, manifest)
+    other = tmp_path / "report.md"
+    with pytest.raises(CredentialError, match="manifest artifact"):
+        create_credential(report, manifest, other)
 
 def test_create_credential_rejects_input_change_during_manifest_verification(tmp_path: Path, monkeypatch):
     report, manifest = fixture(tmp_path)

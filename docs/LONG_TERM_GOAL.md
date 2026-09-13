@@ -71,6 +71,9 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 
 ## 当前执行记录
 
+以下条目按日期保留历史状态；早期条目中“尚未提供 GitLab/Forgejo 网络客户端”仅适用于
+当日版本，已由后续的 HTTPS GET transport 与 `collect-provider` 条目取代，不代表当前能力。
+
 - 2026-09-12：为隐私保护公开基准增加独立 `validate-benchmark PATH` 只读入口。导出摘要现在可在分享前通过严格 schema、隐私声明、资源分区、确定性排序和总分一致性校验；加载器限制普通文件、大小、重复 JSON 键、非标准数值及读取竞态，不联网、不执行代码，也不形成跨项目排名。
 
 - 2026-09-12：GitHub 只读采集结果显式标记 \`provider: github\`，将真实采集器接入 provider-neutral 快照协议；未声明 provider 的旧快照继续兼容，未引入 GitLab/Forgejo 网络或认证能力。

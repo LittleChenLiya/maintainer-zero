@@ -18,15 +18,17 @@ unknown 状态，不复制原始记录。该参数不会触发网络请求。
 快照可以声明可选的顶层 `provider`：`github`、`gitlab` 或 `forgejo`。三者共用同一组
 规范化资源名（`repository`、`issues`、`pull_requests`、`reviews`、`releases`）、
 权限、分页截断和 `unknown` 语义，报告会保留 provider 标签。未声明时为兼容旧快照
-默认 `github`。当前实现只提供离线校验与报告投影；不会因为声明 `gitlab` 或 `forgejo`
-而联网，也没有内置对应平台的认证或写入客户端。适配器必须先把平台响应投影为本契约
+默认 `github`。本协议层只负责离线校验与报告投影；声明 `gitlab` 或 `forgejo` 本身
+不会联网。仓库另外提供显式 opt-in 的 `collect-provider`（只读 HTTPS GET）和
+`ProviderHTTPTransport`，但不提供任何远程写入客户端。适配器必须先把平台响应投影为本契约
 允许的标量字段，再交给 `load_metadata()` 校验。
 
 如果适配器需要把平台原始字段转换为规范化资源，可使用离线的
 `normalize_metadata(provider, raw_snapshot)`。它只接受显式的资源/字段别名（例如
 GitLab `project` → `repository`、`merge_requests` → `pull_requests`），拒绝别名冲突、
 嵌套值、身份/URL/凭证字段和未知键，且不会发起网络请求或执行代码。该函数是映射契约，
-不是 GitLab/Forgejo 客户端；调用方仍需自行实现经过审阅的只读采集器。
+不是网络客户端；调用方可以使用仓库提供的只读 provider client，也可以自行实现经过审阅的
+采集器。
 
 对于需要统一分页行为的集成方，`ReadOnlyProviderClient` 提供 GitLab（数字 project id）
 和 Forgejo（`OWNER/REPOSITORY`）的注入式只读边界。它只生成固定的 `/api/v4/projects/...`
@@ -167,9 +169,9 @@ collect-provider 复用 ProviderHTTPTransport 与 ReadOnlyProviderClient，只�
 - 离线快照校验层也强制执行同一字段白名单：数组记录中的未知字段或嵌套值会被拒绝，而不是被摘要阶段静默忽略；因此绕过采集客户端提交原始 GitHub 记录也不能进入快照或缓存；
 - 不接收或写入 token，不执行任何 POST、PATCH、DELETE，不创建 Issue 或评论。
 
-这是真实网络适配器的安全内核，而不是默认联网功能。项目仍不提供内置 HTTP
-认证客户端；启用网络前，调用方必须提供经过审阅的 GET-only transport，并自行
-处理凭证隔离、速率等待和组织策略。
+这是真实网络适配器的安全内核，而不是默认联网功能。注入式客户端本身不负责认证；需要联网
+时可使用显式 opt-in 的 `ProviderHTTPTransport`/`collect-provider`，或由调用方提供经过审阅的
+GET-only transport，并自行处理凭证隔离、速率等待和组织策略。
 
 ## 标准库 HTTP transport（显式 opt-in）
 

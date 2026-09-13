@@ -35,9 +35,33 @@ _RESOURCE_FIELDS = {
 
 @dataclass(frozen=True)
 class TransportResponse:
+    """A bounded response envelope whose debug representation is credential-safe.
+
+    Response bodies are untrusted provider input and may contain reflected
+    authorization values or other private data. The object is intentionally
+    still inspectable by the collector, but its repr omits both body and
+    header values so accidental debug logging cannot turn a provider response
+    into a credential leak.
+    """
+
     status_code: int
     body: bytes | str
     headers: Mapping[str, str] | None = None
+
+    def __repr__(self) -> str:
+        # Do not include untrusted header names either: a malformed provider
+        # can put a secret in a header *name*, not only in its value.  Keep the
+        # representation useful for debugging while exposing only bounded
+        # structural facts.
+        body_length = len(self.body) if isinstance(self.body, (bytes, str)) else "unknown"
+        try:
+            header_count = len(self.headers or {})
+        except Exception:
+            header_count = "unknown"
+        return (
+            f"{type(self).__name__}(status_code={self.status_code!r}, "
+            f"body_length={body_length!r}, header_count={header_count!r})"
+        )
 
 @dataclass(frozen=True)
 class CollectionStatus:

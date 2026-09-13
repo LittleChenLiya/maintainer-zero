@@ -232,6 +232,11 @@ class ProviderHTTPTransport:
             return self._response(exc.code, exc)
         except (URLError, OSError) as exc:
             raise ProviderHTTPError("HTTP request failed") from exc
+        except Exception as exc:
+            # Treat caller-provided openers as an untrusted extension boundary.
+            # Their diagnostics may include URLs, credentials, or response
+            # bodies, none of which should reach the CLI/logging boundary.
+            raise ProviderHTTPError("HTTP request failed") from exc
         return self._response(getattr(response, "status", 200), response)
 
     def _response(self, status: Any, response: Any) -> TransportResponse:

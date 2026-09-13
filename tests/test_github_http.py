@@ -89,6 +89,33 @@ def test_transport_redacts_network_diagnostics(error):
     assert "private" not in str(raised.value)
 
 
+def test_transport_redacts_untrusted_opener_diagnostics():
+    transport = GitHubHTTPTransport(
+        opener=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("authorization=secret-token https://user:secret@example.invalid")
+        )
+    )
+    with pytest.raises(GitHubHTTPError, match="^HTTP request failed$") as raised:
+        transport("/repos/acme/demo/issues", {}, 1)
+    assert "secret-token" not in str(raised.value)
+    assert "example.invalid" not in str(raised.value)
+
+
+def test_transport_response_repr_hides_body_and_header_values():
+    from maintainer_zero.github_client import TransportResponse
+
+    response = TransportResponse(
+        200,
+        b"authorization=secret-token",
+        {"Link": "https://user:secret@example.invalid", "Retry-After": "7"},
+    )
+    rendered = repr(response)
+    assert "secret-token" not in rendered
+    assert "example.invalid" not in rendered
+    assert "body_length=26" in rendered
+    assert "header_count=2" in rendered
+
+
 def test_transport_rejects_unapproved_paths_and_unsafe_config():
     with pytest.raises(GitHubHTTPError, match="config"):
         GitHubHTTPTransport(config=object())

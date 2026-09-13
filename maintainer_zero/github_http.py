@@ -155,6 +155,11 @@ class GitHubHTTPTransport:
             raise GitHubHTTPError("HTTP request failed") from exc
         except OSError as exc:
             raise GitHubHTTPError("HTTP request failed") from exc
+        except Exception as exc:
+            # Injected openers are an extension boundary. Do not let a
+            # provider/client exception (which can include a URL, proxy
+            # credentials, or response details) escape into CLI diagnostics.
+            raise GitHubHTTPError("HTTP request failed") from exc
         return self._response(getattr(response, "status", 200), response)
 
     def _response(self, status: int, response: Any) -> TransportResponse:

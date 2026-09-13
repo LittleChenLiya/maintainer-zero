@@ -136,6 +136,20 @@ def test_transport_redacts_network_errors_and_rejects_bad_responses():
         transport("/api/v4/projects/42/issues", {}, 1)
 
 
+def test_transport_redacts_untrusted_opener_diagnostics():
+    transport = ProviderHTTPTransport(
+        "gitlab",
+        config=config("gitlab"),
+        opener=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("PRIVATE-TOKEN=secret-token https://user:secret@example.invalid")
+        ),
+    )
+    with pytest.raises(ProviderHTTPError, match="^HTTP request failed$") as raised:
+        transport("/api/v4/projects/42/issues", {}, 1)
+    assert "secret-token" not in str(raised.value)
+    assert "example.invalid" not in str(raised.value)
+
+
 def test_transport_bounds_response_reads_and_rejects_unknown_provider():
     class LargeResponse(FakeResponse):
         def read(self, limit):

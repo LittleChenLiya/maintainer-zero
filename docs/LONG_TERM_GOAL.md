@@ -19,6 +19,7 @@ GitHub composite Action 也暴露该 manifest 的绝对路径并将其纳入连�
 发布验证的构建与安装命令还显式禁用包索引访问（`--no-index`），使离线证据不依赖网络可用性。
 每个 wheel/sdist 的隔离安装探针现在还直接加载打包后的版本化 scenario registry 与 data-only demo fixture，并比较发行版元数据版本与运行时 `maintainer_zero.__version__`，再运行完整三场景 `simulate`，用安装包自身的 CLI 离线验证 manifest 与 integrity credential，覆盖最终用户主路径而不读取源码树中的包。
 发布验证入口现在对安全边界和构建异常提供受控退出码 2 与稳定错误类别，便于 CI 自动化消费。
+init 入口现在也逐级检查目标目录，拒绝符号链接、Windows reparse point 和特殊文件后才创建 starter 配置，避免初始化写入被重定向到目标之外。
 
 ## 完成定义
 

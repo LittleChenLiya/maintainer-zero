@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The init command now rejects symlinked, reparse-point, and special output
+  directories before creating a starter configuration, preventing a requested
+  path from redirecting writes outside the selected repository.
+
 - Action integration coverage now exercises the optional workspace-local `history` input end to end, including manifest and integrity-credential verification of trend sidecars.
 
 - Release install probes now load the packaged scenario registry and data-only demo fixture,

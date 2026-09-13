@@ -17,6 +17,8 @@ DEFAULT_MAX_TIMEOUT_SECONDS = 60.0
 _CONTROL_CHARS = frozenset(chr(code) for code in range(32)) | {chr(127)}
 _RESPONSE_HEADERS = frozenset(("link", "retry-after", "x-ratelimit-reset"))
 _MAX_RESPONSE_HEADER_VALUE = 4096
+_MAX_QUERY_COMPONENT_LENGTH = 128
+_MAX_QUERY_LENGTH = 512
 class _RejectRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, *args, **kwargs):
         return None
@@ -105,12 +107,24 @@ class GitHubHTTPTransport:
             validate_github_path(path)
         except GitHubClientError as exc:
             raise GitHubHTTPError("HTTP transport received a non-whitelisted path") from exc
-        if not isinstance(params, Mapping) or any(not isinstance(key, str) or not isinstance(value, str) for key, value in params.items()):
+        if (
+            not isinstance(params, Mapping)
+            or any(
+                not isinstance(key, str)
+                or not isinstance(value, str)
+                or len(key) > _MAX_QUERY_COMPONENT_LENGTH
+                or len(value) > _MAX_QUERY_COMPONENT_LENGTH
+                or any(char in _CONTROL_CHARS for char in key + value)
+                for key, value in params.items()
+            )
+        ):
             raise GitHubHTTPError("HTTP transport parameters must be string pairs")
         if (isinstance(timeout, bool) or not isinstance(timeout, (int, float))
                 or not 0 < timeout <= DEFAULT_MAX_TIMEOUT_SECONDS):
             raise GitHubHTTPError("HTTP transport timeout must be finite and in (0, 60] seconds")
         query = urlencode(sorted(params.items()))
+        if len(query) > _MAX_QUERY_LENGTH:
+            raise GitHubHTTPError("HTTP transport query exceeds size limit")
         request = Request(
             f"{self.config.api_base}{path}{'?' + query if query else ''}",
             headers={

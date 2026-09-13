@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- GitHub's explicit HTTPS transport now bounds query components and the encoded query string, rejecting control characters and oversized URLs before invoking the opener.
 - GitHub's injected read-only client now rejects duplicate JSON object keys and integers outside the signed 64-bit range before projection, matching the provider-neutral fail-closed boundary.
 - GitLab release records now map the provider-specific `released_at` timestamp to the canonical `published_at` field, with an offline transport/client/cache regression covering projection and sensitive-field removal.
 - Provider header parsing now rejects Unicode or oversized numeric hints safely and preserves a partial/page-limit result when GitLab advertises more pages than the local bound.

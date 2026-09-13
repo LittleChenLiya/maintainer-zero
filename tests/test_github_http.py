@@ -121,3 +121,18 @@ def test_transport_rejects_unbounded_timeout():
     transport = GitHubHTTPTransport()
     with pytest.raises(GitHubHTTPError, match="timeout"):
         transport("/repos/acme/demo/issues", {}, 61)
+
+
+def test_transport_rejects_oversized_or_control_character_query_before_opener():
+    calls = []
+    transport = GitHubHTTPTransport(opener=lambda *args: calls.append(args))
+    with pytest.raises(GitHubHTTPError, match="parameters"):
+        transport("/repos/acme/demo/issues", {"page": "1" + "x" * 128}, 1)
+    with pytest.raises(GitHubHTTPError, match="parameters"):
+        transport("/repos/acme/demo/issues", {"page": "1\n2"}, 1)
+    with pytest.raises(GitHubHTTPError, match="query"):
+        transport("/repos/acme/demo/issues", {
+            "a": "x" * 128, "b": "y" * 128,
+            "c": "z" * 128, "d": "q" * 128,
+        }, 1)
+    assert calls == []

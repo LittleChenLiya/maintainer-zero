@@ -111,7 +111,7 @@ def test_action_adapter_rejects_symlinked_github_output_parent(tmp_path):
         linked.symlink_to(outside, target_is_directory=True)
     except (OSError, NotImplementedError):
         pytest.skip("symlinks unavailable")
-    with pytest.raises(ValueError, match="parent path"):
+    with pytest.raises(ValueError, match="symbolic link or reparse point"):
         _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(linked / "github-output")})
 
 
@@ -127,7 +127,7 @@ def test_action_adapter_rejects_reparse_output_parent_without_following_it(tmp_p
         return original_lstat(path, *args, **kwargs)
 
     monkeypatch.setattr(Path, "lstat", fake_lstat)
-    with pytest.raises(ValueError, match="parent path"):
+    with pytest.raises(ValueError, match="symbolic link or reparse point"):
         _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(output_file)})
     assert not output_file.exists()
 

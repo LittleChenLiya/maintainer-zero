@@ -114,6 +114,18 @@ def test_client_rejects_nonstandard_numbers_in_object_and_array_payloads():
     assert overflowing_issues["collection"]["issues"]["reason"] == "invalid_json"
 
 
+def test_client_rejects_duplicate_keys_and_unbounded_integers():
+    duplicate = ReadOnlyGitHubClient(
+        lambda *_: TransportResponse(200, b'[{"number": 1, "number": 2}]')
+    ).collect({"issues": "/repos/acme/demo/issues"})
+    assert duplicate["collection"]["issues"]["reason"] == "invalid_json"
+
+    huge = ReadOnlyGitHubClient(
+        lambda *_: TransportResponse(200, json.dumps([{"number": 1 << 80}]))
+    ).collect({"issues": "/repos/acme/demo/issues"})
+    assert huge["collection"]["issues"]["reason"] == "invalid_json"
+
+
 def test_client_rejects_deep_response_payloads_without_raising():
     nested = "[" * 70 + "0" + "]" * 70
     response = ReadOnlyGitHubClient(

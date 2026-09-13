@@ -56,6 +56,39 @@ def _reject_nonstandard_number(value: str) -> None:
     raise ValueError(f"non-standard JSON number: {value}")
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject ambiguous provider responses instead of keeping the last key."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key}")
+        result[key] = value
+    return result
+
+
+def _validate_response_values(value: Any, *, depth: int = 0, active: set[int] | None = None) -> None:
+    """Reject cyclic, deeply nested, non-finite, or unbounded values."""
+    if depth > MAX_RESPONSE_NESTING:
+        raise ValueError(f"response nesting exceeds {MAX_RESPONSE_NESTING} levels")
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("response contains a non-finite number")
+    if isinstance(value, int) and not isinstance(value, bool) and not -(1 << 63) <= value <= (1 << 63) - 1:
+        raise ValueError("response contains an unbounded integer")
+    if not isinstance(value, (dict, list)):
+        return
+    active = active or set()
+    identity = id(value)
+    if identity in active:
+        raise ValueError("response contains a cyclic structure")
+    active.add(identity)
+    try:
+        nested = value.values() if isinstance(value, dict) else value
+        for item in nested:
+            _validate_response_values(item, depth=depth + 1, active=active)
+    finally:
+        active.remove(identity)
+
+
 def _contains_non_finite_number(value: Any, *, depth: int = 0, active: set[int] | None = None) -> bool:
     if depth > MAX_RESPONSE_NESTING:
         raise ValueError(f"response nesting exceeds {MAX_RESPONSE_NESTING} levels")
@@ -189,7 +222,8 @@ class ReadOnlyGitHubClient:
         if not isinstance(raw, bytes) or len(raw) > self.max_response_bytes:
             return {}, CollectionStatus(False, 1, False, "response_too_large")
         try:
-            payload = json.loads(raw, parse_constant=_reject_nonstandard_number)
+            payload = json.loads(raw, object_pairs_hook=_reject_duplicate_object_keys, parse_constant=_reject_nonstandard_number)
+            _validate_response_values(payload)
         except (UnicodeError, json.JSONDecodeError, ValueError, RecursionError):
             return {}, CollectionStatus(False, 1, False, "invalid_json")
         try:
@@ -236,7 +270,8 @@ class ReadOnlyGitHubClient:
             if collected_bytes > MAX_COLLECTION_BYTES:
                 return records, CollectionStatus(False, page, False, "collection_too_large")
             try:
-                payload = json.loads(raw, parse_constant=_reject_nonstandard_number)
+                payload = json.loads(raw, object_pairs_hook=_reject_duplicate_object_keys, parse_constant=_reject_nonstandard_number)
+                _validate_response_values(payload)
             except (UnicodeError, json.JSONDecodeError, ValueError, RecursionError):
                 return records, CollectionStatus(False, page, False, "invalid_json")
             try:

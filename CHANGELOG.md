@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- Added offline integrity credentials that bind `continuity.json` to the artifact manifest; verification is explicitly not a digital signature and now fail-closes on links, path escapes, control characters, output collisions, duplicate keys, deep JSON, and read races.
 - Recursive response validators now preserve their active-node set when it is empty, so cycle detection remains correct for provider adapters and future in-memory transports.
 - GitHub HTTPS transport now rejects config objects without the required fields with a bounded transport error instead of leaking an attribute exception, while preserving validation for compatible config objects.
 - GitHub's explicit HTTPS transport now bounds API-base and User-Agent lengths and rejects control characters before constructing a request, matching the non-GitHub provider transports.

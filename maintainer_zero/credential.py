@@ -98,6 +98,7 @@ def load_credential(path: str | Path) -> dict[str, Any]:
     except CredentialError: raise
     except OSError as exc: raise CredentialError("cannot read credential") from exc
     try: payload = json.loads(raw.decode("utf-8"), object_pairs_hook=_duplicates, parse_constant=_constant)
+    except RecursionError as exc: raise CredentialError("credential JSON is too deeply nested") from exc
     except CredentialError: raise
     except (UnicodeError, json.JSONDecodeError) as exc: raise CredentialError("invalid credential JSON") from exc
     required = {"schema_version", "credential_type", "tool", "rule_version", "claims", "report", "manifest", "content_digest"}
@@ -126,4 +127,3 @@ def verify_credential(path: str | Path) -> dict[str, Any]:
     if actual != payload["content_digest"]["value"]: raise CredentialError("credential content digest mismatch")
     return {"verified": True, "report": payload["report"]["path"], "manifest": payload["manifest"]["path"], "content_digest": actual}
 __all__ = ["CredentialError", "create_credential", "load_credential", "verify_credential"]
-

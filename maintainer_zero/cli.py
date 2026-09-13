@@ -578,9 +578,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "verify-credential":
         try:
             summary = verify_credential(args.path)
-        except CredentialError as exc:
+        except (CredentialError, OSError, ValueError) as exc:
             print(f"error: {exc}")
             return 2
+
         if args.credential_format == "json":
             print(json.dumps(summary, indent=2, ensure_ascii=False))
         else:

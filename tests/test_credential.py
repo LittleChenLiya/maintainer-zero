@@ -52,3 +52,34 @@ def test_verify_credential_cli_exit_codes(tmp_path: Path, capsys):
     report.write_text("tampered\n", encoding="utf-8")
     assert main(["verify-credential", str(credential)]) == 2
     assert "error:" in capsys.readouterr().out
+
+def test_credential_rejects_control_and_windows_paths(tmp_path: Path):
+    report, manifest = fixture(tmp_path)
+    credential = create_credential(report, manifest)
+    payload = json.loads(credential.read_text(encoding="utf-8"))
+    for item in (payload["report"], payload["manifest"]):
+        item["path"] = "C:/outside.json"
+        with pytest.raises(CredentialError, match="normalized"):
+            credential.write_text(json.dumps(payload), encoding="utf-8")
+            load_credential(credential)
+        item["path"] = "report.json" if item is payload["report"] else "artifact-manifest.json"
+    credential.write_text(json.dumps(payload), encoding="utf-8")
+
+def test_create_credential_rejects_output_collision(tmp_path: Path):
+    report, manifest = fixture(tmp_path)
+    with pytest.raises(CredentialError, match="must not replace"):
+        create_credential(report, manifest, report)
+    with pytest.raises(CredentialError, match="must not replace"):
+        create_credential(report, manifest, manifest)
+
+def test_credential_rejects_symlink_parent(tmp_path: Path):
+    report, manifest = fixture(tmp_path)
+    credential = create_credential(report, manifest)
+    outside = tmp_path / "outside"; outside.mkdir()
+    linked = tmp_path / "linked"
+    try: linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError): pytest.skip("symlinks unavailable")
+    moved = linked / credential.name
+    credential.unlink()
+    with pytest.raises(CredentialError, match="parent"):
+        load_credential(moved)

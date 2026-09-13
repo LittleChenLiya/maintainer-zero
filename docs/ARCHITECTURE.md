@@ -23,6 +23,7 @@ CLI 参数
 | `scenarios.py` | 纯函数演练与可解释发现 | 不联网、不写文件、不读取系统时间 |
 | `report.py` | 把同一结果转换为三种工件，并输出 GitHub 元数据证据状态与隐私边界摘要 | 不重算或修改评分；隐私摘要只记录布尔状态，不保存身份映射 |
 | `manifest.py` | 为已生成的本地工件写入 bounded SHA-256/size manifest，并离线校验 | 只允许相对路径与普通文件；manifest 不包含自身 hash，不是数字签名 |
+| `credential.py` | 绑定报告与 manifest 的离线完整性凭证，并执行竞态/路径边界校验 | 只证明本地内容完整性；不证明来源、身份或授权，不执行代码 |
 | `fallback.py` | 校验 data-only 依赖替代/冷构建计划并生成未执行声明摘要 | 不执行命令、不联网；`planned`/`passed` 仅是声明，不能当作运行证明 |
 | `benchmark.py` | 将已验证报告投影为隐私保护的公开基准摘要，并校验待分享摘要 | 省略仓库/人员身份、依赖名、Finding 文本和原始记录；`validate-benchmark` 只读、离线、不形成排名 |
 | `github_metadata.py` | 校验并摘要 provider-neutral 的只读元数据快照 | 允许 github/gitlab/forgejo provider；共用规范化资源白名单与 unknown/partial 语义；不联网、不认证、不执行适配器 |

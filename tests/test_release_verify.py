@@ -47,6 +47,16 @@ def test_release_install_probe_validates_packaged_data_contracts():
     assert "verify-manifest" in source and "verify-credential" in source, "release smoke must verify generated integrity artifacts"
 
 
+def test_release_smoke_drill_does_not_reuse_live_checkout():
+    source = (Path(__file__).parents[1] / "tools" / "verify_release.py").read_text(encoding="utf-8")
+    # The installed CLI must be exercised against a disposable Git repository;
+    # passing the caller's checkout here would reopen a mutable-source race
+    # after the release snapshot and make the smoke result non-reproducible.
+    assert "drill_repository = Path(target) / \"smoke-repository\"" in source
+    assert '"git", "init", "--quiet"' in source
+    assert "str(drill_repository), \"--scenario\"" in source
+
+
 def test_release_verification_rejects_output_inside_source_checkout(tmp_path: Path):
     root = Path(__file__).parents[1]
     with pytest.raises(ValueError, match="outside the source checkout"):

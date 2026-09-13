@@ -38,6 +38,13 @@ def _validate_path_components(
     parts = target.parts[1:] if target.anchor else target.parts
     missing = False
     last_info: os.stat_result | None = None
+    if not parts and target.anchor:
+        try:
+            last_info = target.lstat()
+        except OSError as exc:
+            raise ValueError(f"{label} path could not be inspected") from exc
+        if _is_link_like(last_info) or not stat.S_ISDIR(last_info.st_mode):
+            raise ValueError(f"{label} must be an existing directory")
     for index, part in enumerate(parts):
         current /= part
         try:

@@ -43,6 +43,69 @@ from .fallback import FallbackPlanError, load_fallback_plan, summarize_fallback_
 from .benchmark import BenchmarkError, build_benchmark, load_benchmark, render_benchmark_text
 from . import __version__
 
+_MAX_CONFIG_BYTES = 1_048_576
+
+
+def _reject_duplicate_config_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"continuity.json contains duplicate object key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_nonstandard_config_number(value: str) -> None:
+    raise ValueError(f"continuity.json contains non-standard JSON number: {value}")
+
+
+def _open_config(path: Path):
+    """Open continuity.json with bounded, fail-closed local-file checks."""
+    target = Path(os.path.abspath(path))
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    for part in parts[:-1]:
+        current /= part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            break
+        except OSError as exc:
+            raise ValueError("Invalid continuity config") from exc
+        if _is_link_like(info):
+            raise ValueError("continuity.json path may not contain a symlink or reparse point")
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValueError("continuity.json parent must be a directory")
+    try:
+        initial = target.lstat()
+    except FileNotFoundError:
+        return None, target, None
+    except OSError as exc:
+        raise ValueError("Invalid continuity config") from exc
+    if _is_link_like(initial) or not stat.S_ISREG(initial.st_mode):
+        raise ValueError("continuity.json must be a regular file")
+    if initial.st_size > _MAX_CONFIG_BYTES:
+        raise ValueError(f"continuity.json exceeds {_MAX_CONFIG_BYTES} bytes")
+    descriptor = None
+    try:
+        descriptor = os.open(target, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        opened = os.fstat(descriptor)
+        if _is_link_like(opened) or not stat.S_ISREG(opened.st_mode):
+            raise ValueError("continuity.json descriptor is not a regular file")
+        identity = (getattr(initial, "st_dev", 0), getattr(initial, "st_ino", 0))
+        opened_identity = (getattr(opened, "st_dev", 0), getattr(opened, "st_ino", 0))
+        if opened_identity != identity:
+            raise ValueError("continuity.json changed before reading")
+        return os.fdopen(descriptor, "rb"), target, initial
+    except ValueError:
+        if descriptor is not None:
+            os.close(descriptor)
+        raise
+    except OSError as exc:
+        if descriptor is not None:
+            os.close(descriptor)
+        raise ValueError("Invalid continuity config") from exc
+
 def _atomic_write_text(path: str | Path, content: str) -> None:
     """Replace one local output file atomically, leaving old data on failure."""
     target = _safe_output_file(path)
@@ -225,11 +288,36 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _load_config(path: Path) -> dict:
     config_path = path / "continuity.json"
-    if not config_path.exists():
+    handle, target, initial = _open_config(config_path)
+    if handle is None:
         return {}
     try:
-        data = json.loads(config_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        with handle:
+            raw = handle.read(_MAX_CONFIG_BYTES + 1)
+        if len(raw) > _MAX_CONFIG_BYTES:
+            raise ValueError(f"continuity.json exceeds {_MAX_CONFIG_BYTES} bytes")
+        try:
+            after = target.lstat()
+        except OSError as exc:
+            raise ValueError(f"Invalid continuity config: {config_path}") from exc
+        identity = (getattr(initial, "st_dev", 0), getattr(initial, "st_ino", 0))
+        after_identity = (getattr(after, "st_dev", 0), getattr(after, "st_ino", 0))
+        if (
+            _is_link_like(after)
+            or not stat.S_ISREG(after.st_mode)
+            or after_identity != identity
+            or after.st_size != initial.st_size
+            or getattr(after, "st_mtime_ns", None) != getattr(initial, "st_mtime_ns", None)
+        ):
+            raise ValueError("continuity.json changed during reading")
+        data = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_config_keys,
+            parse_constant=_reject_nonstandard_config_number,
+        )
+    except ValueError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
         raise ValueError(f"Invalid continuity config: {config_path}") from exc
     if not isinstance(data, dict):
         raise ValueError(f"Invalid continuity config: {config_path}")

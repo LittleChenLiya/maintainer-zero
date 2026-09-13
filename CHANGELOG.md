@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Continuity configuration loading now rejects symlinked/reparse-point or
+  special files, bounds input to 1 MiB, rejects duplicate keys and non-standard
+  JSON numbers, and rechecks file identity, size, and mtime after reading.
+
 - Credential creation now rejects output paths for any artifact already
   listed in the manifest, so it cannot invalidate newly bound evidence.
 

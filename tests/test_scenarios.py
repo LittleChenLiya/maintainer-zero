@@ -216,6 +216,81 @@ def test_config_rejects_null_and_non_string_values(tmp_path, value):
         _load_config(tmp_path)
 
 
+def test_config_rejects_duplicate_keys_and_nonstandard_numbers(tmp_path):
+    config_path = tmp_path / "continuity.json"
+    config_path.write_text('{"days": 7, "days": 8}', encoding="utf-8")
+    with pytest.raises(ValueError, match="duplicate object key"):
+        _load_config(tmp_path)
+    config_path.write_text('{"days": NaN}', encoding="utf-8")
+    with pytest.raises(ValueError, match="non-standard JSON number"):
+        _load_config(tmp_path)
+
+
+def test_config_rejects_oversized_file(tmp_path):
+    config_path = tmp_path / "continuity.json"
+    config_path.write_bytes(b"{" + b" " * (1_048_576) + b"}")
+    with pytest.raises(ValueError, match="exceeds 1048576 bytes"):
+        _load_config(tmp_path)
+
+
+def test_config_rejects_symlinked_target_and_parent(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "continuity.json").write_text('{"days": 1}', encoding="utf-8")
+    linked_file = tmp_path / "continuity.json"
+    linked_parent = tmp_path / "linked-parent"
+    try:
+        linked_file.symlink_to(outside / "continuity.json")
+        with pytest.raises(ValueError, match="regular file"):
+            _load_config(tmp_path)
+        linked_file.unlink()
+        linked_parent.symlink_to(outside, target_is_directory=True)
+        with pytest.raises(ValueError, match="symlink or reparse"):
+            _load_config(linked_parent)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+
+
+def test_config_rejects_reparse_target_without_reading(tmp_path, monkeypatch):
+    config_path = tmp_path / "continuity.json"
+    config_path.write_text('{"days": 1}', encoding="utf-8")
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        info = original_lstat(path, *args, **kwargs)
+        if path == config_path:
+            class ReparseInfo:
+                st_mode = info.st_mode
+                st_file_attributes = 0x400
+            return ReparseInfo()
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(ValueError, match="regular file"):
+        _load_config(tmp_path)
+
+
+def test_config_fails_closed_when_replaced_during_read(tmp_path, monkeypatch):
+    config_path = tmp_path / "continuity.json"
+    config_path.write_text('{"days": 1}', encoding="utf-8")
+    original_lstat = Path.lstat
+    calls = 0
+
+    def fake_lstat(path, *args, **kwargs):
+        nonlocal calls
+        info = original_lstat(path, *args, **kwargs)
+        if path == config_path:
+            calls += 1
+            if calls == 2:
+                config_path.write_text('{"days": 100}', encoding="utf-8")
+                info = original_lstat(path, *args, **kwargs)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(ValueError, match="changed during reading"):
+        _load_config(tmp_path)
+
+
 @pytest.mark.parametrize("scenario", [maintainer_zero, dependency_yanked, ci_outage])
 def test_scenarios_reject_negative_days(scenario):
     with pytest.raises(ValueError, match="days must be a non-negative integer"):

@@ -93,6 +93,10 @@ def test_transport_requires_https_and_bounds_input():
         ProviderHTTPTransport("gitlab", config=ProviderHTTPTransportConfig(api_base="https://gitlab.example", user_agent="bad\tua"))
     with pytest.raises(ProviderHTTPError, match="max_response_bytes"):
         ProviderHTTPTransport("gitlab", config=ProviderHTTPTransportConfig(api_base="https://gitlab.example", max_response_bytes=1_000_001))
+    with pytest.raises(ProviderHTTPError, match="user_agent"):
+        ProviderHTTPTransport("gitlab", config=ProviderHTTPTransportConfig(api_base="https://gitlab.example", user_agent="u" * 257))
+    with pytest.raises(ProviderHTTPError, match="api_base"):
+        ProviderHTTPTransport("gitlab", config=ProviderHTTPTransportConfig(api_base="https://" + "a" * 250))
 
 
 @pytest.mark.parametrize("timeout", [0, -1, 61, float("inf"), True])
@@ -147,3 +151,11 @@ def test_transport_bounds_response_reads_and_rejects_unknown_provider():
     assert response.body == b"1234"
     with pytest.raises(ProviderHTTPError, match="unsupported"):
         ProviderHTTPTransport("github", config=config("gitlab"))
+
+
+def test_transport_bounds_query_components_and_encoded_query():
+    transport = ProviderHTTPTransport("gitlab", config=config("gitlab"), opener=lambda *_args, **_kwargs: FakeResponse())
+    with pytest.raises(ProviderHTTPError, match="parameters"):
+        transport("/api/v4/projects/42/issues", {"p": "x" * 129}, 1)
+    with pytest.raises(ProviderHTTPError, match="query exceeds"):
+        transport("/api/v4/projects/42/issues", {"p": "x" * 128, "q": "y" * 128, "r": "z" * 128, "s": "w" * 128}, 1)

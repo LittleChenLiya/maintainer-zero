@@ -28,6 +28,10 @@ _CONTROL_CHARS = frozenset(chr(code) for code in range(32)) | {chr(127)}
 _RESPONSE_HEADERS = frozenset(("link", "retry-after", "x-ratelimit-reset", "x-next-page"))
 _MAX_RESPONSE_HEADER_VALUE = 4096
 _MAX_PROVIDER_PATH_LENGTH = 256
+_MAX_API_BASE_LENGTH = 256
+_MAX_USER_AGENT_LENGTH = 256
+_MAX_QUERY_COMPONENT_LENGTH = 128
+_MAX_QUERY_LENGTH = 512
 _SEGMENT = r"[A-Za-z0-9][A-Za-z0-9_.-]{0,99}"
 _GITLAB_PATH = re.compile(
     rf"/api/v4/projects/[1-9][0-9]{{0,9}}(?:/(?:issues|merge_requests|releases))?"
@@ -76,6 +80,7 @@ def _validate_config(config: ProviderHTTPTransportConfig) -> None:
         raise ProviderHTTPError("config must be ProviderHTTPTransportConfig")
     if (
         not isinstance(config.api_base, str)
+        or len(config.api_base) > _MAX_API_BASE_LENGTH
         or any(char in _CONTROL_CHARS for char in config.api_base)
     ):
         raise ProviderHTTPError("api_base must be an https URL without a trailing slash")
@@ -98,6 +103,7 @@ def _validate_config(config: ProviderHTTPTransportConfig) -> None:
     if (
         not isinstance(config.user_agent, str)
         or not config.user_agent.strip()
+        or len(config.user_agent) > _MAX_USER_AGENT_LENGTH
         or any(char in _CONTROL_CHARS for char in config.user_agent)
     ):
         raise ProviderHTTPError("user_agent must be a non-empty single-line string")
@@ -197,12 +203,16 @@ class ProviderHTTPTransport:
             not isinstance(params, Mapping)
             or any(
                 not isinstance(key, str) or not isinstance(value, str)
+                or len(key) > _MAX_QUERY_COMPONENT_LENGTH
+                or len(value) > _MAX_QUERY_COMPONENT_LENGTH
                 for key, value in params.items()
             )
         ):
             raise ProviderHTTPError("HTTP transport parameters must be string pairs")
         _validate_timeout(timeout)
         query = urlencode(sorted(params.items()))
+        if len(query) > _MAX_QUERY_LENGTH:
+            raise ProviderHTTPError("HTTP transport query exceeds size limit")
         headers = {
             "Accept": "application/json",
             "User-Agent": self.config.user_agent,

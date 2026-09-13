@@ -127,10 +127,13 @@ def _has_next(provider: str, headers: Mapping[str, str] | None, page: int) -> bo
     # a short, positive page number after the page just fetched as authoritative
     # and let the client's max_pages bound the resulting requests.
     value = (_header(headers, "x-next-page") or "").strip()
-    if not value or len(value) > 2 or not value.isdigit():
+    if not value or len(value) > 10 or not re.fullmatch(r"[0-9]+", value):
         return False
     next_page = int(value)
-    return 1 <= next_page <= 50 and next_page > page
+    # The request loop still enforces max_pages (<= 50); the larger bound here
+    # lets the final permitted page be marked partial when the provider says a
+    # later page exists.
+    return 1 <= next_page <= 9_999_999_999 and next_page > page
 
 
 def _rate_limit_hints(headers: Mapping[str, str] | None) -> tuple[int | None, int | None]:
@@ -138,8 +141,8 @@ def _rate_limit_hints(headers: Mapping[str, str] | None) -> tuple[int | None, in
     reset = _header(headers, "x-ratelimit-reset") or ""
     # Check length before int() so hostile digit strings cannot trigger costly
     # conversion or interpreter limits while handling a rate-limited response.
-    retry = int(retry_after) if retry_after.isdigit() and len(retry_after) <= 5 and int(retry_after) <= 86_400 else None
-    epoch = int(reset) if reset.isdigit() and len(reset) <= 10 and int(reset) <= 4_102_444_800 else None
+    retry = int(retry_after) if re.fullmatch(r"[0-9]{1,5}", retry_after) and int(retry_after) <= 86_400 else None
+    epoch = int(reset) if re.fullmatch(r"[0-9]{1,10}", reset) and int(reset) <= 4_102_444_800 else None
     return retry, epoch
 
 

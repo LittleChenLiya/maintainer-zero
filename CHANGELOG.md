@@ -1,8 +1,14 @@
 # Changelog
 
-- Added offline `validate-benchmark` for strict, privacy-preserving benchmark summaries; rejects unsafe fields, duplicate keys, non-standard numbers, redirected files, and inconsistent aggregates before sharing.
-
 ## Unreleased
+
+- Credential creation and verification now require the bound report to be an
+  exact artifact-manifest entry (matching path, size, and SHA-256), so a valid
+  manifest cannot silently omit the report covered by the credential.
+
+- Re-read credential inputs after manifest verification and fail closed when a report or manifest changes during creation, preventing known-stale integrity envelopes.
+
+- Added offline `validate-benchmark` for strict, privacy-preserving benchmark summaries; rejects unsafe fields, duplicate keys, non-standard numbers, redirected files, and inconsistent aggregates before sharing.
 
 - Added offline integrity credentials that bind `continuity.json` to the artifact manifest; verification is explicitly not a digital signature and now fail-closes on links, path escapes, control characters, output collisions, duplicate keys, deep JSON, and read races.
 - Recursive response validators now preserve their active-node set when it is empty, so cycle detection remains correct for provider adapters and future in-memory transports.
@@ -39,7 +45,6 @@
 
 本文件记录尚未发布的本地开发版本；项目当前没有公开远程仓库或已发布包。
 
-## Unreleased
 
 - composite Action 的 `GITHUB_OUTPUT` 契约测试现在覆盖 Windows reparse point 父目录和目标文件，确保 runner 输出不会被重定向或覆盖特殊文件。
 - 报告三文件现在采用可回滚的整套原子替换；中途失败会恢复旧的 JSON/Markdown/HTML 组合，不留下新旧报告混合状态。

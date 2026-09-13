@@ -8,7 +8,7 @@ import hashlib, json, os, stat, tempfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 from . import __version__
-from .manifest import ManifestError, verify_manifest
+from .manifest import ManifestError, load_manifest, verify_manifest
 SCHEMA_VERSION = 1
 MAX_CREDENTIAL_BYTES = 256 * 1024
 MAX_BOUND_FILE_BYTES = 8 * 1024 * 1024
@@ -58,6 +58,22 @@ def _read(root: Path, relative: str) -> bytes:
     return raw
 def _sha(raw: bytes) -> str: return hashlib.sha256(raw).hexdigest()
 def _content_digest(report: bytes, manifest: bytes) -> str: return _sha(report + _BOUNDARY + manifest)
+
+
+def _require_report_binding(manifest_payload: dict[str, Any], report_name: str, report: bytes) -> None:
+    """Require the credential's report to be an exact manifest entry.
+
+    A manifest can be valid while describing a different set of artifacts. A
+    credential that merely hashes such a manifest would therefore leave its
+    report outside the manifest's integrity set. Keep the binding explicit
+    and compare both the normalized path and recorded content metadata.
+    """
+    for item in manifest_payload["artifacts"]:
+        if item["path"] == report_name:
+            if item["size"] != len(report) or item["sha256"] != _sha(report):
+                raise CredentialError("credential report does not match manifest entry")
+            return
+    raise CredentialError("credential report is not listed in manifest")
 def _write(path: Path, text: str) -> None:
     _safe_directory(path.parent)
     if os.path.lexists(path):
@@ -77,8 +93,17 @@ def create_credential(report: str | Path, manifest: str | Path, output: str | Pa
     report_path, manifest_path = Path(os.path.abspath(report)), Path(os.path.abspath(manifest))
     if report_path.parent != manifest_path.parent: raise CredentialError("report and manifest must share a directory")
     root = _safe_directory(report_path.parent); report_raw, manifest_raw = _read(root, report_path.name), _read(root, manifest_path.name)
-    try: verify_manifest(manifest_path)
+    try:
+        manifest_payload = load_manifest(manifest_path)
+        verify_manifest(manifest_path)
     except ManifestError as exc: raise CredentialError(f"manifest is not verifiable: {exc}") from exc
+    _require_report_binding(manifest_payload, report_path.name, report_raw)
+    # Verification is a separate read of the manifest. Re-read both inputs
+    # afterwards so a replacement during that window cannot produce a
+    # credential whose recorded bytes are already stale at creation time.
+    confirmed_report, confirmed_manifest = _read(root, report_path.name), _read(root, manifest_path.name)
+    if confirmed_report != report_raw or confirmed_manifest != manifest_raw:
+        raise CredentialError("report or manifest changed during credential creation")
     target = Path(os.path.abspath(output)) if output is not None else root / "continuity-credential.json"
     if target.parent != root: raise CredentialError("credential output must share a directory with report and manifest")
     if target in {report_path, manifest_path}: raise CredentialError("credential output must not replace report or manifest")
@@ -121,8 +146,11 @@ def verify_credential(path: str | Path) -> dict[str, Any]:
     for name, raw in (("report", report_raw), ("manifest", manifest_raw)):
         item = payload[name]
         if len(raw) != item["size"] or _sha(raw) != item["sha256"]: raise CredentialError(f"credential {name} hash mismatch")
-    try: verify_manifest(root / payload["manifest"]["path"])
+    try:
+        manifest_payload = load_manifest(root / payload["manifest"]["path"])
+        verify_manifest(root / payload["manifest"]["path"])
     except ManifestError as exc: raise CredentialError(f"manifest verification failed: {exc}") from exc
+    _require_report_binding(manifest_payload, payload["report"]["path"], report_raw)
     actual = _content_digest(report_raw, manifest_raw)
     if actual != payload["content_digest"]["value"]: raise CredentialError("credential content digest mismatch")
     return {"verified": True, "report": payload["report"]["path"], "manifest": payload["manifest"]["path"], "content_digest": actual}

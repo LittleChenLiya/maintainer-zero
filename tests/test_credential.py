@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import pytest
+import maintainer_zero.credential as credential_module
 from maintainer_zero.credential import CredentialError, create_credential, load_credential, verify_credential
 from maintainer_zero.manifest import write_manifest
 from maintainer_zero.cli import main
@@ -20,6 +21,17 @@ def test_credential_round_trip_is_offline_and_not_signature(tmp_path: Path):
     payload = load_credential(credential)
     assert "not-a-digital-signature" in payload["claims"]
     assert verify_credential(credential)["verified"] is True
+
+
+def test_create_credential_requires_report_to_be_listed_in_manifest(tmp_path: Path):
+    report = tmp_path / "continuity.json"
+    report.write_text("{\"schema_version\": 1}\n", encoding="utf-8")
+    md = tmp_path / "report.md"
+    md.write_text("# report\n", encoding="utf-8")
+    manifest = write_manifest(tmp_path, [md])
+
+    with pytest.raises(CredentialError, match="not listed"):
+        create_credential(report, manifest)
 
 @pytest.mark.parametrize("mutation", ["report", "manifest", "credential"])
 def test_credential_detects_tampering(tmp_path: Path, mutation: str):
@@ -71,6 +83,19 @@ def test_create_credential_rejects_output_collision(tmp_path: Path):
         create_credential(report, manifest, report)
     with pytest.raises(CredentialError, match="must not replace"):
         create_credential(report, manifest, manifest)
+
+def test_create_credential_rejects_input_change_during_manifest_verification(tmp_path: Path, monkeypatch):
+    report, manifest = fixture(tmp_path)
+    original = credential_module.verify_manifest
+
+    def mutate_after_initial_read(path):
+        result = original(path)
+        manifest.write_text(manifest.read_text(encoding="utf-8").replace("\"rule_version\": \"0.2\"", "\"rule_version\": \"0.2\", \"test_marker\": true"), encoding="utf-8")
+        return result
+
+    monkeypatch.setattr(credential_module, "verify_manifest", mutate_after_initial_read)
+    with pytest.raises(CredentialError, match="changed during credential creation"):
+        create_credential(report, manifest)
 
 def test_credential_rejects_symlink_parent(tmp_path: Path):
     report, manifest = fixture(tmp_path)

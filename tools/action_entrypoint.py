@@ -68,6 +68,16 @@ def _validate_path_components(
     return target
 
 
+def _lexical_relative_path(candidate: Path, root: Path) -> Path:
+    """Normalize ``..`` only after existing path components were checked."""
+    normalized = Path(os.path.normpath(os.fspath(candidate)))
+    try:
+        normalized.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("path must remain inside the GitHub workspace") from exc
+    return normalized
+
+
 def _validate_environment(env: dict[str, str]) -> None:
     """Reject control characters and workspace escapes in Action inputs."""
     for key in _PATH_INPUTS:
@@ -91,11 +101,7 @@ def _validate_environment(env: dict[str, str]) -> None:
             candidate = workspace_path / candidate
         candidate = _validate_path_components(candidate, key)
         if workspace_path is not None:
-            candidate = Path(os.path.normpath(os.fspath(candidate)))
-            try:
-                candidate.relative_to(workspace_path)
-            except ValueError as exc:
-                raise ValueError(f"{key} must remain inside the GitHub workspace") from exc
+            candidate = _lexical_relative_path(candidate, workspace_path)
 
 
 def _truthy(value: str) -> bool:
@@ -121,6 +127,7 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
     env = os.environ if environ is None else environ
     _validate_environment(env)
     output = _validate_path_components(env.get("MZ_INPUT_OUTPUT", ".continuity"), "MZ_INPUT_OUTPUT")
+    output = Path(os.path.normpath(os.fspath(output)))
     output_file_value = env.get("GITHUB_OUTPUT")
     if not output_file_value:
         return

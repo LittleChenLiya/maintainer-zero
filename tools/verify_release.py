@@ -60,7 +60,9 @@ def verify(root: Path, output: Path) -> None:
     # The output directory is a tool-owned, disposable verification area.
     # Remove only files produced by this script so rerunning the documented
     # command cannot count stale archives or collide with old install targets.
-    if wheelhouse.exists():
+    # Use lexists so a dangling symlink is treated as an existing unsafe
+    # target rather than falling through to mkdir and leaking FileExistsError.
+    if os.path.lexists(wheelhouse):
         _safe_existing_directory(wheelhouse, "release artifact directory")
         archives_to_remove = (*wheelhouse.glob("*.whl"), *wheelhouse.glob("*.tar.gz"))
         for archive in archives_to_remove:

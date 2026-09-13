@@ -83,3 +83,16 @@ def test_release_verification_rejects_linked_archive_in_existing_wheelhouse(tmp_
         pytest.skip("symlink creation unavailable")
     with pytest.raises(ValueError, match="archive target is unsafe"):
         verify(root, output)
+
+
+def test_release_verification_rejects_dangling_wheelhouse_link(tmp_path: Path):
+    root = Path(__file__).parents[1]
+    output = tmp_path / "release"
+    output.mkdir()
+    wheelhouse = output / "artifacts"
+    try:
+        wheelhouse.symlink_to(tmp_path / "missing-wheelhouse", target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    with pytest.raises(ValueError, match="release artifact directory may not be a symlink"):
+        verify(root, output)

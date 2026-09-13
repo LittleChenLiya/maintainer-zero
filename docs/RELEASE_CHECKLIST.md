@@ -31,7 +31,7 @@ runner 上验证安装、GITHUB_OUTPUT 解析和矩阵行为。
 以及内置注册表可加载。验证目录是临时产物，不应提交到 Git。
 发布脚本的 wheel 构建与安装探针均使用 `--no-index`、`--no-deps` 和 `--no-build-isolation`，
 确保这条本地证据不会因构建依赖或安装元数据解析而访问包索引。
-发布验证 CLI 对输入、输出边界和构建阶段异常统一返回 2，并只输出稳定错误类别，便于 CI 调用方区分验证失败与成功。
+发布验证 CLI 对输入、输出边界和构建阶段异常统一返回 2，并只输出稳定错误类别，便于 CI 调用方区分验证失败与成功。sdist 构建从源码树外的临时、无链接源码快照执行，避免 setuptools 在 Windows 上创建/删除临时包树时受工作树文件锁影响；快照会拒绝符号链接、reparse point 和特殊文件。
 脚本会构建一个 wheel 和一个 sdist，在源码树外分别安装，并确认包内版本化 scenario
 registry、data-only demo fixture 均可加载；并确认发行版元数据版本与 `maintainer_zero.__version__` 一致，
 随后确认默认 `demo` 从包内 fixture 读取、

@@ -7,6 +7,8 @@
 - Release install probes now load the packaged scenario registry and data-only demo fixture,
   and compare installed distribution metadata with `maintainer_zero.__version__`,
   catching package-data or version-drift omissions that a module import alone would miss.
+- sdist builds now run from an isolated, link-free source snapshot outside the checkout,
+  preventing Windows build-backend cleanup races from locking or dirtying the working tree.
 - Credential creation and verification now require the bound report to be an
   exact artifact-manifest entry (matching path, size, and SHA-256), so a valid
   manifest cannot silently omit the report covered by the credential.

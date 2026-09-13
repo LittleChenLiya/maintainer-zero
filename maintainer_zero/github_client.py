@@ -76,7 +76,8 @@ def _validate_response_values(value: Any, *, depth: int = 0, active: set[int] | 
         raise ValueError("response contains an unbounded integer")
     if not isinstance(value, (dict, list)):
         return
-    active = active or set()
+    if active is None:
+        active = set()
     identity = id(value)
     if identity in active:
         raise ValueError("response contains a cyclic structure")

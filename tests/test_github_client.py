@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from maintainer_zero.github_client import GitHubClientError, ReadOnlyGitHubClient, TransportResponse
+from maintainer_zero.github_client import GitHubClientError, ReadOnlyGitHubClient, TransportResponse, _validate_response_values
 
 def test_client_paginates_and_preserves_collection_status():
     calls = []
@@ -132,3 +132,10 @@ def test_client_rejects_deep_response_payloads_without_raising():
         lambda *_: TransportResponse(200, f"[{nested}]".encode())
     ).collect({"issues": "/repos/acme/demo/issues"})
     assert response["collection"]["issues"]["reason"] == "invalid_json"
+
+
+def test_response_value_validator_detects_cycles_with_empty_active_set():
+    value = []
+    value.append(value)
+    with pytest.raises(ValueError, match="cyclic"):
+        _validate_response_values(value, active=set())

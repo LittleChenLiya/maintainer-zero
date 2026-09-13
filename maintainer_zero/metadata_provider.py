@@ -97,7 +97,8 @@ def _validate_response_shape(value: Any, *, depth: int = 0, active: set[int] | N
         raise ValueError("response contains a non-finite number")
     if not isinstance(value, (dict, list)):
         return
-    active = active or set()
+    if active is None:
+        active = set()
     identity = id(value)
     if identity in active:
         raise ValueError("response contains a cyclic structure")

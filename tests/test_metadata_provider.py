@@ -9,6 +9,7 @@ from maintainer_zero.github_metadata import MetadataError, summarize_metadata
 from maintainer_zero.metadata_provider import (
     ProviderClientError,
     ReadOnlyProviderClient,
+    _validate_response_shape,
     provider_paths,
     validate_provider_identifier,
 )
@@ -121,3 +122,10 @@ def test_provider_client_rejects_unbounded_integers_and_headers_without_raising(
     payload = ReadOnlyProviderClient("forgejo", giant_header).collect("acme/demo")
     assert payload["collection"]["issues"]["reason"] == "rate_limited"
     assert "retry_after_seconds" not in payload["collection"]["issues"]
+
+
+def test_provider_response_validator_detects_cycles_with_empty_active_set():
+    value = {}
+    value["self"] = value
+    with pytest.raises(ValueError, match="cyclic"):
+        _validate_response_shape(value, active=set())

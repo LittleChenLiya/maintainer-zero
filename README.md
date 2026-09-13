@@ -22,6 +22,18 @@ these APIs perform no network I/O by themselves and do not load tokens or perfor
 An optional `ProviderHTTPTransport` supplies the same bounded HTTPS GET boundary for GitLab and
 Forgejo; it requires an explicit API base and never performs writes or implicit token loading.
 
+The collect-provider command exposes that boundary for GitLab and Forgejo. Network access,
+environment-token loading, and the API base are all explicit:
+
+```powershell
+maintainer-zero collect-provider gitlab 42 --api-base https://gitlab.example --allow-network --output gitlab-metadata.json
+maintainer-zero collect-provider forgejo acme/demo --api-base https://forgejo.example --allow-network --include-repository --output forgejo-metadata.json
+```
+
+The command only issues bounded HTTPS GET requests to provider-fixed paths. GITLAB_TOKEN or
+FORGEJO_TOKEN is read only with --allow-environment-token; no token is written to the snapshot,
+and failed or partial resources remain explicitly unavailable/unknown.
+
 ## Quick start
 
 ```powershell
@@ -51,6 +63,9 @@ maintainer-zero collect-github OWNER/REPOSITORY --allow-network --reviews-pr 123
 maintainer-zero collect-github OWNER/REPOSITORY --allow-network --include-repository --output github-metadata.json
 # Optionally wrap the reviewed collection in a bounded local cache
 maintainer-zero collect-github OWNER/REPOSITORY --allow-network --output github-metadata.json --cache-output .continuity/github-cache.json --cache-ttl 86400
+# Collect GitLab/Forgejo through the explicit HTTPS adapter (network remains opt-in)
+maintainer-zero collect-provider gitlab 42 --api-base https://gitlab.example --allow-network --output gitlab-metadata.json
+maintainer-zero collect-provider forgejo acme/demo --api-base https://forgejo.example --allow-network --reviews-pr 7 --output forgejo-metadata.json
 # Read a cache offline; expired caches fail unless explicitly allowed
 maintainer-zero simulate . --github-metadata .continuity/github-cache.json --output .continuity
 maintainer-zero simulate . --github-metadata .continuity/github-cache.json --allow-stale-github-metadata --output .continuity

@@ -73,3 +73,12 @@ maintainer-zero simulate . --github-metadata github-metadata.json --output .cont
 - 不要把个人贡献者分数公开排名，也不要把缺失权限或缺失 API 数据当作安全。
 
 完整边界见 [架构说明](ARCHITECTURE.md)、[GitHub 集成](GITHUB_INTEGRATION.md)、[场景注册表](SCENARIO_REGISTRY.md) 和 [发布清单](RELEASE_CHECKLIST.md)。
+
+### GitLab 与 Forgejo 采集
+
+GitLab 和 Forgejo 也可以通过 provider-neutral 契约采集。网络、API 地址和环境令牌均需显式授权：
+
+    maintainer-zero collect-provider gitlab 42 --api-base https://gitlab.example --allow-network --output gitlab-metadata.json
+    maintainer-zero collect-provider forgejo acme/demo --api-base https://forgejo.example --allow-network --include-repository --output forgejo-metadata.json
+
+该命令只访问固定的 HTTPS GET 路径，分页、响应大小和超时有上限；只有增加 --allow-environment-token 才会读取 GITLAB_TOKEN 或 FORGEJO_TOKEN。它不会执行远端数据，也不会写入 GitLab/Forgejo。GitLab 的 reviews 当前保持 unknown；Forgejo 只有指定单个 --reviews-pr 时才采集评审元数据。失败或权限不足的资源会保留为 unavailable/unknown。

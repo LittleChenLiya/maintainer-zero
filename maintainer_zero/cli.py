@@ -3,10 +3,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import stat
 import tempfile
 from pathlib import Path
+from urllib.parse import urlsplit
 from .analyzer import snapshot_repository
 from .baseline import BaselineError, compare_reports, gate_failed, load_report
 from .models import RepoSnapshot
@@ -18,6 +20,20 @@ from .github_cache import MetadataCacheError, cache_status, load_metadata_cache,
 from .github_client import DEFAULT_MAX_RESPONSE_BYTES, GitHubClientError
 from .github_collect import GitHubRepositoryError, collect_repository_metadata
 from .github_http import GitHubHTTPError, GitHubHTTPTransport, HTTPTransportConfig
+from .metadata_provider import (
+    DEFAULT_MAX_PAGES as DEFAULT_PROVIDER_MAX_PAGES,
+    DEFAULT_PAGE_SIZE as DEFAULT_PROVIDER_PAGE_SIZE,
+    DEFAULT_TIMEOUT_SECONDS as DEFAULT_PROVIDER_TIMEOUT_SECONDS,
+    ProviderClientError,
+    ReadOnlyProviderClient,
+    validate_provider_identifier,
+)
+from .provider_http import (
+    DEFAULT_MAX_RESPONSE_BYTES as DEFAULT_PROVIDER_MAX_RESPONSE_BYTES,
+    ProviderHTTPError,
+    ProviderHTTPTransport,
+    ProviderHTTPTransportConfig,
+)
 from .scenario_registry import ScenarioSpecError, load_registry, load_scenario, scenario_summary
 from .history import HistoryError, append_history, render_trend_markdown
 from .demos import DemoError, load_demo_suite, run_demo_suite
@@ -126,6 +142,30 @@ def _build_parser() -> argparse.ArgumentParser:
     collect.add_argument("--include-repository", action="store_true", help="collect bounded repository visibility and branch metadata")
     collect.add_argument("--cache-output", default=None, metavar="PATH", help="also write a bounded local metadata cache envelope")
     collect.add_argument("--cache-ttl", type=int, default=86400, metavar="SECONDS", help="cache TTL when --cache-output is used")
+    provider_collect = sub.add_parser(
+        "collect-provider",
+        help="explicitly collect bounded, read-only GitLab or Forgejo metadata",
+    )
+    provider_collect.add_argument("provider", choices=("gitlab", "forgejo"))
+    provider_collect.add_argument("identifier", metavar="PROJECT_OR_OWNER/REPOSITORY")
+    provider_collect.add_argument("--api-base", required=True, metavar="HTTPS_URL", help="provider API base URL (HTTPS only)")
+    provider_collect.add_argument("--output", default=None, metavar="PATH")
+    provider_collect.add_argument("--allow-network", action="store_true", help="explicitly permit HTTPS GET requests")
+    provider_collect.add_argument("--allow-environment-token", action="store_true", help="explicitly allow the provider token environment variable")
+    provider_collect.add_argument("--timeout", type=float, default=DEFAULT_PROVIDER_TIMEOUT_SECONDS, metavar="SECONDS")
+    provider_collect.add_argument("--max-pages", type=int, default=DEFAULT_PROVIDER_MAX_PAGES, metavar="COUNT")
+    provider_collect.add_argument("--page-size", type=int, default=DEFAULT_PROVIDER_PAGE_SIZE, metavar="COUNT")
+    provider_collect.add_argument(
+        "--max-response-bytes",
+        type=int,
+        default=DEFAULT_PROVIDER_MAX_RESPONSE_BYTES,
+        metavar="BYTES",
+        help=f"maximum response body size (1-{DEFAULT_PROVIDER_MAX_RESPONSE_BYTES})",
+    )
+    provider_collect.add_argument("--reviews-pr", type=int, default=None, metavar="NUMBER", help="explicitly collect reviews for one pull request")
+    provider_collect.add_argument("--include-repository", action="store_true", help="collect bounded repository/project metadata")
+    provider_collect.add_argument("--cache-output", default=None, metavar="PATH", help="also write a bounded local metadata cache envelope")
+    provider_collect.add_argument("--cache-ttl", type=int, default=86400, metavar="SECONDS", help="cache TTL when --cache-output is used")
     demo = sub.add_parser("demo", aliases=["demos"], help="run a bounded, data-only before/after demo suite")
     demo.add_argument("path", nargs="?", default=None, help="optional data-only demo suite; default uses the packaged suite")
     demo.add_argument("--format", choices=("text", "json"), default="text", dest="demo_format")
@@ -320,6 +360,82 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         available = sum(1 for value in payload["permissions"].values() if value)
         print(f"Collected read-only GitHub metadata for {args.repository}: {available}/{len(payload['permissions'])} resources available -> {output_path.resolve()}")
+        return 0
+    if args.command == "collect-provider":
+        if not args.allow_network:
+            print("error: network collection requires explicit --allow-network")
+            return 2
+        output_path = Path(args.output or f"{args.provider}-metadata.json")
+        try:
+            # Validate all user-controlled bounds and URL/identifier policy
+            # before constructing a transport (and therefore before any I/O).
+            validate_provider_identifier(args.provider, args.identifier)
+            parsed_base = urlsplit(args.api_base)
+            if (
+                parsed_base.scheme != "https"
+                or not parsed_base.hostname
+                or parsed_base.username is not None
+                or parsed_base.password is not None
+                or parsed_base.query
+                or parsed_base.fragment
+                or args.api_base.endswith("/")
+            ):
+                raise ProviderHTTPError("api_base must be an https URL without a trailing slash")
+            if (
+                isinstance(args.timeout, bool)
+                or not isinstance(args.timeout, (int, float))
+                or not math.isfinite(args.timeout)
+                or not 0 < args.timeout <= 60
+            ):
+                raise ProviderClientError("timeout must be finite and in (0, 60] seconds")
+            if not 1 <= args.max_pages <= 50:
+                raise ProviderClientError("max_pages must be an integer from 1 to 50")
+            if not 1 <= args.page_size <= 100:
+                raise ProviderClientError("page_size must be an integer from 1 to 100")
+            if not 1 <= args.max_response_bytes <= DEFAULT_PROVIDER_MAX_RESPONSE_BYTES:
+                raise ProviderClientError(
+                    f"max_response_bytes must be an integer from 1 to {DEFAULT_PROVIDER_MAX_RESPONSE_BYTES}"
+                )
+            config = ProviderHTTPTransportConfig(
+                api_base=args.api_base,
+                max_response_bytes=args.max_response_bytes,
+            )
+            transport = ProviderHTTPTransport.from_environment(
+                args.provider,
+                allow_environment=args.allow_environment_token,
+                config=config,
+            )
+            client = ReadOnlyProviderClient(
+                args.provider,
+                transport,
+                timeout_seconds=args.timeout,
+                max_pages=args.max_pages,
+                page_size=args.page_size,
+                max_response_bytes=args.max_response_bytes,
+            )
+            payload = client.collect(
+                args.identifier,
+                include_repository=args.include_repository,
+                reviews_pr=args.reviews_pr,
+            )
+            if args.cache_output and output_path.resolve() == Path(args.cache_output).resolve():
+                raise ValueError("--output and --cache-output must be different files")
+            _atomic_write_text(output_path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+            if args.cache_output:
+                save_metadata_cache(
+                    args.cache_output,
+                    payload,
+                    source=f"{args.provider}-api",
+                    ttl_seconds=args.cache_ttl,
+                )
+        except (OSError, ValueError, ProviderClientError, ProviderHTTPError, MetadataCacheError) as exc:
+            print(f"error: {exc}")
+            return 2
+        available = sum(1 for value in payload["permissions"].values() if value)
+        print(
+            f"Collected read-only {args.provider} metadata for {args.identifier}: "
+            f"{available}/{len(payload['permissions'])} resources available -> {output_path.resolve()}"
+        )
         return 0
     if args.command == "validate-scenario":
         try:

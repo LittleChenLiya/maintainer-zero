@@ -146,6 +146,13 @@ Forgejo 使用 `FORGEJO_TOKEN`）；transport 不写入快照、不自动重试�
 
 ## 注入式只读客户端
 
+命令行也提供了显式 provider 采集入口：
+
+    maintainer-zero collect-provider gitlab 42 --api-base https://gitlab.example --allow-network --output gitlab-metadata.json
+    maintainer-zero collect-provider forgejo acme/demo --api-base https://forgejo.example --allow-network --include-repository --output forgejo-metadata.json
+
+collect-provider 复用 ProviderHTTPTransport 与 ReadOnlyProviderClient，只允许 GitLab/Forgejo 固定路径的 HTTPS GET。--allow-network 是必需的；环境变量 token 只有在 --allow-environment-token 下才读取。--reviews-pr 只请求一个明确的 PR，GitLab reviews 暂不映射并保持 unknown。--cache-output 可写入同样受限的本地 cache envelope；输出和 cache 不能是同一个文件，所有写入均使用本地原子替换。该命令没有任何远程写操作或自动重试。
+
 `maintainer_zero.github_client.ReadOnlyGitHubClient` 提供了一个不绑定 HTTP 库的
 传输边界。调用方注入 `fetch(path, params, timeout)`，自行决定认证、代理和网络
 策略；客户端只允许白名单 GET 资源路径，并将结果整理成同一快照格式。

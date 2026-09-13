@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- Added explicit collect-provider CLI support for GitLab and Forgejo. The command validates provider identifiers, HTTPS API bases, pagination/timeout/response bounds, and requires --allow-network; environment tokens remain opt-in and outputs/caches use the existing bounded atomic writers.
 - Added offline `normalize_metadata()` mapping for reviewed GitHub, GitLab, and Forgejo adapter snapshots; explicit aliases map provider resources to canonical names while ambiguous, nested, unknown, or credential-like fields fail closed. This is not a network client.
 - Added an injected, read-only GitLab/Forgejo provider client with explicit endpoint allowlists, bounded pagination, response sizes, timeout, rate-limit hints, and canonical projection; it performs no network I/O unless the caller supplies a transport and does not support writes or token loading.
 - Provider adapter hardening now bounds integer projections and checks rate-limit header lengths before conversion, preventing oversized numeric inputs from crossing the canonical or scheduling boundaries.

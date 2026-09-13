@@ -1,7 +1,5 @@
 # 长期目标：将 Maintainer-Zero 做成可信、可复用的开源连续性演练工具
 
-- 2026-09-13：Action 路径检查会保留 `..` 组件直到逐级 `lstat` 完成，避免通过“链接目录/..”把符号链接藏在词法归一化之前；新增该顺序的回归覆盖。
-
 - 2026-09-13：收紧 composite Action 的输入路径边界：workspace、仓库、输出、baseline、metadata、history、fallback plan 与 runner 临时目录现在使用不跟随链接的词法绝对路径，并逐组件拒绝符号链接、junction/reparse point 和非目录父级；新增 workspace/runner-temp 链接负例。
 
 - 2026-09-13：Action 路径检查会保留 `..` 组件直到逐级 `lstat` 完成，避免通过“链接目录/..”把符号链接藏在词法归一化之前；新增该顺序的回归覆盖。

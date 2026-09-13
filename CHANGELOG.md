@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Repository declaration files used by the local analyzer (`package.json`,
+  requirements files, CODEOWNERS, release files, and workflow YAML) now use
+  bounded descriptor reads with link/special-file rejection and identity/mtime
+  rechecks; ambiguous package JSON keys and non-standard numbers fail closed.
+
 - Continuity configuration loading now rejects symlinked/reparse-point or
   special files, bounds input to 1 MiB, rejects duplicate keys and non-standard
   JSON numbers, and rechecks file identity, size, and mtime after reading.

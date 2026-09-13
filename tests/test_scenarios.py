@@ -74,6 +74,61 @@ def test_snapshot_does_not_follow_repository_symlink_outside_root(tmp_path):
     assert snapshot.workflows == []
 
 
+def test_snapshot_bounds_repository_declaration_files(tmp_path):
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo_path, check=True, capture_output=True)
+    (repo_path / "package.json").write_bytes(b"{" + b" " * 1_048_576 + b"}")
+    with pytest.raises(ValueError, match="exceeds size limit"):
+        snapshot_repository(repo_path)
+
+
+def test_snapshot_rejects_reparse_declaration_file_without_reading(tmp_path, monkeypatch):
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo_path, check=True, capture_output=True)
+    package = repo_path / "package.json"
+    package.write_text('{"dependencies": {"safe": "1"}}', encoding="utf-8")
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        info = original_lstat(path, *args, **kwargs)
+        if path == package:
+            class ReparseInfo:
+                st_mode = info.st_mode
+                st_file_attributes = 0x400
+            return ReparseInfo()
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    snapshot = snapshot_repository(repo_path)
+    assert snapshot.dependencies == []
+
+
+def test_snapshot_fails_closed_when_declaration_changes_during_read(tmp_path, monkeypatch):
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo_path, check=True, capture_output=True)
+    package = repo_path / "package.json"
+    package.write_text('{"dependencies": {"safe": "1"}}', encoding="utf-8")
+    original_lstat = Path.lstat
+    calls = 0
+
+    def fake_lstat(path, *args, **kwargs):
+        nonlocal calls
+        info = original_lstat(path, *args, **kwargs)
+        if path == package:
+            calls += 1
+            if calls == 2:
+                package.write_text('{"dependencies": {"changed": "1"}}', encoding="utf-8")
+                info = original_lstat(path, *args, **kwargs)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(ValueError, match="changed during reading"):
+        snapshot_repository(repo_path)
+
+
 def test_config_is_validated_and_people_can_be_anonymized(tmp_path):
     (tmp_path / "continuity.json").write_text(
         '{"scenarios": ["ci-outage"], "days": 7, '

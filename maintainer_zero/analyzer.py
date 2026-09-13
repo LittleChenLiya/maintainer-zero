@@ -1,12 +1,34 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import stat
 import subprocess
 from collections import Counter
 from pathlib import Path
 
 from .models import RepoSnapshot
+
+MAX_REPOSITORY_FILE_BYTES = 1_048_576
+
+
+def _is_link_like(info: os.stat_result) -> bool:
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return stat.S_ISLNK(info.st_mode) or bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
+
+
+def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate object key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_nonstandard_number(value: str) -> None:
+    raise ValueError(f"non-standard JSON number: {value}")
 
 
 def _safe_repo_path(root: Path, relative: str) -> Path | None:
@@ -18,17 +40,68 @@ def _safe_repo_path(root: Path, relative: str) -> Path | None:
         return None
     return candidate
 
+
+def _read_repo_file(root: Path, relative: str, *, max_bytes: int = MAX_REPOSITORY_FILE_BYTES) -> bytes | None:
+    """Read one optional repository file through a stable, bounded descriptor."""
+    candidate = _safe_repo_path(root, relative)
+    if candidate is None:
+        return None
+    try:
+        initial = candidate.lstat()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise ValueError(f"Cannot inspect repository file: {relative}") from exc
+    if _is_link_like(initial) or not stat.S_ISREG(initial.st_mode):
+        return None
+    if initial.st_size > max_bytes:
+        raise ValueError(f"Repository file exceeds size limit: {relative}")
+    descriptor: int | None = None
+    try:
+        descriptor = os.open(candidate, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        opened = os.fstat(descriptor)
+        if _is_link_like(opened) or not stat.S_ISREG(opened.st_mode):
+            raise ValueError(f"Repository file is not a regular file: {relative}")
+        identity = (getattr(initial, "st_dev", 0), getattr(initial, "st_ino", 0))
+        opened_identity = (getattr(opened, "st_dev", 0), getattr(opened, "st_ino", 0))
+        if opened_identity != identity:
+            raise ValueError(f"Repository file changed before reading: {relative}")
+        with os.fdopen(descriptor, "rb") as handle:
+            descriptor = None
+            raw = handle.read(max_bytes + 1)
+        if len(raw) > max_bytes:
+            raise ValueError(f"Repository file exceeds size limit: {relative}")
+        after = candidate.lstat()
+        after_identity = (getattr(after, "st_dev", 0), getattr(after, "st_ino", 0))
+        if (
+            _is_link_like(after)
+            or not stat.S_ISREG(after.st_mode)
+            or after_identity != identity
+            or after.st_size != initial.st_size
+            or getattr(after, "st_mtime_ns", None) != getattr(initial, "st_mtime_ns", None)
+        ):
+            raise ValueError(f"Repository file changed during reading: {relative}")
+        return raw
+    except ValueError:
+        raise
+    except (OSError, UnicodeError) as exc:
+        raise ValueError(f"Cannot read repository file: {relative}") from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
 def _run_git(path: Path, *args: str) -> str:
     try:
         return subprocess.run(["git", "-C", str(path), *args], check=True, capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
     except (subprocess.CalledProcessError, FileNotFoundError):
         return ""
 
-def _parse_codeowners(path: Path) -> dict[str, list[str]]:
+def _parse_codeowners(root: Path, relative: str) -> dict[str, list[str]]:
     result: dict[str, list[str]] = {}
-    if not path.exists():
+    raw = _read_repo_file(root, relative)
+    if raw is None:
         return result
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in raw.decode(encoding="utf-8", errors="replace").splitlines():
         parts = line.split()
         if parts and not parts[0].startswith("#") and len(parts) > 1:
             result[parts[0]] = parts[1:]
@@ -37,10 +110,18 @@ def _parse_codeowners(path: Path) -> dict[str, list[str]]:
 def _read_dependencies(path: Path) -> list[str]:
     found: set[str] = set()
     package = _safe_repo_path(path, "package.json")
-    if package is not None and package.is_file():
+    if package is not None:
+        raw = _read_repo_file(path, "package.json")
+    else:
+        raw = None
+    if raw is not None:
         try:
-            data = json.loads(package.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            data = json.loads(
+                raw.decode(encoding="utf-8"),
+                object_pairs_hook=_reject_duplicate_object_keys,
+                parse_constant=_reject_nonstandard_number,
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError) as exc:
             raise ValueError(f"Invalid dependency manifest: {package}") from exc
         if not isinstance(data, dict):
             raise ValueError(f"Invalid dependency manifest: {package}")
@@ -51,8 +132,9 @@ def _read_dependencies(path: Path) -> list[str]:
             found.update(section)
     for filename in ("requirements.txt", "requirements-dev.txt"):
         req = _safe_repo_path(path, filename)
-        if req is not None and req.is_file():
-            for line in req.read_text(encoding="utf-8", errors="replace").splitlines():
+        raw = _read_repo_file(path, filename) if req is not None else None
+        if raw is not None:
+            for line in raw.decode(encoding="utf-8", errors="replace").splitlines():
                 match = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9_.-]*)", line)
                 if match and not line.lstrip().startswith("#"):
                     found.add(match.group(1).lower())
@@ -90,10 +172,32 @@ def snapshot_repository(repo_path: str | Path) -> RepoSnapshot:
     codeowners = {}
     for relative in (".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"):
         candidate = _safe_repo_path(path, relative)
-        if candidate is not None and candidate.is_file():
-            codeowners = _parse_codeowners(candidate)
+        if candidate is not None and _read_repo_file(path, relative) is not None:
+            codeowners = _parse_codeowners(path, relative)
             break
     workflows_dir = _safe_repo_path(path, ".github/workflows")
-    workflows = sorted(p.name for p in workflows_dir.glob("*.y*ml") if _safe_repo_path(path, str(p.relative_to(path))) is not None) if workflows_dir is not None and workflows_dir.is_dir() else []
-    release_files = [relative for relative in (".npmrc", ".pypirc", "release.config.js", ".github/workflows/release.yml", ".github/workflows/publish.yml") if (candidate := _safe_repo_path(path, relative)) is not None and candidate.is_file()]
+    workflows = []
+    if workflows_dir is not None:
+        try:
+            directory_info = workflows_dir.lstat()
+        except FileNotFoundError:
+            directory_info = None
+        except OSError as exc:
+            raise ValueError("Cannot inspect repository workflows directory") from exc
+        if directory_info is not None and not _is_link_like(directory_info) and stat.S_ISDIR(directory_info.st_mode):
+            try:
+                candidates = list(workflows_dir.iterdir())
+            except OSError as exc:
+                raise ValueError("Cannot read repository workflows directory") from exc
+            for candidate in candidates:
+                if candidate.suffix.lower() not in {".yml", ".yaml"}:
+                    continue
+                relative = str(candidate.relative_to(path))
+                if _read_repo_file(path, relative) is not None:
+                    workflows.append(candidate.name)
+            workflows.sort()
+    release_files = []
+    for relative in (".npmrc", ".pypirc", "release.config.js", ".github/workflows/release.yml", ".github/workflows/publish.yml"):
+        if _read_repo_file(path, relative) is not None:
+            release_files.append(relative)
     return RepoSnapshot(str(path), path.name, commits, dict(contributors), _read_dependencies(path), workflows, codeowners, release_files)

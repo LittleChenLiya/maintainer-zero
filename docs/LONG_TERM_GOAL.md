@@ -9,6 +9,11 @@
 当前增量：模拟输出附带 `artifact-manifest.json`，可用 `verify-manifest` 在本地离线校验大小与 SHA-256。它不包含自身 hash，不是数字签名，也不证明来源可信。
 
 2026-09-13：`continuity.json` 读取现在采用有界、fail-closed 文件边界：拒绝符号链接、Windows reparse point 和特殊文件，限制 1 MiB 大小，拒绝重复键与 NaN/Infinity，并在读取后复核文件身份、大小和 mtime，避免配置竞态改变演练结论。
+
+2026-09-13：本地分析器读取 `package.json`、`requirements*.txt`、CODEOWNERS、发布配置和
+工作流 YAML 时也采用有界描述符读取，拒绝链接/特殊文件并复核身份、大小和 mtime；依赖
+清单 JSON 的重复键和非标准数值会 fail-closed。声明文件超限或在读取期间变化时，演练
+不会把缺失数据误判为低风险。
 manifest 校验会在全部工件检查完成后再次确认 manifest 文件身份、大小和修改时间未变化；期间发生替换或重写会 fail-closed。
 当前增量同时附带 `continuity-credential.json`：它以独立 envelope 绑定报告和 manifest 的大小、SHA-256 及组合摘要，支持 `verify-credential` 离线校验。该凭证明确不是数字签名，不证明来源、身份或授权。
 GitHub composite Action 也暴露该 manifest 的绝对路径并将其纳入连续性 workflow artifact；Action 仍只做本地分析，不上传源码或执行 GitHub 写操作。

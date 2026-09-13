@@ -90,6 +90,8 @@ def test_transport_redacts_network_diagnostics(error):
 
 
 def test_transport_rejects_unapproved_paths_and_unsafe_config():
+    with pytest.raises(GitHubHTTPError, match="config"):
+        GitHubHTTPTransport(config=object())
     with pytest.raises(GitHubHTTPError, match="non-whitelisted"):
         GitHubHTTPTransport()("/repos/acme/demo/issues?state=all", {}, 1)
     with pytest.raises(GitHubHTTPError, match="https"):

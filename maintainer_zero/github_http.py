@@ -58,6 +58,10 @@ class GitHubHTTPTransport:
         config: HTTPTransportConfig = HTTPTransportConfig(),
         opener: Callable[..., Any] | None = None,
     ) -> None:
+        if not isinstance(config, HTTPTransportConfig) and any(
+            not hasattr(config, field) for field in ("api_base", "user_agent", "max_response_bytes")
+        ):
+            raise GitHubHTTPError("config must provide api_base, user_agent, and max_response_bytes")
         try:
             parsed_base = urlsplit(config.api_base) if isinstance(config.api_base, str) else None
             hostname = parsed_base.hostname if parsed_base is not None else None

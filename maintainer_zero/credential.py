@@ -151,6 +151,9 @@ def verify_credential(path: str | Path) -> dict[str, Any]:
         verify_manifest(root / payload["manifest"]["path"])
     except ManifestError as exc: raise CredentialError(f"manifest verification failed: {exc}") from exc
     _require_report_binding(manifest_payload, payload["report"]["path"], report_raw)
+    confirmed_report, confirmed_manifest = _read(root, payload["report"]["path"]), _read(root, payload["manifest"]["path"])
+    if confirmed_report != report_raw or confirmed_manifest != manifest_raw:
+        raise CredentialError("report or manifest changed during credential verification")
     actual = _content_digest(report_raw, manifest_raw)
     if actual != payload["content_digest"]["value"]: raise CredentialError("credential content digest mismatch")
     return {"verified": True, "report": payload["report"]["path"], "manifest": payload["manifest"]["path"], "content_digest": actual}

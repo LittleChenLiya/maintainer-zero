@@ -97,6 +97,21 @@ def test_create_credential_rejects_input_change_during_manifest_verification(tmp
     with pytest.raises(CredentialError, match="changed during credential creation"):
         create_credential(report, manifest)
 
+
+def test_verify_credential_rejects_input_change_during_manifest_verification(tmp_path: Path, monkeypatch):
+    report, manifest = fixture(tmp_path)
+    credential = create_credential(report, manifest)
+    original = credential_module.verify_manifest
+
+    def mutate_after_initial_read(path):
+        result = original(path)
+        report.write_text("changed during verify\\n", encoding="utf-8")
+        return result
+
+    monkeypatch.setattr(credential_module, "verify_manifest", mutate_after_initial_read)
+    with pytest.raises(CredentialError, match="changed during credential verification"):
+        verify_credential(credential)
+
 def test_credential_rejects_symlink_parent(tmp_path: Path):
     report, manifest = fixture(tmp_path)
     credential = create_credential(report, manifest)

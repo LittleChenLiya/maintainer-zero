@@ -30,15 +30,24 @@ def _rel(value: object) -> str:
     if path.is_absolute() or windows.drive or windows.root or "\\" in value or any(ord(char) < 32 or ord(char) == 127 for char in value) or path.as_posix() != value or any(part in {"", ".", ".."} for part in path.parts): raise CredentialError("credential path must be normalized and relative")
     return value
 def _safe_directory(path: Path) -> Path:
-    target = Path(os.path.abspath(path)); current = Path(target.anchor) if target.anchor else Path(); parts = target.parts[1:] if target.anchor else target.parts
+    # Keep ``..`` components until every existing component has been checked;
+    # ``abspath`` normalizes them and could hide a linked parent.
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
+    current = Path(target.anchor) if target.anchor else Path(); parts = target.parts[1:] if target.anchor else target.parts
     for part in parts:
         current /= part
         try: info = current.lstat()
         except OSError as exc: raise CredentialError(f"credential directory is missing: {current}") from exc
         if _link(info) or not stat.S_ISDIR(info.st_mode): raise CredentialError("credential parent must be a real directory")
-    return target
+    return Path(os.path.normpath(os.fspath(target)))
 def _safe_file(path: Path, label: str) -> tuple[Path, os.stat_result]:
-    target = Path(os.path.abspath(path)); _safe_directory(target.parent)
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
+    parent = _safe_directory(target.parent)
+    target = parent / target.name
     try: info = target.lstat()
     except OSError as exc: raise CredentialError(f"{label} is missing") from exc
     if _link(info) or not stat.S_ISREG(info.st_mode): raise CredentialError(f"{label} must be a regular file")
@@ -106,7 +115,14 @@ def _write(path: Path, text: str) -> None:
 def _payload(report_name: str, report: bytes, manifest_name: str, manifest: bytes) -> dict[str, Any]:
     return {"schema_version": SCHEMA_VERSION, "credential_type": "maintainer-zero.integrity", "tool": {"name": "Maintainer-Zero", "version": __version__}, "rule_version": "0.2", "claims": ["offline-content-integrity-only", "not-a-digital-signature", "does-not-prove-source-or-authority"], "report": {"path": report_name, "size": len(report), "sha256": _sha(report)}, "manifest": {"path": manifest_name, "size": len(manifest), "sha256": _sha(manifest)}, "content_digest": {"algorithm": "sha256", "value": _content_digest(report, manifest)}}
 def create_credential(report: str | Path, manifest: str | Path, output: str | Path | None = None) -> Path:
-    report_path, manifest_path = Path(os.path.abspath(report)), Path(os.path.abspath(manifest))
+    report_input = Path(report)
+    manifest_input = Path(manifest)
+    if not report_input.is_absolute():
+        report_input = Path.cwd() / report_input
+    if not manifest_input.is_absolute():
+        manifest_input = Path.cwd() / manifest_input
+    report_path = _safe_directory(report_input.parent) / report_input.name
+    manifest_path = _safe_directory(manifest_input.parent) / manifest_input.name
     if report_path.parent != manifest_path.parent: raise CredentialError("report and manifest must share a directory")
     root = _safe_directory(report_path.parent); report_raw, manifest_raw = _read(root, report_path.name), _read(root, manifest_path.name)
     try:
@@ -120,7 +136,13 @@ def create_credential(report: str | Path, manifest: str | Path, output: str | Pa
     confirmed_report, confirmed_manifest = _read(root, report_path.name), _read(root, manifest_path.name)
     if confirmed_report != report_raw or confirmed_manifest != manifest_raw:
         raise CredentialError("report or manifest changed during credential creation")
-    target = Path(os.path.abspath(output)) if output is not None else root / "continuity-credential.json"
+    if output is not None:
+        output_input = Path(output)
+        if not output_input.is_absolute():
+            output_input = Path.cwd() / output_input
+        target = _safe_directory(output_input.parent) / output_input.name
+    else:
+        target = root / "continuity-credential.json"
     if target.parent != root: raise CredentialError("credential output must share a directory with report and manifest")
     if target in {report_path, manifest_path}: raise CredentialError("credential output must not replace report or manifest")
     _reject_manifest_output_collision(manifest_payload, target.name)
@@ -158,7 +180,8 @@ def load_credential(path: str | Path) -> dict[str, Any]:
     if not isinstance(digest, dict) or set(digest) != {"algorithm", "value"} or digest.get("algorithm") != "sha256" or not isinstance(digest.get("value"), str) or len(digest["value"]) != 64 or any(c not in "0123456789abcdef" for c in digest["value"]): raise CredentialError("credential content digest is invalid")
     return payload
 def verify_credential(path: str | Path) -> dict[str, Any]:
-    credential = Path(os.path.abspath(path)); payload = load_credential(credential); root = credential.parent
+    credential, _ = _safe_file(Path(path), "credential")
+    payload = load_credential(credential); root = credential.parent
     report_raw, manifest_raw = _read(root, payload["report"]["path"]), _read(root, payload["manifest"]["path"])
     for name, raw in (("report", report_raw), ("manifest", manifest_raw)):
         item = payload[name]

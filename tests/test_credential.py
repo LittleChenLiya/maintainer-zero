@@ -126,3 +126,16 @@ def test_credential_rejects_symlink_parent(tmp_path: Path):
     credential.unlink()
     with pytest.raises(CredentialError, match="parent"):
         load_credential(moved)
+
+
+def test_credential_rejects_symlink_hidden_before_dotdot_normalization(tmp_path: Path):
+    report, manifest = fixture(tmp_path)
+    credential = create_credential(report, manifest)
+    linked = tmp_path.parent / "credential-linked-parent"
+    try:
+        linked.symlink_to(tmp_path, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    disguised = linked / ".." / tmp_path.name / credential.name
+    with pytest.raises(CredentialError, match="parent"):
+        load_credential(disguised)

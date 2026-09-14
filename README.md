@@ -1,6 +1,8 @@
 # Maintainer-Zero
 
 ![status](https://img.shields.io/badge/status-alpha-orange)
+[![CI](https://github.com/LittleChenLiya/maintainer-zero/actions/workflows/ci.yml/badge.svg)](https://github.com/LittleChenLiya/maintainer-zero/actions/workflows/ci.yml)
+[![OSS continuity drill](https://github.com/LittleChenLiya/maintainer-zero/actions/workflows/continuity.yml/badge.svg)](https://github.com/LittleChenLiya/maintainer-zero/actions/workflows/continuity.yml)
 
 **Chaos engineering drills for open-source project continuity.**
 

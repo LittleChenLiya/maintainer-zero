@@ -260,7 +260,7 @@
 - 修复同一输出目录的 baseline 演练：CLI 现在在替换新报告前加载并保留旧 baseline，避免 `--baseline OUTPUT/continuity.json` 被新报告覆盖后错误显示为 unchanged。
 - 新增隐私保护 `export-benchmark`：从已验证报告生成不含仓库/人员身份、依赖名、Finding 文本或原始记录的固定摘要，并明确该摘要不是跨项目排名。
 
-本文件记录尚未发布的本地开发版本；项目当前没有公开远程仓库或已发布包。
+本文件记录尚未发布包的开发版本；项目已有公开 GitHub 远程仓库，但尚未发布 PyPI 包或 Marketplace Action。
 
 
 - composite Action 的 `GITHUB_OUTPUT` 契约测试现在覆盖 Windows reparse point 父目录和目标文件，确保 runner 输出不会被重定向或覆盖特殊文件。

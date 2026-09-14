@@ -143,7 +143,8 @@ init 入口现在也逐级检查目标目录，拒绝符号链接、Windows repa
 - [x] 提供 3 个“事故前/改进后”可复现、数据-only demo。
 - [x] 独立核验相邻项目，更新新颖性边界，不宣称绝对无人做过。
 - [x] 完成本地发布前安全审查、文档验证、wheel/sdist 安装烟测和离线真实 Git 仓库端到端 fixture；CI 矩阵仍由工作流执行。
-- [x] 整理英文 README、中文指南和变更日志；正式发布资产仍需用户授权后生成或发布。
+- [x] 整理英文 README、中文指南、变更日志和可复制的 launch kit；GitHub 公开仓库与 Discussions 首帖已发布。
+- [ ] 发布经过用户确认的 PyPI 包和 Marketplace Action，并将版本标签、安装说明与发布验证结果对齐。
 
 ## 执行规则
 

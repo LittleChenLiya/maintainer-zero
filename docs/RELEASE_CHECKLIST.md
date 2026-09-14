@@ -1,6 +1,6 @@
 # 发布前验证清单
 
-本项目当前尚未发布包或创建公开远程仓库。每次准备发布候选版本时，在本地执行：
+本项目已有公开 GitHub 远程仓库，但尚未发布 PyPI 包或 Marketplace Action。每次准备发布候选版本时，在本地执行：
 
 ```powershell
 $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'

@@ -158,6 +158,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 报告校验摘要的规则、工具和场景标识均限制为有界可打印文本，防止不可信报告污染终端输出。
 - 自带 continuity workflow 在 Unix/Windows 两侧先执行 `validate-report`，再核验 manifest 与 credential；重复场景或 finding ID 会 fail-closed。
 - Windows 校验步骤在每个原生 Python verifier 后立即传播 `$LASTEXITCODE`；单个报告、manifest 或 credential 验证失败都会使步骤失败，不会被后续成功命令掩盖。
+- continuity workflow 仅在输出、报告、manifest 和 credential 校验成功后上传工件；失败路径仍保留 job summary 诊断，但不发布未验证工件。
 
 - 2026-09-14：新增离线 `validate-report` 入口，复用基线比较的有界报告读取与 schema/数值校验；输出仅包含 schema、规则版本、场景分数/计数和覆盖摘要，不包含仓库路径或原始 finding，便于分享前和 CI 预检。
 

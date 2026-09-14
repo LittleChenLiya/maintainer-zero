@@ -94,7 +94,9 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     assert "Test-Path .continuity/report.md -PathType Leaf" in workflow
     assert "Maintainer-Zero report was not generated" in workflow
     assert "name: continuity-report-${{ matrix.os }}" in workflow
-    assert "if: always()" in workflow
+    upload = workflow.split("      - uses: actions/upload-artifact@v4", 1)[1]
+    assert "if: success()" in upload
+    assert "if: always()" not in upload
     assert "if-no-files-found: warn" in workflow
     assert ".continuity/artifact-manifest.json" in workflow
     assert ".continuity/continuity-credential.json" in workflow

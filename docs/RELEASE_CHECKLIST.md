@@ -60,6 +60,7 @@ ci.yml 的 release-smoke job 会在 Ubuntu/Python 3.12 runner 上重复执行同
 - 成功运行才写入 `GITHUB_OUTPUT`；七个 Action 输出必须指向同一输出目录下的绝对报告/恢复路径。
 - 生成报告后先运行 `python -m maintainer_zero validate-report`；该检查覆盖有界 JSON、schema/数值边界、重复场景和重复 finding 标识，但不替代对仓库字段、证据和隐私声明的人工审阅。
 - Windows workflow 必须在每个原生 Python verifier 后立即检查并传播 `$LASTEXITCODE`，避免后续成功命令掩盖报告、manifest 或 credential 校验失败。
+- 失败路径的 job summary 可以使用 `always()` 保留诊断；正式 artifact 上传应使用 `success()`，不得把未通过校验的 bundle 当作已验证发布物。
 - `GITHUB_OUTPUT` 必须是绝对路径；在 GitHub runner 提供 `RUNNER_TEMP` 时，输出文件必须位于该临时目录内，拒绝控制字符、符号链接、硬链接、非普通文件和缺失父目录，打开后还要校验文件身份并 `fsync`，避免通过输出文件重定向写入任意路径或留下半写入结果。
 - 发布验证脚本的输出目录及 `artifacts` wheelhouse 逐级拒绝 POSIX 符号链接、Windows junction/reparse point 和特殊文件（包括 dangling link）；构建前后都检查归档必须是非空、大小有界的普通 wheel/sdist 文件，并在每个安装探针前复制到独立稳定副本。复制后还会通过稳定描述符重新计算源归档和副本的 SHA-256，避免仅靠 inode、大小和 mtime 漏过同 inode 的内容替换。
 - 本地契约测试覆盖成功产物、`--fail-under`/基线门禁失败、过期元数据默认拒绝及显式允许、以及含空格路径。真实 GitHub-hosted runner（Ubuntu/Windows 和 Python 矩阵）仍需在 CI 中验证，不能用本地测试替代。

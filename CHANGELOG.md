@@ -22,6 +22,10 @@
   each report, manifest, and credential verifier, so a later successful command
   cannot mask an earlier validation failure.
 
+- The continuity workflow now uploads the report bundle only after successful
+  output, report, manifest, and credential checks; failure-path job summaries
+  remain available for diagnostics without publishing an unverified bundle.
+
 - Configuration path regression coverage now exercises a `linked-parent/../linked-parent` spelling, proving `continuity.json` loading inspects existing components before lexical normalization and rejects the hidden symlink.
 
 - Release source, output, and checkout directory validation now preserves `..`

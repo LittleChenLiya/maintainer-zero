@@ -8,7 +8,7 @@ DEFAULT_VERIFY_OUTPUT = Path("D:/Codex/maintainer-zero-release-verify")
 _REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 _MAX_RELEASE_ARCHIVE_BYTES = 128 * 1024 * 1024
 _RELEASE_CHUNK = 1024 * 1024
-_SOURCE_SKIP_DIRS = {".git", ".hg", ".svn", ".pytest_cache", "build", "dist"}
+_SOURCE_SKIP_DIRS = {".git", ".hg", ".svn", ".pytest_cache", "__pycache__", "build", "dist"}
 
 def run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
     completed = subprocess.run(command, cwd=cwd, env=env, check=True, text=True, capture_output=True)

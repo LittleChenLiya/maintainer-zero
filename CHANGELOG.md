@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Release verification now excludes Python `__pycache__` directories from the
+  isolated source snapshot, keeping packaging checks deterministic when test
+  imports update cache directory metadata during the run.
+
 - Baseline, benchmark, demo-suite, and fallback-plan readers now inspect
   existing parent components before normalizing `..`, preventing linked parents
   from being hidden by `abspath` during offline artifact review.

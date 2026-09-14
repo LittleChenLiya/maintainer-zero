@@ -6,6 +6,10 @@
   continuity-report schema checks used by baseline comparison and emits a
   privacy-preserving summary without repository paths or raw findings.
 
+- Continuity report validation now checks any present scenario `confidence`
+  against the documented values (`high`, `medium`, `low`, `unknown`); missing
+  confidence remains accepted for compatibility with legacy reports.
+
 - Report validation display metadata is now bounded and printable-only, so a
   malicious rule or tool version cannot inject control characters into CLI
   output.

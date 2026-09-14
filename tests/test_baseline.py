@@ -151,6 +151,34 @@ def test_load_report_rejects_invalid_scores(score, tmp_path):
         load_report(path)
 
 
+@pytest.mark.parametrize("confidence", ["critical", "", "HIGH", None, 1, [], {}])
+def test_load_report_rejects_invalid_confidence(confidence, tmp_path):
+    payload = report(score=80)
+    payload["results"][0]["confidence"] = confidence
+    path = tmp_path / "invalid-confidence.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(BaselineError, match="confidence is invalid"):
+        load_report(path)
+
+
+@pytest.mark.parametrize("confidence", ["high", "medium", "low", "unknown"])
+def test_load_report_accepts_documented_confidence(confidence, tmp_path):
+    payload = report(score=80)
+    payload["results"][0]["confidence"] = confidence
+    path = tmp_path / "valid-confidence.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert load_report(path)["results"][0]["confidence"] == confidence
+
+
+def test_load_report_keeps_missing_confidence_compatible(tmp_path):
+    path = tmp_path / "legacy-confidence.json"
+    path.write_text(json.dumps(report(score=80)), encoding="utf-8")
+
+    assert "confidence" not in load_report(path)["results"][0]
+
+
 def test_load_report_rejects_json_integer_digit_bomb_without_traceback(tmp_path):
     path = tmp_path / "digit-bomb.json"
     path.write_text(

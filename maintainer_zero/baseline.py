@@ -13,6 +13,7 @@ REPORT_SCHEMA_VERSION = 1
 MAX_REPORT_BYTES = 8 * 1024 * 1024
 MAX_REPORT_TEXT = 128
 REPORT_SEVERITIES = frozenset({"info", "low", "medium", "high", "unknown"})
+REPORT_CONFIDENCES = frozenset({"high", "medium", "low", "unknown"})
 EXPECTED_REPOSITORY_FIELDS = ("commits", "contributors", "dependencies", "workflows", "codeowners", "release_files")
 
 
@@ -132,6 +133,10 @@ def _validate_report(report: Mapping[str, Any]) -> None:
         if scenario in seen_scenarios:
             raise BaselineError(f"continuity report contains duplicate scenario: {scenario}")
         seen_scenarios.add(scenario)
+        if "confidence" in result:
+            confidence = result["confidence"]
+            if not isinstance(confidence, str) or confidence not in REPORT_CONFIDENCES:
+                raise BaselineError(f"continuity report result {index} confidence is invalid")
         findings = result.get("findings", [])
         if not isinstance(findings, list) or len(findings) > 500:
             raise BaselineError(f"continuity report result {index} findings must be a bounded array")

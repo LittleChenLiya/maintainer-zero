@@ -107,6 +107,21 @@ def test_snapshot_rejects_linked_repository_parent(tmp_path):
         snapshot_repository(linked_parent / "repo")
 
 
+def test_snapshot_rejects_linked_dotdot_repository_parent(tmp_path):
+    real_parent = tmp_path / "real-parent"
+    real_parent.mkdir()
+    repo_path = real_parent / "repo"
+    repo_path.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=repo_path, check=True, capture_output=True)
+    linked_parent = tmp_path / "linked-parent"
+    try:
+        linked_parent.symlink_to(real_parent, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="repository may not be a symlink"):
+        snapshot_repository(linked_parent / ".." / linked_parent.name / "repo")
+
+
 def test_snapshot_rejects_reparse_repository_without_git_probe(tmp_path, monkeypatch):
     repo_path = tmp_path / "repo"
     repo_path.mkdir()

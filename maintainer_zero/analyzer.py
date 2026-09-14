@@ -21,7 +21,12 @@ def _is_link_like(info: os.stat_result) -> bool:
 
 def _safe_existing_directory(path: str | Path, label: str) -> Path:
     """Return an existing directory without following linked components."""
-    target = Path(os.path.abspath(path))
+    # Keep ``..`` components until every existing component has been lstat'ed.
+    # Normalizing first would erase a linked directory from ``link/../repo``
+    # and allow the path check to inspect a different lexical route.
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts:
@@ -34,7 +39,7 @@ def _safe_existing_directory(path: str | Path, label: str) -> Path:
             raise ValueError(f"{label} may not be a symlink or reparse point: {current}")
         if not stat.S_ISDIR(info.st_mode):
             raise ValueError(f"{label} is not a directory: {current}")
-    return target
+    return Path(os.path.normpath(os.fspath(target)))
 
 
 def _same_directory_stat(left: os.stat_result, right: os.stat_result) -> bool:

@@ -5,7 +5,7 @@ import os
 import pytest
 
 from maintainer_zero.cli import main
-from maintainer_zero.fallback import FallbackPlanError, load_fallback_plan, summarize_fallback_plan
+from maintainer_zero.fallback import FallbackPlanError, _safe_plan_file, load_fallback_plan, summarize_fallback_plan
 
 
 def _write(path: Path, payload: str):
@@ -77,3 +77,18 @@ def test_validate_fallback_plan_command_is_read_only_and_supports_json(tmp_path:
     _write(invalid, "{}")
     assert main(["validate-fallback-plan", str(invalid)]) == 2
     assert "error:" in capsys.readouterr().out
+def test_fallback_loader_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
+    linked = tmp_path / "linked"
+    linked.mkdir()
+    target = linked / ".." / "fallback.json"
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        info = original_lstat(path, *args, **kwargs)
+        if path == linked:
+            return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=0x400)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(FallbackPlanError, match="real directory"):
+        _safe_plan_file(target)

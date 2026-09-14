@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from maintainer_zero.benchmark import BenchmarkError, build_benchmark, load_benchmark, render_benchmark_text, validate_benchmark
+from maintainer_zero.benchmark import BenchmarkError, _safe_benchmark_file, build_benchmark, load_benchmark, render_benchmark_text, validate_benchmark
 from maintainer_zero.cli import main
 
 
@@ -161,3 +162,18 @@ def test_export_benchmark_cli_rejects_redirected_output(tmp_path: Path, capsys):
     assert main(["export-benchmark", str(report_path), "--output", str(redirected)]) == 2
     assert outside.read_text(encoding="utf-8") == "keep"
     assert "error:" in capsys.readouterr().out
+def test_benchmark_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
+    linked = tmp_path / "linked"
+    linked.mkdir()
+    target = linked / ".." / "benchmark.json"
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        info = original_lstat(path, *args, **kwargs)
+        if path == linked:
+            return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=0x400)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(BenchmarkError, match="real directory"):
+        _safe_benchmark_file(target)

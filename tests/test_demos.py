@@ -2,8 +2,9 @@ from pathlib import Path
 import json
 
 import pytest
+from types import SimpleNamespace
 
-from maintainer_zero.demos import DemoError, load_demo_suite, run_demo_suite
+from maintainer_zero.demos import DemoError, _read_external_suite, load_demo_suite, run_demo_suite
 from maintainer_zero.cli import main
 
 
@@ -141,3 +142,18 @@ def test_demo_loader_rejects_ambiguous_json_and_replaced_file(tmp_path, monkeypa
     monkeypatch.setattr(Path, "lstat", fake_lstat)
     with pytest.raises(DemoError, match="changed during reading"):
         load_demo_suite(path)
+def test_demo_loader_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
+    linked = tmp_path / "linked"
+    linked.mkdir()
+    target = linked / ".." / "demo.json"
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        info = original_lstat(path, *args, **kwargs)
+        if path == linked:
+            return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=0x400)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(DemoError, match="real directory"):
+        _read_external_suite(target)

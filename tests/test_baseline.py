@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from maintainer_zero.baseline import compare_reports, gate_failed, load_report
+from maintainer_zero.baseline import BaselineError, _safe_report_file, compare_reports, gate_failed, load_report
 
 
 def report(*, score: int, finding_id: str = "maintainer-zero.core-owner", severity: str = "high", include_workflows: bool = True) -> dict:
@@ -164,3 +165,18 @@ def test_legacy_report_without_tool_metadata_remains_comparable():
     current = report(score=80)
     current["tool"] = {"name": "Maintainer-Zero", "version": "0.2.0"}
     assert compare_reports(baseline, current)["status"] == "unchanged"
+def test_baseline_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
+    linked = tmp_path / "linked"
+    linked.mkdir()
+    target = linked / ".." / "report.json"
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        info = original_lstat(path, *args, **kwargs)
+        if path == linked:
+            return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=0x400)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(BaselineError, match="real directory"):
+        _safe_report_file(target)

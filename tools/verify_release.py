@@ -313,7 +313,13 @@ def verify(root: Path, output: Path) -> None:
     output = Path(output)
     if not output.is_absolute():
         output = Path.cwd() / output
-    if output == root or output.is_relative_to(root):
+    # Keep the original spelling for no-follow component inspection, but use
+    # a lexical-normalized copy for containment before creating any directory.
+    # Otherwise ``root/../outside`` is falsely rejected while
+    # ``other/../root/release`` could create an in-checkout directory before
+    # the later resolved containment check fails.
+    normalized_output = Path(os.path.normpath(os.fspath(output)))
+    if normalized_output == root or normalized_output.is_relative_to(root):
         raise ValueError("release verification output must be outside the source checkout")
     output = _safe_output_directory(output)
     resolved_output = output.resolve()

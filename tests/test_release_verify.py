@@ -63,6 +63,27 @@ def test_release_verification_rejects_output_inside_source_checkout(tmp_path: Pa
         verify(root, root / "release-output")
 
 
+def test_release_verification_checks_normalized_containment_before_output_creation(tmp_path: Path, monkeypatch):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "pyproject.toml").write_text("[build-system]", encoding="utf-8")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    output = outside / ".." / "source" / "release-output"
+    called = False
+
+    def unexpected_run(*args, **kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("containment must fail before build")
+
+    monkeypatch.setattr(release_verify, "run", unexpected_run)
+    with pytest.raises(ValueError, match="outside the source checkout"):
+        verify(root, output)
+    assert not (root / "release-output").exists()
+    assert called is False
+
+
 def test_release_verification_cli_returns_controlled_error_for_unsafe_output(tmp_path: Path, capsys):
     root = Path(__file__).parents[1]
     assert release_verify.main(["--root", str(root), "--output", str(root / "release-output")]) == 2

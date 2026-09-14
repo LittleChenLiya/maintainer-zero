@@ -1,5 +1,7 @@
 # 长期目标：将 Maintainer-Zero 做成可信、可复用的开源连续性演练工具
 
+- 2026-09-14：新增配置路径回归，覆盖 `linked-parent/../linked-parent` 这类会在词法归一化后重新指向链接的写法，确认 `continuity.json` 读取在归一化前拒绝隐藏的 symlink/reparse point。
+
 - 2026-09-14：发布验证器对源码、输出和 checkout 目录在逐组件检查后才归一化 `..`，防止 `link/../target` 隐藏链接组件；新增发布路径回归。
 
 - 2026-09-14：simulate 不再在加载 `continuity.json` 前提前 `resolve()` 仓库路径；配置读取器先逐组件检查再词法归一化，避免链接加 `..` 绕过配置边界。

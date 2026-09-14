@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Configuration path regression coverage now exercises a `linked-parent/../linked-parent` spelling, proving `continuity.json` loading inspects existing components before lexical normalization and rejects the hidden symlink.
+
 - Release source, output, and checkout directory validation now preserves `..`
   until component inspection, preventing `link/../target` from bypassing the
   release verifier's no-follow boundary.

@@ -175,6 +175,10 @@ The checked-in scenario registry is available at maintainer_zero/scenario_regist
 
 Add a scenario with explicit assumptions, a deterministic test, and a short explanation of how its score is calculated. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Share the project
+
+Ready-to-publish English, Chinese, X/Twitter, and GitHub Discussions copy is in the [launch kit](docs/LAUNCH_KIT.md). Please keep the alpha/MVP and offline-by-default boundaries intact when sharing results.
+
 ## License
 
 MIT

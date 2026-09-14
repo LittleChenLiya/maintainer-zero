@@ -217,6 +217,17 @@ def test_summarize_report_rejects_control_characters_in_scenario():
     payload["results"][0]["scenario"] = "unsafe\nscenario"
     with pytest.raises(BaselineError, match="scenario is invalid"):
         summarize_report(payload)
+
+
+@pytest.mark.parametrize("field", ["rule_version", "tool_version"])
+def test_summarize_report_rejects_control_characters_in_display_metadata(field):
+    payload = report(score=80)
+    if field == "rule_version":
+        payload["rule_version"] = "0.2\nunsafe"
+    else:
+        payload["tool"] = {"name": "Maintainer-Zero", "version": "0.2\nunsafe"}
+    with pytest.raises(BaselineError, match="non-empty string|tool metadata"):
+        summarize_report(payload)
 def test_baseline_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
     linked = tmp_path / "linked"
     linked.mkdir()

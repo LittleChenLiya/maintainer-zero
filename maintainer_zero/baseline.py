@@ -11,6 +11,7 @@ from typing import Any, Mapping
 
 REPORT_SCHEMA_VERSION = 1
 MAX_REPORT_BYTES = 8 * 1024 * 1024
+MAX_REPORT_TEXT = 128
 EXPECTED_REPOSITORY_FIELDS = ("commits", "contributors", "dependencies", "workflows", "codeowners", "release_files")
 
 
@@ -103,7 +104,7 @@ def _validate_report(report: Mapping[str, Any]) -> None:
     if schema > REPORT_SCHEMA_VERSION:
         raise BaselineError(f"unsupported continuity report schema_version: {schema}")
     rule = report.get("rule_version")
-    if not isinstance(rule, str) or not rule.strip():
+    if not isinstance(rule, str) or not rule.strip() or len(rule) > MAX_REPORT_TEXT or any(not char.isprintable() for char in rule):
         raise BaselineError("continuity report rule_version must be a non-empty string")
     if not isinstance(report.get("repository"), Mapping):
         raise BaselineError("continuity report repository must be an object")
@@ -148,6 +149,8 @@ def _validate_report(report: Mapping[str, Any]) -> None:
         or tool.get("name") != "Maintainer-Zero"
         or not isinstance(tool.get("version"), str)
         or not tool["version"].strip()
+        or len(tool["version"]) > MAX_REPORT_TEXT
+        or any(not char.isprintable() for char in tool["version"])
     ):
         raise BaselineError("continuity report tool metadata is invalid")
 

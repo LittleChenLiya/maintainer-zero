@@ -93,6 +93,21 @@ def test_demo_cli_rejects_symlinked_output_parent(tmp_path, monkeypatch, capsys)
     assert "cannot write demo output" in capsys.readouterr().out
 
 
+def test_demo_cli_does_not_create_nested_output_below_symlink_parent(tmp_path, capsys):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+
+    output = linked / "new" / "demo.json"
+    assert main(["demo", str(DEMO_PATH), "--format", "json", "--output", str(output)]) == 2
+    assert "cannot write demo output" in capsys.readouterr().out
+    assert not (outside / "new").exists()
+
+
 def test_demo_loader_rejects_ambiguous_json_and_replaced_file(tmp_path, monkeypatch):
     path = tmp_path / "demo.json"
     path.write_text('{"schema_version": 1, "schema_version": 1, "demos": []}', encoding="utf-8")

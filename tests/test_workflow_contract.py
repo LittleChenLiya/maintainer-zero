@@ -49,6 +49,9 @@ def test_release_candidate_workflow_is_read_only_and_non_publishing():
     assert "- \"v*\"" in workflow
     assert "permissions:\n  contents: read" in workflow
     assert "persist-credentials: false" in workflow
+    assert "Check tag matches package version" in workflow
+    assert "MZ_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}" in workflow
+    assert "does not match package version" in workflow
     assert "python tools/verify_release.py --output \"$RUNNER_TEMP/maintainer-zero-release-verify\"" in workflow
     assert "actions/upload-artifact@v7" in workflow
     assert "if-no-files-found: error" in workflow

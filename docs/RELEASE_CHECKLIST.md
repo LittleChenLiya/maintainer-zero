@@ -52,6 +52,7 @@ ci.yml 的 release-smoke job 会在 Ubuntu/Python 3.12 runner 上重复执行同
 在准备版本标签前，可手动运行或推送 `v*` 标签触发 `.github/workflows/release-candidate.yml`。
 该工作流只使用 `contents: read`，重复执行同一隔离验证，并将已验证的 wheel/sdist 作为
 14 天的审阅 artifact 上传；它不会创建 GitHub Release、发布 PyPI 或发布 Marketplace Action。
+标签触发时还会检查 `v<pyproject.toml 版本>` 与包版本一致；手动触发则跳过标签比较。
 
 ## Composite Action 本地验收
 

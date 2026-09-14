@@ -346,3 +346,5 @@
 - 自带 `continuity.yml` 现在上传完整恢复目录（SARIF、Runbook、CODEOWNERS 草稿和 Issue 草稿），避免只保留机器可读结果而丢失人工审阅工件。
 - 发布验证的 wheel/sdist 安装探针显式使用 `--no-build-isolation`，避免在离线或受限 runner 上为 sdist 隐式解析构建依赖。
 - 恢复 Runbook、Issue 和 CODEOWNERS 草稿现在对仓库控制文本执行 Markdown 转义，并覆盖 `authorization:` 形式凭证脱敏，避免恢复工件被注入或泄露秘密。
+- Added a release-candidate tag/version consistency gate so a `v*` tag cannot verify a different
+  package version; manual dispatch remains available without a tag.

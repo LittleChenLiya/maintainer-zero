@@ -214,7 +214,14 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
         f"artifact-manifest={output / 'artifact-manifest.json'}\n"
         f"integrity-credential={output / 'continuity-credential.json'}\n"
     )
-    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NONBLOCK", 0)
+    # If the destination was absent during preflight, require exclusive
+    # creation. Without O_EXCL an attacker can create a regular file between
+    # lstat() and open(), causing trusted output to reach an unvalidated path.
+    # Existing files are opened without O_CREAT so deletion/replacement between
+    # checks fails closed instead of creating a fresh file at the raced path.
+    flags = os.O_WRONLY | os.O_APPEND | getattr(os, "O_NONBLOCK", 0)
+    if output_before is None:
+        flags |= os.O_CREAT | os.O_EXCL
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     try:
         descriptor = os.open(output_file, flags | nofollow, 0o600)

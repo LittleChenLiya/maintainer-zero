@@ -228,6 +228,28 @@ def test_action_adapter_rechecks_output_parent_identity_during_open(tmp_path, mo
     assert output_file.read_text(encoding="utf-8") == "keep\n"
 
 
+def test_action_adapter_exclusive_creates_absent_output(tmp_path, monkeypatch):
+    output_file = tmp_path / "github-output"
+    original_open = os.open
+    raced = False
+
+    def create_during_open(path, flags, *args, **kwargs):
+        nonlocal raced
+        if Path(path) == output_file and not raced:
+            raced = True
+            output_file.write_text("attacker\n", encoding="utf-8")
+        return original_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", create_during_open)
+    with pytest.raises(OSError, match="could not open GITHUB_OUTPUT"):
+        _write_outputs({
+            "MZ_INPUT_OUTPUT": str(tmp_path / "reports"),
+            "GITHUB_OUTPUT": str(output_file),
+        })
+    assert raced
+    assert output_file.read_text(encoding="utf-8") == "attacker\n"
+
+
 def test_action_adapter_rejects_control_characters_before_output_boundary():
     with pytest.raises(ValueError, match="control characters"):
         build_argv({"MZ_INPUT_PATH": "repo" + chr(10) + "forged-output=true"})

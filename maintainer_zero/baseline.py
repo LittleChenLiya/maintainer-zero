@@ -88,7 +88,7 @@ def load_report(path: str | Path) -> dict[str, Any]:
         )
     except BaselineError:
         raise
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
         raise BaselineError(f"Invalid continuity report: {report_path}") from exc
     if not isinstance(payload, dict):
         raise BaselineError("continuity report must be a JSON object")
@@ -109,9 +109,23 @@ def _validate_report(report: Mapping[str, Any]) -> None:
         raise BaselineError("continuity report repository must be an object")
     if not isinstance(report.get("results"), list):
         raise BaselineError("continuity report results must be an array")
+    if len(report["results"]) > 100:
+        raise BaselineError("continuity report results must be a bounded array")
     for index, result in enumerate(report["results"]):
         if not isinstance(result, Mapping):
             raise BaselineError(f"continuity report result {index} must be an object")
+        scenario = result.get("scenario")
+        if not isinstance(scenario, str) or not scenario.strip() or len(scenario) > 128:
+            raise BaselineError(f"continuity report result {index} scenario is invalid")
+        findings = result.get("findings", [])
+        if not isinstance(findings, list) or len(findings) > 500:
+            raise BaselineError(f"continuity report result {index} findings must be a bounded array")
+        for finding_index, finding in enumerate(findings):
+            if not isinstance(finding, Mapping):
+                raise BaselineError(f"continuity report result {index} finding {finding_index} is invalid")
+            severity = finding.get("severity", "unknown")
+            if not isinstance(severity, str) or len(severity) > 32:
+                raise BaselineError(f"continuity report result {index} finding severity is invalid")
         if "score" not in result:
             continue
         value = result["score"]
@@ -264,7 +278,11 @@ def summarize_report(report: Mapping[str, Any]) -> dict[str, Any]:
         "valid": True,
         "schema_version": report["schema_version"],
         "rule_version": report["rule_version"],
-        "tool": dict(report["tool"]) if isinstance(report.get("tool"), Mapping) else None,
+        "tool": (
+            {"name": "Maintainer-Zero", "version": report["tool"]["version"]}
+            if isinstance(report.get("tool"), Mapping)
+            else None
+        ),
         "scenario_count": len(scenarios),
         "scenarios": scenarios,
         "repository_coverage": coverage,

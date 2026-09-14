@@ -198,6 +198,18 @@ def test_validate_report_cli_emits_privacy_preserving_json(tmp_path, capsys):
     assert output["valid"] is True
     assert output["scenarios"][0]["score"] == 73
     assert "repository" not in output
+
+
+def test_summarize_report_rejects_unbounded_or_malformed_results():
+    payload = report(score=80)
+    payload["results"][0]["findings"] = [None]
+    with pytest.raises(BaselineError, match="finding 0"):
+        summarize_report(payload)
+
+    payload = report(score=80)
+    payload["results"] = [payload["results"][0]] * 101
+    with pytest.raises(BaselineError, match="bounded array"):
+        summarize_report(payload)
 def test_baseline_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
     linked = tmp_path / "linked"
     linked.mkdir()

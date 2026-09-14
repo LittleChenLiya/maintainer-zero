@@ -81,6 +81,17 @@ def test_demo_cli_write_failure_preserves_existing_output(tmp_path, monkeypatch,
     assert "cannot write demo output" in capsys.readouterr().out
 
 
+def test_demo_cli_converts_unsafe_output_value_error_to_controlled_error(tmp_path, monkeypatch, capsys):
+    output = tmp_path / "demo-results.json"
+
+    def reject_output(path, content):
+        raise ValueError("unsafe output path")
+
+    monkeypatch.setattr("maintainer_zero.cli._atomic_write_text", reject_output)
+    assert main(["demo", str(DEMO_PATH), "--format", "json", "--output", str(output)]) == 2
+    assert "cannot write demo output" in capsys.readouterr().out
+
+
 def test_demo_cli_rejects_symlinked_output_parent(tmp_path, monkeypatch, capsys):
     outside = tmp_path / "outside"
     outside.mkdir()

@@ -825,7 +825,7 @@ def main(argv: list[str] | None = None) -> int:
             output_path = Path(args.output)
             try:
                 _atomic_write_text(output_path, rendered)
-            except OSError as exc:
+            except (OSError, ValueError) as exc:
                 print(f"error: cannot write demo output: {output_path}")
                 return 2
             print(f"Demo result written to {output_path}")

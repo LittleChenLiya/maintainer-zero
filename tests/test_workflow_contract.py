@@ -41,6 +41,23 @@ def test_ci_verifies_built_artifacts_outside_the_source_checkout():
     assert "python-version: \"3.12\"" in workflow
 
 
+def test_release_candidate_workflow_is_read_only_and_non_publishing():
+    workflow = (WORKFLOWS / "release-candidate.yml").read_text(encoding="utf-8")
+
+    assert "name: Release candidate verification" in workflow
+    assert "workflow_dispatch:" in workflow
+    assert "- \"v*\"" in workflow
+    assert "permissions:\n  contents: read" in workflow
+    assert "persist-credentials: false" in workflow
+    assert "python tools/verify_release.py --output \"$RUNNER_TEMP/maintainer-zero-release-verify\"" in workflow
+    assert "actions/upload-artifact@v7" in workflow
+    assert "if-no-files-found: error" in workflow
+    assert "retention-days: 14" in workflow
+    assert "pypi" not in workflow.lower()
+    assert "marketplace" not in workflow.lower()
+    assert "contents: write" not in workflow
+
+
 def test_workflows_have_no_write_or_untrusted_target_boundary():
     for path in WORKFLOWS.glob("*.yml"):
         workflow = path.read_text(encoding="utf-8")

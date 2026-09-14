@@ -49,6 +49,10 @@ ci.yml 的 release-smoke job 会在 Ubuntu/Python 3.12 runner 上重复执行同
 不发布到 PyPI；Windows/Python 矩阵仍由主测试 job 覆盖，真实 Marketplace/PyPI 发布仍需
 单独授权和审核。
 
+在准备版本标签前，可手动运行或推送 `v*` 标签触发 `.github/workflows/release-candidate.yml`。
+该工作流只使用 `contents: read`，重复执行同一隔离验证，并将已验证的 wheel/sdist 作为
+14 天的审阅 artifact 上传；它不会创建 GitHub Release、发布 PyPI 或发布 Marketplace Action。
+
 ## Composite Action 本地验收
 
 在声明 Action 可发布前，还应检查：

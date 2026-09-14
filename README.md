@@ -155,6 +155,8 @@ cross-project ranking.
 
 This repository includes a self-analysis workflow in `.github/workflows/continuity.yml`, which runs the drill and publishes a job summary and artifact. The root `action.yml` is also a reusable composite Action; consumers should pin a reviewed tag or commit and keep the workflow read-only. See [GitHub integration](docs/GITHUB_INTEGRATION.md) for the setup and security boundary. PR comments are available as local drafts only; external publishing remains an explicitly injected integration.
 
+Before creating a release, use the read-only [release candidate workflow](.github/workflows/release-candidate.yml) on a `v*` tag or via manual dispatch. It verifies wheel/sdist artifacts outside the checkout and uploads them for review; it does not publish to PyPI or the Marketplace.
+
 ## Roadmap
 
 See [the long-term execution plan](docs/LONG_TERM_GOAL.md) for milestones and acceptance criteria.

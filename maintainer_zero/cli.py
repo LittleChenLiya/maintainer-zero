@@ -869,6 +869,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     try:
         _validate_simulation_output_paths(args)
+        output_root = _lexical_absolute_path(args.output)
+        recovery_output = (
+            _lexical_absolute_path(args.recovery_output)
+            if args.recovery_output
+            else output_root / "recovery"
+        )
         repo = snapshot_repository(args.path)
         # Keep the repository spelling intact until the config reader performs
         # its component-by-component no-follow inspection.
@@ -914,31 +920,30 @@ def main(argv: list[str] | None = None) -> int:
         if args.fallback_plan:
             fallback_summary = summarize_fallback_plan(load_fallback_plan(args.fallback_plan))
         results = [SCENARIOS[name](repo, days) for name in names]
-        write_report(Path(args.output), repo, results, metadata_summary, privacy_summary, fallback_summary)
-        recovery_output = Path(args.recovery_output) if args.recovery_output else Path(args.output) / "recovery"
+        write_report(output_root, repo, results, metadata_summary, privacy_summary, fallback_summary)
         write_recovery_artifacts(recovery_output, repo, results, privacy_summary)
         if args.history:
-            history_summary = append_history(args.history, load_report(Path(args.output) / "continuity.json"))
-            history_summary_path = Path(args.output) / "history-summary.json"
+            history_summary = append_history(args.history, load_report(output_root / "continuity.json"))
+            history_summary_path = output_root / "history-summary.json"
             _atomic_write_text(history_summary_path, json.dumps(history_summary, indent=2, ensure_ascii=False) + "\n")
-            history_markdown_path = Path(args.output) / "history-summary.md"
+            history_markdown_path = output_root / "history-summary.md"
             _atomic_write_text(history_markdown_path, render_trend_markdown(history_summary))
             print(f"History appended: {history_summary_path} and {history_markdown_path}")
     except (ValueError, MetadataError, MetadataCacheError, ScenarioSpecError, HistoryError, DemoError, FallbackPlanError, json.JSONDecodeError) as exc:
         print(f"error: {exc}")
         return 2
-    print(f"Analyzed {repo.name}: {len(results)} drills written to {Path(args.output).resolve()}")
+    print(f"Analyzed {repo.name}: {len(results)} drills written to {output_root}")
     for result in results:
         print(f"  {result.scenario}: {result.score}/100 ({result.confidence} confidence)")
     baseline_failed = False
     if args.baseline:
         try:
-            current_report = load_report(Path(args.output) / "continuity.json")
+            current_report = load_report(output_root / "continuity.json")
             comparison = compare_reports(baseline_report, current_report)
         except BaselineError as exc:
             print(f"error: {exc}")
             return 2
-        comparison_path = Path(args.output) / "baseline-comparison.json"
+        comparison_path = output_root / "baseline-comparison.json"
         _atomic_write_text(comparison_path, json.dumps(comparison, indent=2, ensure_ascii=False) + "\n")
         print(f"Baseline comparison: {comparison['status']} ({comparison_path})")
         # Preserve the historical default (any regression fails) while
@@ -951,16 +956,16 @@ def main(argv: list[str] | None = None) -> int:
             print("Baseline gate failed: selected regression policy matched")
             baseline_failed = True
     manifest_artifacts = [
-        Path(args.output) / "continuity.json",
-        Path(args.output) / "report.md",
-        Path(args.output) / "report.html",
+        output_root / "continuity.json",
+        output_root / "report.md",
+        output_root / "report.html",
         recovery_output / "runbook.md",
         recovery_output / "CODEOWNERS.draft",
         recovery_output / "issue-drafts.md",
         recovery_output / "continuity.sarif",
-        Path(args.output) / "history-summary.json",
-        Path(args.output) / "history-summary.md",
-        Path(args.output) / "baseline-comparison.json",
+        output_root / "history-summary.json",
+        output_root / "history-summary.md",
+        output_root / "baseline-comparison.json",
     ]
     # The core report/recovery artifacts are mandatory: never drop one merely
     # because a concurrent deletion made ``exists()`` false. Optional trend
@@ -970,14 +975,14 @@ def main(argv: list[str] | None = None) -> int:
     optional_artifacts = [path for path in manifest_artifacts[7:] if os.path.lexists(path)]
     manifest_artifacts = mandatory_artifacts + optional_artifacts
     try:
-        manifest_path = write_manifest(Path(args.output), manifest_artifacts)
+        manifest_path = write_manifest(output_root, manifest_artifacts)
     except ManifestError as exc:
         print(f"error: {exc}")
         return 2
     print(f"Artifact manifest: {manifest_path}")
     try:
         credential_path = create_credential(
-            Path(args.output) / "continuity.json",
+            output_root / "continuity.json",
             manifest_path,
         )
     except CredentialError as exc:

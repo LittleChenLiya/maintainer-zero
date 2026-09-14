@@ -37,7 +37,10 @@ jobs:
       - name: Validate declarative scenario examples
         run: python -c "from pathlib import Path; from maintainer_zero.scenario_registry import load_scenario; [load_scenario(path) for path in sorted(Path('examples/scenarios').glob('*.json'))]"
       - name: CLI smoke test
-        run: python -m maintainer_zero simulate . --scenario all --output .continuity
+        run: |
+          python -m maintainer_zero simulate . --scenario all --output .continuity
+          python -m maintainer_zero verify-manifest .continuity/artifact-manifest.json
+          python -m maintainer_zero verify-credential .continuity/continuity-credential.json
 
   release-smoke:
     name: Wheel and sdist install smoke

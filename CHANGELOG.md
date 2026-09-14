@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Composite Action `GITHUB_OUTPUT` preflight now rejects special files before
+  opening (including potentially blocking FIFOs), captures the existing output
+  and parent-chain identities, and rechecks both after open. Concurrent final
+  file or parent replacement therefore fails closed without appending to the
+  replacement.
+
 - Native CLI output validation now inspects path components (including `..`)
   before lexical normalization, preventing a link/reparse component from being
   hidden by `abspath`; regression tests cover file and directory destinations.

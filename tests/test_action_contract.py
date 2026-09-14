@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import stat
 from types import SimpleNamespace
 import pytest
@@ -159,6 +160,72 @@ def test_action_adapter_rejects_hardlinked_github_output(tmp_path):
     with pytest.raises(ValueError, match="hard link"):
         _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(link)})
     assert target.read_text(encoding="utf-8") == "keep-me\n"
+
+
+def test_action_adapter_rejects_special_github_output_before_open(tmp_path, monkeypatch):
+    output_file = tmp_path / "github-output"
+    output_file.write_text("keep\n", encoding="utf-8")
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        if path == output_file:
+            return SimpleNamespace(st_mode=stat.S_IFIFO, st_file_attributes=0)
+        return original_lstat(path, *args, **kwargs)
+
+    def unexpected_open(*args, **kwargs):
+        pytest.fail("special output must be rejected before a potentially blocking open")
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    monkeypatch.setattr(os, "open", unexpected_open)
+    with pytest.raises(ValueError, match="regular file"):
+        _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(output_file)})
+    assert output_file.read_text(encoding="utf-8") == "keep\n"
+
+
+def test_action_adapter_rejects_output_replacement_during_open(tmp_path, monkeypatch):
+    output_file = tmp_path / "github-output"
+    output_file.write_text("original\n", encoding="utf-8")
+    moved = tmp_path / "old-output"
+    original_open = os.open
+
+    def replace_during_open(path, flags, *args, **kwargs):
+        if Path(path) == output_file:
+            output_file.rename(moved)
+            output_file.write_text("replacement\n", encoding="utf-8")
+        return original_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", replace_during_open)
+    with pytest.raises(ValueError, match="changed"):
+        _write_outputs({"MZ_INPUT_OUTPUT": str(tmp_path / "reports"), "GITHUB_OUTPUT": str(output_file)})
+    assert moved.read_text(encoding="utf-8") == "original\n"
+    assert output_file.read_text(encoding="utf-8") == "replacement\n"
+
+
+def test_action_adapter_rechecks_output_parent_identity_during_open(tmp_path, monkeypatch):
+    parent = tmp_path / "runner-temp"
+    parent.mkdir()
+    output_file = parent / "github-output"
+    output_file.write_text("keep\n", encoding="utf-8")
+    moved = tmp_path / "moved-runner-temp"
+    original_open = os.open
+
+    def replace_parent_during_open(path, flags, *args, **kwargs):
+        if Path(path) == output_file:
+            parent.rename(moved)
+            parent.mkdir()
+            # Preserve the final file identity: checking only the output inode
+            # is insufficient to prove that its parent chain is unchanged.
+            (moved / output_file.name).rename(output_file)
+        return original_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", replace_parent_during_open)
+    with pytest.raises(ValueError, match="parent.*changed"):
+        _write_outputs({
+            "MZ_INPUT_OUTPUT": str(tmp_path / "reports"),
+            "GITHUB_OUTPUT": str(output_file),
+            "RUNNER_TEMP": str(parent),
+        })
+    assert output_file.read_text(encoding="utf-8") == "keep\n"
 
 
 def test_action_adapter_rejects_control_characters_before_output_boundary():

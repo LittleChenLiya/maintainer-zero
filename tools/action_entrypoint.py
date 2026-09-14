@@ -78,6 +78,33 @@ def _lexical_relative_path(candidate: Path, root: Path) -> Path:
     return normalized
 
 
+def _stat_identity(info: os.stat_result) -> tuple[int, int, int]:
+    """Return stable local identity fields for a preflight/recheck pair."""
+    return (
+        getattr(info, "st_dev", 0),
+        getattr(info, "st_ino", 0),
+        getattr(info, "st_mode", 0),
+    )
+
+
+def _directory_chain_identities(path: Path) -> tuple[tuple[str, tuple[int, int, int]], ...]:
+    """Capture every existing parent identity without following links."""
+    target = _absolute_path(path)
+    current = Path(target.anchor) if target.anchor else Path()
+    parts = target.parts[1:] if target.anchor else target.parts
+    identities: list[tuple[str, tuple[int, int, int]]] = []
+    for part in parts:
+        current /= part
+        try:
+            info = current.lstat()
+        except (FileNotFoundError, OSError) as exc:
+            raise ValueError("GITHUB_OUTPUT parent path changed during open") from exc
+        if _is_link_like(info) or not stat.S_ISDIR(info.st_mode):
+            raise ValueError("GITHUB_OUTPUT parent path changed during open")
+        identities.append((os.path.normcase(os.path.normpath(os.fspath(current))), _stat_identity(info)))
+    return tuple(identities)
+
+
 def _validate_environment(env: dict[str, str]) -> None:
     """Reject control characters and workspace escapes in Action inputs."""
     for key in _PATH_INPUTS:
@@ -167,6 +194,17 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
             raise ValueError("GITHUB_OUTPUT could not be inspected") from exc
     if not output_file.parent.exists():
         raise ValueError("GITHUB_OUTPUT parent directory does not exist")
+    parent_chain_before = _directory_chain_identities(output_file.parent)
+    try:
+        output_before = output_file.lstat()
+    except FileNotFoundError:
+        output_before = None
+    except OSError as exc:
+        raise ValueError("GITHUB_OUTPUT could not be inspected") from exc
+    if output_before is not None and (
+        _is_link_like(output_before) or not stat.S_ISREG(output_before.st_mode)
+    ):
+        raise ValueError("GITHUB_OUTPUT must be a regular file")
     payload = (
         f"report-directory={output}\n"
         f"report-json={output / 'continuity.json'}\n"
@@ -176,7 +214,7 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
         f"artifact-manifest={output / 'artifact-manifest.json'}\n"
         f"integrity-credential={output / 'continuity-credential.json'}\n"
     )
-    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NONBLOCK", 0)
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     try:
         descriptor = os.open(output_file, flags | nofollow, 0o600)
@@ -192,6 +230,10 @@ def _write_outputs(environ: dict[str, str] | None = None) -> None:
             raise ValueError("GITHUB_OUTPUT must be a regular file")
         if file_stat.st_nlink != 1:
             raise ValueError("GITHUB_OUTPUT must not be a hard link")
+        if output_before is not None and _stat_identity(file_stat) != _stat_identity(output_before):
+            raise ValueError("GITHUB_OUTPUT changed before writing")
+        if _directory_chain_identities(output_file.parent) != parent_chain_before:
+            raise ValueError("GITHUB_OUTPUT parent path changed during open")
         with os.fdopen(descriptor, "a", encoding="utf-8", newline="\n") as handle:
             descriptor = -1
             handle.write(payload)

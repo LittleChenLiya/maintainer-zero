@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Release source, output, and checkout directory validation now preserves `..`
+  until component inspection, preventing `link/../target` from bypassing the
+  release verifier's no-follow boundary.
+
 - Simulation now passes the repository path to config loading without an early
   `resolve()`, and the bounded config reader normalizes only after checking
   existing components; linked `..` spellings cannot bypass its boundary.

@@ -130,6 +130,21 @@ def test_release_verification_rejects_symlinked_output_component(tmp_path: Path)
         verify(root, linked / "release")
 
 
+def test_release_verification_rejects_link_hidden_before_dotdot_normalization(tmp_path: Path):
+    root = Path(__file__).parents[1]
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked-output"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    # ``link/../release`` would become ``release`` if abspath normalized
+    # before inspecting existing components. It must fail closed instead.
+    with pytest.raises(ValueError, match="may not contain a symlink or reparse point"):
+        release_verify._safe_output_directory(linked / ".." / "release")
+
+
 def test_release_source_snapshot_excludes_generated_outputs_and_rejects_links(tmp_path: Path):
     root = tmp_path / "source"
     root.mkdir()
@@ -247,6 +262,20 @@ def test_release_source_snapshot_rejects_linked_checkout(tmp_path: Path):
     snapshot.mkdir()
     with pytest.raises(ValueError, match="release source checkout may not be a symlink"):
         release_verify._copy_release_source(linked, snapshot)
+
+
+def test_release_source_snapshot_rejects_link_hidden_before_dotdot_normalization(tmp_path: Path):
+    root = tmp_path / "source"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked-source"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="may not be a symlink or reparse point"):
+        release_verify._safe_existing_directory(linked / ".." / "source", "release source checkout")
 
 
 def test_release_verification_rejects_reparse_output_component(tmp_path: Path, monkeypatch):

@@ -20,7 +20,9 @@ def _is_link_or_reparse(info: os.stat_result) -> bool:
 
 
 def _safe_existing_directory(path: Path, label: str) -> Path:
-    target = Path(os.path.abspath(path))
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts:
@@ -33,7 +35,7 @@ def _safe_existing_directory(path: Path, label: str) -> Path:
             raise ValueError(f"{label} may not be a symlink or reparse point: {current}")
         if not stat.S_ISDIR(info.st_mode):
             raise ValueError(f"{label} is not a directory: {current}")
-    return target
+    return Path(os.path.normpath(os.fspath(target)))
 
 
 def _same_source_stat(left: os.stat_result, right: os.stat_result) -> bool:
@@ -288,7 +290,9 @@ def _stage_release_archive(archive: Path, target_dir: Path) -> Path:
 
 def _safe_output_directory(path: Path) -> Path:
     """Create an output directory without following symlinked components."""
-    target = Path(os.path.abspath(path))
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts:
@@ -302,11 +306,13 @@ def _safe_output_directory(path: Path) -> Path:
             raise ValueError(f"release verification output may not contain a symlink or reparse point: {current}")
         if not stat.S_ISDIR(info.st_mode):
             raise ValueError(f"release verification output is not a directory: {current}")
-    return target
+    return Path(os.path.normpath(os.fspath(target)))
 
 def verify(root: Path, output: Path) -> None:
     root = _safe_existing_directory(root, "release source checkout")
-    output = Path(os.path.abspath(output))
+    output = Path(output)
+    if not output.is_absolute():
+        output = Path.cwd() / output
     if output == root or output.is_relative_to(root):
         raise ValueError("release verification output must be outside the source checkout")
     output = _safe_output_directory(output)

@@ -4,7 +4,11 @@ import argparse, hashlib, json, os, subprocess, sys, tempfile
 import stat
 from pathlib import Path
 
-DEFAULT_VERIFY_OUTPUT = Path("D:/Codex/maintainer-zero-release-verify")
+DEFAULT_VERIFY_OUTPUT = (
+    Path("D:/Codex/maintainer-zero-release-verify")
+    if os.name == "nt"
+    else Path("/tmp/maintainer-zero-release-verify")
+)
 _REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 _MAX_RELEASE_ARCHIVE_BYTES = 128 * 1024 * 1024
 _RELEASE_CHUNK = 1024 * 1024

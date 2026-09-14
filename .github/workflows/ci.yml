@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install package and test runner
-        run: python -m pip install --disable-pip-version-check -e . pytest
+        run: python -m pip install --disable-pip-version-check "setuptools>=68" wheel -e . pytest tomli
       - name: Run tests
         run: python -m pytest -q
       - name: Validate declarative scenario examples
@@ -52,6 +52,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install release verifier
-        run: python -m pip install --disable-pip-version-check --no-deps -e .
+        run: python -m pip install --disable-pip-version-check "setuptools>=68" wheel --no-deps -e .
       - name: Build and install wheel and sdist outside the checkout
         run: python tools/verify_release.py --output "$RUNNER_TEMP/maintainer-zero-release-verify"

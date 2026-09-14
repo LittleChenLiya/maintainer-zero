@@ -1,6 +1,9 @@
 from pathlib import Path
 from importlib.metadata import version as installed_version
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 CI uses the backport.
+    import tomli as tomllib
 
 import maintainer_zero
 

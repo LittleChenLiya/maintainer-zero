@@ -121,11 +121,19 @@ def _read_bounded_json(path: Path, max_bytes: int, error_type: type[ValueError],
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     try:
-        for part in parts:
+        for index, part in enumerate(parts):
             current /= part
             info = current.lstat()
             if _is_link_like(info):
-                raise error_type(f"{label} path may not contain a symlink or reparse point")
+                if index == len(parts) - 1:
+                    raise error_type(
+                        f"{label} must be a regular file; "
+                        "symlink or reparse point is not allowed"
+                    )
+                raise error_type(
+                    f"{label} must be a regular file; path may not contain "
+                    "a symlink or reparse point"
+                )
         path_stat = target.lstat()
         if _is_link_like(path_stat) or not stat.S_ISREG(path_stat.st_mode):
             raise error_type(f"{label} must be a regular file")

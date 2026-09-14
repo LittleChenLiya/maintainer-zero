@@ -22,7 +22,10 @@ def test_release_verification_is_idempotent(tmp_path: Path):
 
 def test_release_verification_default_output_is_an_absolute_codex_path():
     assert DEFAULT_VERIFY_OUTPUT.is_absolute()
-    assert DEFAULT_VERIFY_OUTPUT == Path("D:/Codex/maintainer-zero-release-verify")
+    if os.name == "nt":
+        assert DEFAULT_VERIFY_OUTPUT == Path("D:/Codex/maintainer-zero-release-verify")
+    else:
+        assert DEFAULT_VERIFY_OUTPUT == Path("/tmp/maintainer-zero-release-verify")
 
 
 def test_release_verification_install_probe_is_offline_safe():

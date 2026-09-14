@@ -4,6 +4,8 @@ Maintainer-Zero is local-first. The analyzer does not call a GitHub API or uploa
 
 ## Included workflows
 
+The workflows use the Node.js 24-compatible v7 releases of the official GitHub actions.
+
 - ci.yml tests Python 3.10 and 3.12 on Ubuntu and Windows, then runs a CLI smoke test.
 - continuity.yml runs the three drills on pushes, pull requests, a monthly schedule, or manual dispatch on both Ubuntu and Windows runners. Each matrix leg publishes the report to its Job Summary and uploads a separately named 14-day artifact only after output, report, manifest, and credential checks succeed. Job Summary steps use `always()` so score/baseline or setup failures still leave diagnostics available; an unverified bundle is not uploaded.
 - `action.yml` is a reusable composite Action. It installs the pinned action checkout with no dependencies and runs the same local CLI against `github.workspace`; inputs are passed through environment variables and shell arrays rather than interpolated into commands.

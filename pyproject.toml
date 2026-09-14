@@ -9,7 +9,28 @@ description = "Chaos engineering drills for open-source project continuity"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
+authors = [{name = "Maintainer-Zero contributors"}]
+keywords = ["chaos-engineering", "open-source", "reliability", "devops", "maintainer", "continuity"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Testing",
+  "Topic :: System :: Monitoring",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/LittleChenLiya/maintainer-zero"
+Repository = "https://github.com/LittleChenLiya/maintainer-zero"
+Issues = "https://github.com/LittleChenLiya/maintainer-zero/issues"
+Discussions = "https://github.com/LittleChenLiya/maintainer-zero/discussions"
 
 [project.scripts]
 maintainer-zero = "maintainer_zero.cli:main"

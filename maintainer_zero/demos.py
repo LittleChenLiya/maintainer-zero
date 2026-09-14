@@ -77,6 +77,7 @@ def _read_external_suite(path: str | Path) -> bytes:
             or (getattr(after, "st_dev", 0), getattr(after, "st_ino", 0)) != identity
             or after.st_size != initial.st_size
             or getattr(after, "st_mtime_ns", None) != getattr(initial, "st_mtime_ns", None)
+            or getattr(after, "st_ctime_ns", None) != getattr(initial, "st_ctime_ns", None)
         ):
             raise DemoError("demo suite changed during reading")
         return raw

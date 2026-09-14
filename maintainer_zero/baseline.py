@@ -112,6 +112,7 @@ def _validate_report(report: Mapping[str, Any]) -> None:
         raise BaselineError("continuity report results must be an array")
     if len(report["results"]) > 100:
         raise BaselineError("continuity report results must be a bounded array")
+    seen_scenarios: set[str] = set()
     for index, result in enumerate(report["results"]):
         if not isinstance(result, Mapping):
             raise BaselineError(f"continuity report result {index} must be an object")
@@ -123,6 +124,9 @@ def _validate_report(report: Mapping[str, Any]) -> None:
             or any(not char.isprintable() for char in scenario)
         ):
             raise BaselineError(f"continuity report result {index} scenario is invalid")
+        if scenario in seen_scenarios:
+            raise BaselineError(f"continuity report contains duplicate scenario: {scenario}")
+        seen_scenarios.add(scenario)
         findings = result.get("findings", [])
         if not isinstance(findings, list) or len(findings) > 500:
             raise BaselineError(f"continuity report result {index} findings must be a bounded array")

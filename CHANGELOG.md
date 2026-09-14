@@ -10,6 +10,10 @@
   malicious rule or tool version cannot inject control characters into CLI
   output.
 
+- The continuity workflow now validates the generated report before manifest
+  and credential verification on both Unix and Windows runners; duplicate
+  scenario IDs are rejected instead of being silently collapsed.
+
 - Configuration path regression coverage now exercises a `linked-parent/../linked-parent` spelling, proving `continuity.json` loading inspects existing components before lexical normalization and rejects the hidden symlink.
 
 - Release source, output, and checkout directory validation now preserves `..`

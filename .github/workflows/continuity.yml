@@ -54,6 +54,7 @@ jobs:
           test -f "$MZ_REPORT_HTML"
           test -d "$MZ_RECOVERY_DIR"
           test -f "$MZ_MANIFEST"
+          python -m maintainer_zero validate-report "$MZ_REPORT_JSON"
           python -m maintainer_zero verify-manifest "$MZ_MANIFEST"
           test -f "$MZ_CREDENTIAL"
           python -m maintainer_zero verify-credential "$MZ_CREDENTIAL"
@@ -75,6 +76,7 @@ jobs:
           foreach ($file in $files) {
             if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "file output is missing: $file" }
           }
+          python -m maintainer_zero validate-report $env:MZ_REPORT_JSON
           python -m maintainer_zero verify-manifest $env:MZ_MANIFEST
           python -m maintainer_zero verify-credential $env:MZ_CREDENTIAL
       - name: Publish job summary (Unix)

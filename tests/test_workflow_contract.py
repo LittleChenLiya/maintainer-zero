@@ -81,7 +81,9 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     assert "Verify Action outputs (Unix)" in workflow
     assert "Verify Action outputs (Windows)" in workflow
     assert "python -m maintainer_zero verify-manifest \"$MZ_MANIFEST\"" in workflow
+    assert "python -m maintainer_zero validate-report \"$MZ_REPORT_JSON\"" in workflow
     assert "python -m maintainer_zero verify-manifest $env:MZ_MANIFEST" in workflow
+    assert "python -m maintainer_zero validate-report $env:MZ_REPORT_JSON" in workflow
     for output_name in ("report-directory", "report-json", "report-markdown", "report-html", "recovery-directory", "artifact-manifest", "integrity-credential"):
         assert f"steps.drill.outputs['{output_name}']" in workflow
     assert "Publish job summary (Unix)" in workflow

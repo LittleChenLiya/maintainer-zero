@@ -228,6 +228,13 @@ def test_summarize_report_rejects_control_characters_in_display_metadata(field):
         payload["tool"] = {"name": "Maintainer-Zero", "version": "0.2\nunsafe"}
     with pytest.raises(BaselineError, match="non-empty string|tool metadata"):
         summarize_report(payload)
+
+
+def test_summarize_report_rejects_duplicate_scenarios():
+    payload = report(score=80)
+    payload["results"].append(dict(payload["results"][0]))
+    with pytest.raises(BaselineError, match="duplicate scenario"):
+        summarize_report(payload)
 def test_baseline_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
     linked = tmp_path / "linked"
     linked.mkdir()

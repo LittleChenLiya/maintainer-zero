@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added a standard `CITATION.cff` with versioned repository metadata so
+  research, documentation, and benchmark users have a stable citation entry
+  point.
+
 - Updated the checked-in workflows and integration examples to the Node.js 24 compatible major releases of the official checkout, setup-python, and upload-artifact actions (v7).
 
 - Added public repository, issue tracker, discussion links, package keywords,

@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use Maintainer-Zero in research, documentation, or benchmarking, please cite this repository."
+title: "Maintainer-Zero"
+type: software
+version: 0.2.0
+date-released: 2026-09-15
+abstract: "An alpha, offline-first toolkit for repeatable and explainable chaos engineering drills for open-source project continuity."
+authors:
+  - name: "Maintainer-Zero contributors"
+repository-code: "https://github.com/LittleChenLiya/maintainer-zero"
+url: "https://github.com/LittleChenLiya/maintainer-zero"
+license: MIT
+keywords:
+  - chaos engineering
+  - open source
+  - software supply chain
+  - project continuity

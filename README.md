@@ -181,6 +181,8 @@ Add a scenario with explicit assumptions, a deterministic test, and a short expl
 
 Ready-to-publish English, Chinese, X/Twitter, and GitHub Discussions copy is in the [launch kit](docs/LAUNCH_KIT.md). Please keep the alpha/MVP and offline-by-default boundaries intact when sharing results.
 
+If Maintainer-Zero supports your research, documentation, or benchmark, cite the project with the metadata in [CITATION.cff](CITATION.cff).
+
 ## License
 
 MIT

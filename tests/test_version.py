@@ -25,3 +25,12 @@ def test_project_metadata_points_to_the_public_repository():
     assert project["urls"]["Repository"] == "https://github.com/LittleChenLiya/maintainer-zero"
     assert project["urls"]["Issues"].endswith("/issues")
     assert project["urls"]["Discussions"].endswith("/discussions")
+
+
+def test_citation_metadata_matches_public_release_identity():
+    citation = (Path(__file__).parents[1] / "CITATION.cff").read_text(encoding="utf-8")
+    assert "cff-version: 1.2.0" in citation
+    assert "version: 0.2.0" in citation
+    assert "repository-code: \"https://github.com/LittleChenLiya/maintainer-zero\"" in citation
+    assert "url: \"https://github.com/LittleChenLiya/maintainer-zero\"" in citation
+    assert "license: MIT" in citation

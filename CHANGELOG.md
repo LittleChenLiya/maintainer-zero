@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Repository path validation now checks existing components before lexical
+  normalization, so an analyzer input such as `link/../repo` cannot hide a
+  linked parent; ordinary traversal through real directories remains supported.
+
 - History appends now branch on a non-following `lstat()` observation and reject
   symlinked or non-regular targets, avoiding `Path.exists()` follow-through when
   a history file disappears or is replaced during preflight.

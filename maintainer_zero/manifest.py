@@ -61,7 +61,11 @@ def _read_digest(target: Path, rel: str, expected: os.stat_result | None = None)
     return total, digest.hexdigest()
 
 def _directory(path: Path) -> Path:
-    path = Path(os.path.abspath(path))
+    # Keep ``..`` components until every existing component has been checked;
+    # normalizing first could hide a linked parent from the boundary walk.
+    path = Path(path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
     current = Path(path.anchor) if path.anchor else Path()
     parts = path.parts[1:] if path.anchor else path.parts
     for part in parts:
@@ -70,7 +74,7 @@ def _directory(path: Path) -> Path:
         except OSError as exc: raise ManifestError(f"cannot inspect manifest directory: {current}") from exc
         if _link(info) or not stat.S_ISDIR(info.st_mode):
             raise ManifestError(f"unsafe manifest directory: {current}")
-    return path
+    return Path(os.path.normpath(os.fspath(path)))
 
 def _relative(value: object) -> str:
     if not isinstance(value, str) or not value or len(value) > MAX_PATH_LENGTH:
@@ -148,7 +152,9 @@ def write_manifest(output: str | Path, artifacts: Iterable[str | Path]) -> Path:
 
 def _safe_manifest_file(path: Path) -> tuple[Path, os.stat_result]:
     """Resolve a manifest only through real, existing parent directories."""
-    target = Path(os.path.abspath(path))
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts[:-1]:
@@ -159,6 +165,7 @@ def _safe_manifest_file(path: Path) -> tuple[Path, os.stat_result]:
             raise ManifestError(f"cannot inspect manifest parent: {current}") from exc
         if _link(parent) or not stat.S_ISDIR(parent.st_mode):
             raise ManifestError("manifest parent must be a real directory")
+    target = Path(os.path.normpath(os.fspath(target)))
     try:
         info = target.lstat()
     except OSError as exc:

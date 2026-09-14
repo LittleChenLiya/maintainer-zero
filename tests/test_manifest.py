@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from maintainer_zero.cli import main
-from maintainer_zero.manifest import ManifestError, load_manifest, verify_manifest, write_manifest
+from maintainer_zero.manifest import ManifestError, _directory, _safe_manifest_file, load_manifest, verify_manifest, write_manifest
 
 
 def _artifacts(root: Path) -> list[Path]:
@@ -156,6 +156,24 @@ def test_manifest_rejects_unsafe_paths(tmp_path: Path, path: str):
     manifest.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(ManifestError):
         load_manifest(manifest)
+
+
+def test_manifest_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
+    linked = tmp_path / "linked"
+    linked.mkdir()
+    original_lstat = Path.lstat
+
+    def fake_lstat(path, *args, **kwargs):
+        info = original_lstat(path, *args, **kwargs)
+        if path == linked:
+            return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=0x400)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    with pytest.raises(ManifestError, match="unsafe manifest directory"):
+        _directory(linked / ".." / "output")
+    with pytest.raises(ManifestError, match="manifest parent"):
+        _safe_manifest_file(linked / ".." / "artifact-manifest.json")
 
 
 def test_verify_manifest_cli_exit_codes(tmp_path: Path, capsys):

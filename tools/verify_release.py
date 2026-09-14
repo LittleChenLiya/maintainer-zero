@@ -343,9 +343,11 @@ def verify(root: Path, output: Path) -> None:
     if normalized_output == root or normalized_output.is_relative_to(root):
         raise ValueError("release verification output must be outside the source checkout")
     output = _safe_output_directory(output)
-    resolved_output = output.resolve()
-    if resolved_output == root or resolved_output.is_relative_to(root):
-        raise ValueError("release verification output must be outside the source checkout")
+    # Recheck the now-existing directory using lstat rather than resolving it.
+    # A resolved path follows a symlink that may have replaced an inspected
+    # component and would therefore turn a no-follow check into an accidental
+    # permission to write through that link.
+    output = _safe_existing_directory(output, "release verification output")
     wheelhouse = output / "artifacts"
     # The output directory is a tool-owned, disposable verification area.
     # Remove only files produced by this script so rerunning the documented

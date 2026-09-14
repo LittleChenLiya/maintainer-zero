@@ -24,6 +24,10 @@
   entry resolution; packaging verification no longer follows an enumerated
   path merely to decide whether it belongs to the checkout.
 
+- Release output revalidation now uses `lstat()` component checks instead of a
+  post-check `resolve()`, so a replaced output component cannot be silently
+  followed merely because it points outside the source checkout.
+
 - Simulation now passes the repository path to config loading without an early
   `resolve()`, and the bounded config reader normalizes only after checking
   existing components; linked `..` spellings cannot bypass its boundary.

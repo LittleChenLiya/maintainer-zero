@@ -151,6 +151,25 @@ def test_release_verification_rejects_symlinked_output_component(tmp_path: Path)
         verify(root, linked / "release")
 
 
+def test_release_verification_does_not_resolve_output_path(tmp_path: Path, monkeypatch):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "pyproject.toml").write_text("[build-system]", encoding="utf-8")
+    output = tmp_path / "release"
+
+    def unexpected_resolve(*args, **kwargs):
+        raise AssertionError("release output checks must not resolve paths")
+
+    def stop_before_build(*args, **kwargs):
+        raise RuntimeError("stop after path validation")
+
+    monkeypatch.setattr(Path, "resolve", unexpected_resolve)
+    monkeypatch.setattr(release_verify, "run", stop_before_build)
+    with pytest.raises(RuntimeError, match="stop after path validation"):
+        verify(root, output)
+    assert output.is_dir()
+
+
 def test_release_verification_rejects_link_hidden_before_dotdot_normalization(tmp_path: Path):
     root = Path(__file__).parents[1]
     outside = tmp_path / "outside"

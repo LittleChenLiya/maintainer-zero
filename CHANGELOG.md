@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a concise Code of Conduct and linked it from contributor and support entry points.
+
 - Added GitHub community-health routing: a support guide, Discussion and security contact links,
   and a no-blank-Issue configuration with explicit sanitized forms.
 

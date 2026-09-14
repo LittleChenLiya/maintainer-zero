@@ -183,6 +183,7 @@ Use [Discussions](https://github.com/LittleChenLiya/maintainer-zero/discussions)
 benchmark comparisons, and roadmap ideas; use the [support guide](SUPPORT.md) to choose the right
 channel. Bug reports and declarative scenario proposals have sanitized issue forms. Please review
 the [security policy](SECURITY.md) before sharing vulnerability or privacy details.
+Please also follow the project [Code of Conduct](CODE_OF_CONDUCT.md) when participating.
 
 ## Share the project
 

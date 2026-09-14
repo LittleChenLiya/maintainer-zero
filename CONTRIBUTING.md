@@ -1,5 +1,8 @@
 # Contributing
 
+Please read the [Code of Conduct](CODE_OF_CONDUCT.md) before participating. Keep reports, fixtures,
+and review comments respectful and free of secrets or private repository data.
+
 1. Create a focused branch.
 2. Keep scenario scoring deterministic and explainable.
 3. Add or update tests for behavior changes.

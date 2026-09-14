@@ -26,3 +26,9 @@ unredacted private repository data.
 
 Read the [security policy](SECURITY.md) before reporting a vulnerability or privacy issue. Never
 put credentials or private repository content in a public issue or Discussion.
+
+## Community conduct
+
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md) in Issues, Discussions, and pull
+requests. Conduct concerns should be reported privately; do not include sensitive details in a
+public thread.

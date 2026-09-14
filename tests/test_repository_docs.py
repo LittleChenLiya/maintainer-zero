@@ -13,3 +13,7 @@ def test_public_support_and_issue_routing_are_present():
     assert "blank_issues_enabled: false" in issue_config
     assert "https://github.com/LittleChenLiya/maintainer-zero/discussions" in issue_config
     assert "https://github.com/LittleChenLiya/maintainer-zero/blob/main/SECURITY.md" in issue_config
+    conduct = (ROOT / "CODE_OF_CONDUCT.md").read_text(encoding="utf-8")
+    assert "## Expected behavior" in conduct
+    assert "## Reporting" in conduct
+    assert "SECURITY.md" in conduct

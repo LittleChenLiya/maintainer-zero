@@ -138,6 +138,21 @@ def _validate_report(report: Mapping[str, Any]) -> None:
         for finding_index, finding in enumerate(findings):
             if not isinstance(finding, Mapping):
                 raise BaselineError(f"continuity report result {index} finding {finding_index} is invalid")
+            # Generated findings use a stable string identity.  Preserve the
+            # legacy fallback for reports that omit ``finding_id`` (or leave it
+            # empty), but reject a present value of another type: otherwise a
+            # list/object is stringified into the fallback key and can make two
+            # distinct malformed findings compare as one.
+            if "finding_id" in finding and finding["finding_id"] not in (None, ""):
+                finding_id = finding["finding_id"]
+                if (
+                    not isinstance(finding_id, str)
+                    or len(finding_id) > MAX_REPORT_TEXT
+                    or any(not char.isprintable() for char in finding_id)
+                ):
+                    raise BaselineError(
+                        f"continuity report result {index} finding {finding_index} id is invalid"
+                    )
             severity = finding.get("severity", "unknown")
             if not isinstance(severity, str) or len(severity) > 32:
                 raise BaselineError(f"continuity report result {index} finding severity is invalid")

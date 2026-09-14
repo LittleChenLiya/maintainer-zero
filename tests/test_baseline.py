@@ -278,6 +278,15 @@ def test_report_rejects_duplicate_finding_ids_before_baseline_comparison():
         summarize_report(payload)
     with pytest.raises(BaselineError, match="duplicate finding"):
         compare_reports(report(score=80), payload)
+
+
+@pytest.mark.parametrize("finding_id", [["nested"], {"id": "object"}, 42, "bad\nidentity", "x" * 129])
+def test_report_rejects_malformed_present_finding_id(finding_id):
+    payload = report(score=80)
+    payload["results"][0]["findings"][0]["finding_id"] = finding_id
+
+    with pytest.raises(BaselineError, match="finding 0 id is invalid"):
+        summarize_report(payload)
 def test_baseline_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
     linked = tmp_path / "linked"
     linked.mkdir()

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Credential creation and verification now inspect directory components before
+  normalizing `..`, preventing linked parents from being hidden while binding
+  report and manifest files.
+
 - Repository path validation now checks existing components before lexical
   normalization, so an analyzer input such as `link/../repo` cannot hide a
   linked parent; ordinary traversal through real directories remains supported.

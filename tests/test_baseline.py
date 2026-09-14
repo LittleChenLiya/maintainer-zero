@@ -235,6 +235,18 @@ def test_summarize_report_rejects_duplicate_scenarios():
     payload["results"].append(dict(payload["results"][0]))
     with pytest.raises(BaselineError, match="duplicate scenario"):
         summarize_report(payload)
+
+
+def test_report_rejects_duplicate_finding_ids_before_baseline_comparison():
+    payload = report(score=80)
+    payload["results"][0]["findings"].append(
+        {"finding_id": payload["results"][0]["findings"][0]["finding_id"], "severity": "low", "title": "duplicate"}
+    )
+
+    with pytest.raises(BaselineError, match="duplicate finding"):
+        summarize_report(payload)
+    with pytest.raises(BaselineError, match="duplicate finding"):
+        compare_reports(report(score=80), payload)
 def test_baseline_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
     linked = tmp_path / "linked"
     linked.mkdir()

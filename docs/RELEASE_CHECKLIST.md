@@ -57,7 +57,8 @@ ci.yml 的 release-smoke job 会在 Ubuntu/Python 3.12 runner 上重复执行同
 - `tools/action_entrypoint.py` 将路径、基线和元数据作为独立 argv 值传递，并把 `path`、`output`、`baseline`、`github-metadata` 都限制在 GitHub workspace 内；路径包含空格、`$`、分号或反斜杠时不产生 shell 插值。
 - `collect-github --max-response-bytes N` 只能把单响应上限收紧到 `1..1,000,000` 字节；越界输入必须以退出码 2 拒绝，超大响应必须降级为 `response_too_large`，不能解析截断 JSON。
 - Unix 与 Windows 适配器都只运行本地 CLI，不读取 `GITHUB_TOKEN`、不启用网络、不执行 GitHub 写入；默认只写配置的报告目录。
-- 成功运行才写入 `GITHUB_OUTPUT`；五个 Action 输出必须指向同一输出目录下的绝对报告/恢复路径。
+- 成功运行才写入 `GITHUB_OUTPUT`；七个 Action 输出必须指向同一输出目录下的绝对报告/恢复路径。
+- 生成报告后先运行 `python -m maintainer_zero validate-report`；该检查覆盖有界 JSON、schema/数值边界、重复场景和重复 finding 标识，但不替代对仓库字段、证据和隐私声明的人工审阅。
 - `GITHUB_OUTPUT` 必须是绝对路径；在 GitHub runner 提供 `RUNNER_TEMP` 时，输出文件必须位于该临时目录内，拒绝控制字符、符号链接、硬链接、非普通文件和缺失父目录，打开后还要校验文件身份并 `fsync`，避免通过输出文件重定向写入任意路径或留下半写入结果。
 - 发布验证脚本的输出目录及 `artifacts` wheelhouse 逐级拒绝 POSIX 符号链接、Windows junction/reparse point 和特殊文件（包括 dangling link）；构建前后都检查归档必须是非空、大小有界的普通 wheel/sdist 文件，并在每个安装探针前复制到独立稳定副本。复制后还会通过稳定描述符重新计算源归档和副本的 SHA-256，避免仅靠 inode、大小和 mtime 漏过同 inode 的内容替换。
 - 本地契约测试覆盖成功产物、`--fail-under`/基线门禁失败、过期元数据默认拒绝及显式允许、以及含空格路径。真实 GitHub-hosted runner（Ubuntu/Windows 和 Python 矩阵）仍需在 CI 中验证，不能用本地测试替代。

@@ -14,6 +14,10 @@
   and credential verification on both Unix and Windows runners; duplicate
   scenario IDs are rejected instead of being silently collapsed.
 
+- Report validation now rejects duplicate finding identities within a scenario
+  before baseline comparison, preventing the comparator's map representation
+  from silently masking a later finding.
+
 - Configuration path regression coverage now exercises a `linked-parent/../linked-parent` spelling, proving `continuity.json` loading inspects existing components before lexical normalization and rejects the hidden symlink.
 
 - Release source, output, and checkout directory validation now preserves `..`

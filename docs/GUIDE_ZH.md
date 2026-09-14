@@ -65,6 +65,8 @@ maintainer-zero simulate . --github-metadata github-metadata.json --output .cont
 
 只有额外传入 `--allow-environment-token` 才会读取 `GITHUB_TOKEN`；命令只执行 GET，不执行 GitHub 写操作。
 
+分享报告或将其作为基线前，也可先执行 `validate-report`。它复用报告读取和 schema/数值边界，拒绝重复场景或重复 finding 标识，输出脱敏的场景计数摘要；不读取网络、不执行仓库代码，也不包含仓库路径和原始 finding。
+
 ## 隐私与安全边界
 
 - 默认数据留在本地；可在 `continuity.json` 中启用 `privacy.anonymize_people` 和 `privacy.anonymize_repository`。前者匿名化贡献者/CODEOWNERS，后者把仓库名替换为稳定短摘要、把本地路径替换为 `<local-repository>`；依赖名仍可能含私有信息，分享前请人工审查。

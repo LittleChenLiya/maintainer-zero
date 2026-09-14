@@ -130,12 +130,17 @@ def _validate_report(report: Mapping[str, Any]) -> None:
         findings = result.get("findings", [])
         if not isinstance(findings, list) or len(findings) > 500:
             raise BaselineError(f"continuity report result {index} findings must be a bounded array")
+        seen_findings: set[str] = set()
         for finding_index, finding in enumerate(findings):
             if not isinstance(finding, Mapping):
                 raise BaselineError(f"continuity report result {index} finding {finding_index} is invalid")
             severity = finding.get("severity", "unknown")
             if not isinstance(severity, str) or len(severity) > 32:
                 raise BaselineError(f"continuity report result {index} finding severity is invalid")
+            finding_key = _finding_key(finding)
+            if finding_key in seen_findings:
+                raise BaselineError(f"continuity report result {index} contains duplicate finding: {finding_key}")
+            seen_findings.add(finding_key)
         if "score" not in result:
             continue
         value = result["score"]

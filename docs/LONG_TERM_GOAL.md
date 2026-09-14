@@ -4,6 +4,8 @@
 
 - 2026-09-15：补齐 GitHub 社区健康入口：新增 SUPPORT.md、Issue 分流配置和 README 社区说明，将问题、场景提案及安全/隐私反馈导向合适渠道，避免公开请求泄露敏感工件。
 
+- 2026-09-15：将 `action-path` 输出作为版本化的 composite Action 契约发布到 v0.2.1；consumer workflow 固定到该版本提交，避免文档示例依赖旧版缺失输出。
+
 - 2026-09-14：Composite Action 改为通过 `PYTHONPATH` 直接运行 checkout 中的代码，不再要求 runner 预装 setuptools 或执行本地包构建；发布验证仍单独覆盖 wheel/sdist。
 
 - 2026-09-14：新增配置路径回归，覆盖 `linked-parent/../linked-parent` 这类会在词法归一化后重新指向链接的写法，确认 `continuity.json` 读取在归一化前拒绝隐藏的 symlink/reparse point。

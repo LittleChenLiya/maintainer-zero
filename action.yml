@@ -77,6 +77,9 @@ outputs:
   integrity-credential:
     description: Absolute path to the offline-verifiable integrity credential
     value: ${{ steps.drill_unix.outputs['integrity-credential'] || steps.drill_windows.outputs['integrity-credential'] }}
+  action-path:
+    description: Absolute path to the checked-out Maintainer-Zero action code for follow-up local verification
+    value: ${{ github.action_path }}
 
 runs:
   using: composite

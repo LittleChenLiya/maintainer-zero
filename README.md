@@ -189,6 +189,7 @@ cross-project ranking.
 
 ## GitHub Action
 
+A copy-paste consumer workflow is available at examples/consumer-workflow.yml. It pins the reviewed v0.2.1 alpha commit, exports the Action code path for follow-up validation, and verifies report integrity before upload.
 This repository includes a self-analysis workflow in `.github/workflows/continuity.yml`, which runs the drill and publishes a job summary and artifact. The root `action.yml` is also a reusable composite Action; consumers should pin a reviewed tag or commit and keep the workflow read-only. See [GitHub integration](docs/GITHUB_INTEGRATION.md) for the setup and security boundary. PR comments are available as local drafts only; external publishing remains an explicitly injected integration.
 
 Before creating a release, use the read-only [release candidate workflow](.github/workflows/release-candidate.yml) on a `v*` tag or via manual dispatch. It verifies wheel/sdist artifacts outside the checkout and uploads them for review; it does not publish to PyPI or the Marketplace.

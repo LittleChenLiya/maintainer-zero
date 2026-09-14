@@ -11,7 +11,9 @@ ROOT = Path(__file__).parents[1]
 def test_composite_action_exposes_bounded_local_contract():
     action = (ROOT / "action.yml").read_text(encoding="utf-8")
     assert "using: composite" in action
-    assert all(name in action for name in ("report-directory:", "report-json:", "report-markdown:", "report-html:", "recovery-directory:", "artifact-manifest:", "integrity-credential:"))
+    assert all(name in action for name in ("report-directory:", "report-json:", "report-markdown:", "report-html:", "recovery-directory:", "artifact-manifest:", "integrity-credential:", "action-path:"))
+    assert "value: ${{ github.action_path }}" in action
+    assert "action-path" in action
     assert "MZ_INPUT_PATH: ${{ github.workspace }}/${{ inputs.path }}" in action
     assert "MZ_INPUT_METADATA: ${{ inputs.github-metadata }}" in action
     assert "MZ_INPUT_FALLBACK_PLAN: ${{ inputs.fallback-plan }}" in action

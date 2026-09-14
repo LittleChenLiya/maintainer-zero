@@ -38,7 +38,7 @@ The checked-in continuity workflow uploads the JSON, Markdown, HTML, SARIF, Runb
 
 ## Reusable composite Action (local contract)
 
-仓库可以在审阅后引用根目录的 `action.yml` 作为 composite Action。它只安装当前 checkout 中的包并运行本地 `simulate`；输入通过环境变量转成参数列表，不拼接 shell 命令。Action 不读取 token、不启用网络、不写 GitHub，成功后输出七个绝对路径：`report-directory`、`report-json`、`report-markdown`、`report-html`、`recovery-directory`、`artifact-manifest` 和 `integrity-credential`。调用方仍负责 checkout、Python 环境和最小权限：
+仓库可以在审阅后引用根目录的 `action.yml` 作为 composite Action。它只安装当前 checkout 中的包并运行本地 `simulate`；输入通过环境变量转成参数列表，不拼接 shell 命令。Action 不读取 token、不启用网络、不写 GitHub，成功后输出七个报告/恢复路径，以及一个 `action-path` 路径供后续步骤设置 `PYTHONPATH`。调用方仍负责 checkout、Python 环境和最小权限：
 
 ```yaml
 permissions:
@@ -57,7 +57,8 @@ steps:
 
 ## Setup for a repository
 
-The repository now includes a reusable composite Action at its root. After a reviewed release is tagged, a consuming repository can call it from a pinned ref after checkout. On success it exposes `artifact-manifest` and `integrity-credential`, absolute paths to local integrity artifacts; verify them offline with `maintainer-zero verify-manifest` and `maintainer-zero verify-credential` before sharing artifacts. Set the optional `history` input to a workspace-local JSON file when you want trend sidecars (`history-summary.json`/`.md`) included in the output; baseline comparisons similarly produce `baseline-comparison.json`:
+For a copy-paste consumer workflow, start with the examples/consumer-workflow.yml file. It uses the immutable commit for the v0.2.1 alpha preview, keeps contents: read, validates the report/manifest/credential with the Action code path, and uploads only verified report artifacts. Review a newer release before changing the pinned ref.
+The repository now includes a reusable composite Action at its root. After a reviewed release is tagged, a consuming repository can call it from a pinned ref after checkout. On success it exposes `action-path`, `artifact-manifest`, and `integrity-credential`, plus absolute paths to local integrity artifacts; set `PYTHONPATH` to `action-path` when a later step needs to run the bundled offline validators. Set the optional `history` input to a workspace-local JSON file when you want trend sidecars (`history-summary.json`/`.md`) included in the output; baseline comparisons similarly produce `baseline-comparison.json`:
 
 ```yaml
 - uses: actions/checkout@v7

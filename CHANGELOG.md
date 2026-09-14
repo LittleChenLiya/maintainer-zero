@@ -2,10 +2,23 @@
 
 ## Unreleased
 
+## [0.2.1] - 2026-09-15
+
+GitHub alpha preview; no PyPI or Marketplace publication.
+
+- Added a copy-paste consumer workflow with an immutable reviewed Action ref,
+  read-only permissions, an exported Action code path for follow-up validation,
+  offline integrity checks, and verified report upload.
+- Kept the Action contract change versioned separately from the v0.2.0 preview
+  so consumers cannot silently receive a missing output.
+
 ## [0.2.0] - 2026-09-15
 
 GitHub alpha preview; no PyPI or Marketplace publication.
 
+- Added a copy-paste consumer workflow with an immutable reviewed Action ref,
+  read-only permissions, an exported Action code path for follow-up validation,
+  offline integrity checks, and verified report upload.
 - Added a cross-platform, dependency-free source quick start, reproducible demo output,
   and launch copy with explicit heuristic and recovery-evidence limits.
 

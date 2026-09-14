@@ -1,0 +1,83 @@
+name: Maintainer-Zero continuity
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 8 1 * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maintainer-zero-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  continuity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # This immutable commit is the reviewed v0.2.1 alpha preview.
+      # Replace it only after reviewing a newer release and its checks.
+      - name: Run Maintainer-Zero
+        id: drill
+        uses: LittleChenLiya/maintainer-zero@TO_BE_REPLACED # v0.2.1
+        with:
+          scenario: all
+          output: .continuity
+          fail-under: "70"
+
+      - name: Verify report and integrity artifacts
+        if: success()
+        shell: bash
+        env:
+          MZ_REPORT_JSON: ${{ steps.drill.outputs['report-json'] }}
+          MZ_MANIFEST: ${{ steps.drill.outputs['artifact-manifest'] }}
+          MZ_CREDENTIAL: ${{ steps.drill.outputs['integrity-credential'] }}
+          PYTHONPATH: ${{ steps.drill.outputs['action-path'] }}
+        run: |
+          set -euo pipefail
+          test -f "$MZ_REPORT_JSON"
+          test -f "$MZ_MANIFEST"
+          test -f "$MZ_CREDENTIAL"
+          python -m maintainer_zero validate-report "$MZ_REPORT_JSON"
+          python -m maintainer_zero verify-manifest "$MZ_MANIFEST"
+          python -m maintainer_zero verify-credential "$MZ_CREDENTIAL"
+
+      - name: Add report to job summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f .continuity/report.md ]]; then
+            cat .continuity/report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Maintainer-Zero report was not generated. Inspect the failure above." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload reviewed report
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maintainer-zero-report
+          path: |
+            .continuity/continuity.json
+            .continuity/report.md
+            .continuity/report.html
+            .continuity/artifact-manifest.json
+            .continuity/continuity-credential.json
+            .continuity/recovery/continuity.sarif
+            .continuity/recovery/runbook.md
+            .continuity/recovery/CODEOWNERS.draft
+            .continuity/recovery/issue-drafts.md
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14

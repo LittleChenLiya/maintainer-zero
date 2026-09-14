@@ -20,6 +20,10 @@
   until component inspection, preventing `link/../target` from bypassing the
   release verifier's no-follow boundary.
 
+- Release source snapshot containment is now checked lexically before any
+  entry resolution; packaging verification no longer follows an enumerated
+  path merely to decide whether it belongs to the checkout.
+
 - Simulation now passes the repository path to config loading without an early
   `resolve()`, and the bounded config reader normalizes only after checking
   existing components; linked `..` spellings cannot bypass its boundary.

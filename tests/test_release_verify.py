@@ -271,6 +271,22 @@ def test_release_source_snapshot_rejects_enumerator_escape(tmp_path: Path, monke
     assert not (snapshot / "outside.txt").exists()
 
 
+def test_release_source_snapshot_does_not_resolve_entries_before_no_follow_checks(tmp_path: Path, monkeypatch):
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / "pyproject.toml").write_text("[build-system]", encoding="utf-8")
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+
+    def unexpected_resolve(*args, **kwargs):
+        raise AssertionError("release snapshot must not resolve entries")
+
+    monkeypatch.setattr(Path, "resolve", unexpected_resolve)
+    release_verify._copy_release_source(root, snapshot)
+
+    assert (snapshot / "pyproject.toml").read_text(encoding="utf-8") == "[build-system]"
+
+
 def test_release_source_snapshot_rejects_linked_checkout(tmp_path: Path):
     root = tmp_path / "source"
     root.mkdir()

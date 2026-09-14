@@ -38,6 +38,24 @@ def _safe_existing_directory(path: Path, label: str) -> Path:
     return Path(os.path.normpath(os.fspath(target)))
 
 
+def _lexical_absolute_path(path: Path) -> Path:
+    """Normalize a path without resolving symlinks or reparse points."""
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
+    return Path(os.path.normpath(os.fspath(target)))
+
+
+def _is_lexically_within(parent: Path, candidate: Path) -> bool:
+    """Return whether two lexical paths share ``parent`` as a boundary."""
+    parent_text = os.path.normcase(os.path.normpath(os.fspath(parent)))
+    candidate_text = os.path.normcase(os.path.normpath(os.fspath(candidate)))
+    try:
+        return os.path.commonpath((parent_text, candidate_text)) == parent_text
+    except ValueError:
+        return False
+
+
 def _same_source_stat(left: os.stat_result, right: os.stat_result) -> bool:
     """Compare the source identity and metadata used by snapshot races."""
     return (
@@ -59,10 +77,13 @@ def _copy_release_source(root: Path, target: Path) -> None:
         raise ValueError(f"cannot inspect release source: {root}") from exc
 
     def copy_entry(source: Path, destination: Path) -> None:
-        try:
-            source.resolve(strict=False).relative_to(root)
-        except (OSError, RuntimeError, ValueError) as exc:
-            raise ValueError(f"release source entry escapes checkout: {source}") from exc
+        # ``source`` comes from directory enumeration, so containment must be
+        # checked lexically before inspecting the entry.  Resolving here would
+        # follow an entry symlink (and can also hide a linked ``..`` component)
+        # before the explicit no-follow ``lstat`` check below gets a chance to
+        # reject it.
+        if not _is_lexically_within(root, _lexical_absolute_path(source)):
+            raise ValueError(f"release source entry escapes checkout: {source}")
         try:
             info = source.lstat()
         except OSError as exc:

@@ -61,7 +61,12 @@ def _reject_nonstandard_config_number(value: str) -> None:
 
 def _open_config(path: Path):
     """Open continuity.json with bounded, fail-closed local-file checks."""
-    target = Path(os.path.abspath(path))
+    # Preserve ``..`` until existing components have been inspected. Calling
+    # ``abspath`` first would normalize ``linked/../repo`` and hide a linked
+    # parent from the boundary check below.
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts[:-1]:
@@ -76,6 +81,7 @@ def _open_config(path: Path):
             raise ValueError("continuity.json path may not contain a symlink or reparse point")
         if not stat.S_ISDIR(info.st_mode):
             raise ValueError("continuity.json parent must be a directory")
+    target = Path(os.path.normpath(os.fspath(target)))
     try:
         initial = target.lstat()
     except FileNotFoundError:
@@ -843,7 +849,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         _validate_simulation_output_paths(args)
         repo = snapshot_repository(args.path)
-        config = _load_config(Path(args.path).resolve())
+        # Keep the repository spelling intact until the config reader performs
+        # its component-by-component no-follow inspection.
+        config = _load_config(Path(args.path))
         # Load the baseline before writing the new report.  This is important
         # for the documented in-place workflow where --baseline points at the
         # previous output/continuity.json; report generation atomically replaces

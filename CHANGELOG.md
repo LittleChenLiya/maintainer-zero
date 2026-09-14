@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Simulation now passes the repository path to config loading without an early
+  `resolve()`, and the bounded config reader normalizes only after checking
+  existing components; linked `..` spellings cannot bypass its boundary.
+
 - Release verification now excludes Python `__pycache__` directories from the
   isolated source snapshot, keeping packaging checks deterministic when test
   imports update cache directory metadata during the run.

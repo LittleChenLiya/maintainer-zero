@@ -79,6 +79,8 @@ maintainer-zero validate-fallback-plan fallback.json --format json
 maintainer-zero export-benchmark .continuity/continuity.json --output benchmark.json
 # Validate a benchmark summary before sharing it (offline, data-only)
 maintainer-zero validate-benchmark benchmark.json --format json
+# Validate a continuity report before sharing or using it as a baseline (offline, data-only)
+maintainer-zero validate-report .continuity/continuity.json --format json
 # Validate a declarative community scenario without executing code
 maintainer-zero validate-scenario examples/scenarios/dependency-yanked.json
 # Print a validated, non-executable scenario contract for review

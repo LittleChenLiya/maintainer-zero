@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 from .analyzer import snapshot_repository
-from .baseline import BaselineError, compare_reports, gate_failed, load_report
+from .baseline import BaselineError, compare_reports, gate_failed, load_report, summarize_report
 from .models import RepoSnapshot
 from .report import write_report
 from .recovery import write_recovery_artifacts
@@ -294,6 +294,9 @@ def _build_parser() -> argparse.ArgumentParser:
     validate_benchmark = sub.add_parser("validate-benchmark", help="validate a privacy-preserving benchmark summary without executing code")
     validate_benchmark.add_argument("path")
     validate_benchmark.add_argument("--format", choices=("json", "text"), default="text", dest="benchmark_validate_format")
+    validate_report = sub.add_parser("validate-report", help="validate a continuity report without executing repository code")
+    validate_report.add_argument("path")
+    validate_report.add_argument("--format", choices=("text", "json"), default="text", dest="report_validate_format")
     verify = sub.add_parser("verify-manifest", help="verify a local artifact manifest without executing repository code")
     verify.add_argument("path")
     verify.add_argument("--format", choices=("text", "json"), default="text", dest="manifest_format")
@@ -780,6 +783,24 @@ def main(argv: list[str] | None = None) -> int:
                 f"overall_score={summary['overall_score'] if summary['overall_score'] is not None else 'unknown'}; "
                 "scope=privacy-preserving-summary; not_a_ranking=true"
             )
+        return 0
+    if args.command == "validate-report":
+        try:
+            summary = summarize_report(load_report(args.path))
+        except BaselineError as exc:
+            print(f"error: {exc}")
+            return 2
+        if args.report_validate_format == "json":
+            print(json.dumps(summary, indent=2, ensure_ascii=False))
+        else:
+            print(
+                f"Valid continuity report: {summary['scenario_count']} scenario(s); "
+                f"schema={summary['schema_version']}; rule={summary['rule_version']}"
+            )
+            for item in summary["scenarios"]:
+                label = item["id"] or f"index-{item['index']}"
+                score = item["score"] if item["score"] is not None else "unknown"
+                print(f"  {label}: score={score}; findings={item['finding_count'] if item['finding_count'] is not None else 'unknown'}")
         return 0
     if args.command == "verify-manifest":
         try:

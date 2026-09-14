@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from maintainer_zero.baseline import BaselineError, _safe_report_file, compare_reports, gate_failed, load_report
+from maintainer_zero.baseline import BaselineError, _safe_report_file, compare_reports, gate_failed, load_report, summarize_report
 
 
 def report(*, score: int, finding_id: str = "maintainer-zero.core-owner", severity: str = "high", include_workflows: bool = True) -> dict:
@@ -165,6 +165,39 @@ def test_legacy_report_without_tool_metadata_remains_comparable():
     current = report(score=80)
     current["tool"] = {"name": "Maintainer-Zero", "version": "0.2.0"}
     assert compare_reports(baseline, current)["status"] == "unchanged"
+
+
+def test_summarize_report_omits_repository_and_raw_findings():
+    payload = report(score=80)
+    payload["repository"]["path"] = "C:/private/project"
+    summary = summarize_report(payload)
+    assert summary["valid"] is True
+    assert summary["scenario_count"] == 1
+    assert summary["scenarios"][0]["score"] == 80
+    assert summary["scenarios"][0]["finding_count"] == 1
+    assert "repository" not in summary
+    assert "finding" not in summary["scenarios"][0]
+
+
+def test_validate_report_cli_reports_invalid_input(tmp_path, capsys):
+    from maintainer_zero.cli import main
+
+    path = tmp_path / "invalid-report.json"
+    path.write_text("[]", encoding="utf-8")
+    assert main(["validate-report", str(path)]) == 2
+    assert "JSON object" in capsys.readouterr().out
+
+
+def test_validate_report_cli_emits_privacy_preserving_json(tmp_path, capsys):
+    from maintainer_zero.cli import main
+
+    path = tmp_path / "report.json"
+    path.write_text(json.dumps(report(score=73)), encoding="utf-8")
+    assert main(["validate-report", str(path), "--format", "json"]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["valid"] is True
+    assert output["scenarios"][0]["score"] == 73
+    assert "repository" not in output
 def test_baseline_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
     linked = tmp_path / "linked"
     linked.mkdir()

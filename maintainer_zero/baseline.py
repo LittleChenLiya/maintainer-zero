@@ -238,4 +238,44 @@ def gate_failed(comparison: Mapping[str, Any], *, fail_on_score_decrease: bool =
     return bool((fail_on_score_decrease and gates.get("score_decreased")) or (fail_on_new_high_risk and gates.get("new_high_risk")))
 
 
-__all__ = ["BaselineError", "REPORT_SCHEMA_VERSION", "compare_reports", "gate_failed", "load_report"]
+def summarize_report(report: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a privacy-preserving validation summary for a continuity report.
+
+    The summary deliberately omits repository names, paths, authors, and raw
+    findings.  It is intended for a pre-share or CI validation check, while
+    :func:`load_report` remains the single strict parser and file-boundary
+    implementation.
+    """
+    _validate_report(report)
+    scenarios: list[dict[str, Any]] = []
+    for index, result in enumerate(report.get("results", [])):
+        scenario = result.get("scenario")
+        findings = result.get("findings")
+        scenarios.append(
+            {
+                "index": index,
+                "id": scenario if isinstance(scenario, str) and scenario else None,
+                "score": _score(result),
+                "finding_count": len(findings) if isinstance(findings, list) else None,
+            }
+        )
+    coverage = _coverage(report)
+    return {
+        "valid": True,
+        "schema_version": report["schema_version"],
+        "rule_version": report["rule_version"],
+        "tool": dict(report["tool"]) if isinstance(report.get("tool"), Mapping) else None,
+        "scenario_count": len(scenarios),
+        "scenarios": scenarios,
+        "repository_coverage": coverage,
+    }
+
+
+__all__ = [
+    "BaselineError",
+    "REPORT_SCHEMA_VERSION",
+    "compare_reports",
+    "gate_failed",
+    "load_report",
+    "summarize_report",
+]

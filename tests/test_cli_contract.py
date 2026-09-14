@@ -50,6 +50,12 @@ def test_validate_benchmark_parser_is_read_only():
     assert args.command == "validate-benchmark"
     assert args.benchmark_validate_format == "json"
 
+
+def test_validate_report_parser_is_read_only():
+    args = _build_parser().parse_args(["validate-report", "continuity.json", "--format", "json"])
+    assert args.command == "validate-report"
+    assert args.report_validate_format == "json"
+
 def test_verify_credential_parser_is_read_only():
     args = _build_parser().parse_args(["verify-credential", "credential.json", "--format", "json"])
     assert args.command == "verify-credential"

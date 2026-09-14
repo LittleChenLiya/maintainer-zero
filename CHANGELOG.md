@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added a read-only `validate-report` command that applies the same bounded
+  continuity-report schema checks used by baseline comparison and emits a
+  privacy-preserving summary without repository paths or raw findings.
+
 - Configuration path regression coverage now exercises a `linked-parent/../linked-parent` spelling, proving `continuity.json` loading inspects existing components before lexical normalization and rejects the hidden symlink.
 
 - Release source, output, and checkout directory validation now preserves `..`

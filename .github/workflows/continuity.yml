@@ -77,8 +77,11 @@ jobs:
             if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "file output is missing: $file" }
           }
           python -m maintainer_zero validate-report $env:MZ_REPORT_JSON
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m maintainer_zero verify-manifest $env:MZ_MANIFEST
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m maintainer_zero verify-credential $env:MZ_CREDENTIAL
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Publish job summary (Unix)
         if: always() && runner.os != 'Windows'
         shell: bash

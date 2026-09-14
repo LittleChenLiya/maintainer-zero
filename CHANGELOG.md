@@ -18,6 +18,10 @@
   before baseline comparison, preventing the comparator's map representation
   from silently masking a later finding.
 
+- The Windows continuity workflow now checks `$LASTEXITCODE` immediately after
+  each report, manifest, and credential verifier, so a later successful command
+  cannot mask an earlier validation failure.
+
 - Configuration path regression coverage now exercises a `linked-parent/../linked-parent` spelling, proving `continuity.json` loading inspects existing components before lexical normalization and rejects the hidden symlink.
 
 - Release source, output, and checkout directory validation now preserves `..`

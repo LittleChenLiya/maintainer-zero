@@ -104,3 +104,20 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     assert "verify-credential" in workflow
     for artifact in ("continuity.sarif", "runbook.md", "CODEOWNERS.draft", "issue-drafts.md"):
         assert f".continuity/recovery/{artifact}" in workflow
+
+
+def test_continuity_windows_verification_propagates_each_native_exit_code():
+    workflow = (WORKFLOWS / "continuity.yml").read_text(encoding="utf-8")
+
+    windows = workflow.split("      - name: Verify Action outputs (Windows)", 1)[1].split(
+        "      - name: Publish job summary (Unix)", 1
+    )[0]
+    assert windows.count("if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }") == 3
+    for command in (
+        "python -m maintainer_zero validate-report $env:MZ_REPORT_JSON",
+        "python -m maintainer_zero verify-manifest $env:MZ_MANIFEST",
+        "python -m maintainer_zero verify-credential $env:MZ_CREDENTIAL",
+    ):
+        command_position = windows.index(command)
+        exit_check_position = windows.index("if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }", command_position)
+        assert exit_check_position > command_position

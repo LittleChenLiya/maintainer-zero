@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Demo output no longer recursively creates parent directories before checking
+  their link/reparse-point boundary, and unsafe output paths now return a
+  controlled CLI error rather than an uncaught exception.
+
 - Updated the manifest gate regression fixture to initialize a disposable Git
   repository, matching the analyzer's explicit non-Git input rejection.
 

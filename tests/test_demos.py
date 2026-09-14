@@ -125,7 +125,10 @@ def test_demo_loader_rejects_ambiguous_json_and_replaced_file(tmp_path, monkeypa
     path.write_text('{"schema_version": 1, "schema_version": 1, "demos": []}', encoding="utf-8")
     with pytest.raises(DemoError, match="duplicate object key"):
         load_demo_suite(path)
-    path.write_text('{"schema_version": 1, "demos": []}', encoding="utf-8")
+    valid_suite = json.loads(DEMO_PATH.read_text(encoding="utf-8"))
+    path.write_text(json.dumps(valid_suite), encoding="utf-8")
+    replaced_suite = json.loads(json.dumps(valid_suite))
+    replaced_suite["demos"][0]["lesson"] += " (replaced during read)"
     original_lstat = Path.lstat
     calls = 0
 
@@ -135,7 +138,7 @@ def test_demo_loader_rejects_ambiguous_json_and_replaced_file(tmp_path, monkeypa
         if value == path:
             calls += 1
             if calls == 2:
-                path.write_text('{"schema_version": 1, "demos": []}', encoding="utf-8")
+                path.write_text(json.dumps(replaced_suite), encoding="utf-8")
                 info = original_lstat(value, *args, **kwargs)
         return info
 

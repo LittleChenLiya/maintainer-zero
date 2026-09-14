@@ -42,7 +42,9 @@ def _link_like(info: os.stat_result) -> bool:
 
 def _safe_benchmark_file(path: str | Path) -> tuple[Path, os.stat_result]:
     """Open only a regular file whose parent path cannot redirect via a link."""
-    target = Path(os.path.abspath(path))
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts[:-1]:
@@ -53,6 +55,7 @@ def _safe_benchmark_file(path: str | Path) -> tuple[Path, os.stat_result]:
             raise BenchmarkError(f"cannot inspect benchmark parent: {current}") from exc
         if _link_like(info) or not stat.S_ISDIR(info.st_mode):
             raise BenchmarkError("benchmark parent must be a real directory")
+    target = Path(os.path.normpath(os.fspath(target)))
     try:
         info = target.lstat()
     except OSError as exc:

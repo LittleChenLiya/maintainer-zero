@@ -34,7 +34,9 @@ def _is_link_like(info: os.stat_result) -> bool:
 
 
 def _read_external_suite(path: str | Path) -> bytes:
-    target = Path(os.path.abspath(path))
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts[:-1]:
@@ -45,6 +47,7 @@ def _read_external_suite(path: str | Path) -> bytes:
             raise DemoError(f"cannot inspect demo suite parent: {current}") from exc
         if _is_link_like(info) or not stat.S_ISDIR(info.st_mode):
             raise DemoError("demo suite parent must be a real directory")
+    target = Path(os.path.normpath(os.fspath(target)))
     try:
         initial = target.lstat()
     except OSError as exc:

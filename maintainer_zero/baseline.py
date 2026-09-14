@@ -39,7 +39,9 @@ def _link_like(info: os.stat_result) -> bool:
 
 
 def _safe_report_file(path: Path) -> tuple[Path, os.stat_result]:
-    target = Path(os.path.abspath(path))
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts[:-1]:
@@ -50,6 +52,7 @@ def _safe_report_file(path: Path) -> tuple[Path, os.stat_result]:
             raise BaselineError(f"cannot inspect report parent: {current}") from exc
         if _link_like(info) or not stat.S_ISDIR(info.st_mode):
             raise BaselineError("report parent must be a real directory")
+    target = Path(os.path.normpath(os.fspath(target)))
     try:
         info = target.lstat()
     except OSError as exc:

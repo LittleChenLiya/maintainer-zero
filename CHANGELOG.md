@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Baseline, benchmark, demo-suite, and fallback-plan readers now inspect
+  existing parent components before normalizing `..`, preventing linked parents
+  from being hidden by `abspath` during offline artifact review.
+
 - Credential creation and verification now inspect directory components before
   normalizing `..`, preventing linked parents from being hidden while binding
   report and manifest files.

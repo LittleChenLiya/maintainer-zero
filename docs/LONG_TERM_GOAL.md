@@ -216,7 +216,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - 2026-09-12：Runbook、Issue 与 CODEOWNERS 恢复草稿增加生成器版本标识，并补充单独下载工件的追溯测试。
 - 2026-09-12：恢复目录改为整套工件暂存、原子替换并支持中途失败回滚；新增回归测试证明既有 Runbook、CODEOWNERS、Issue 和 SARIF 不会被半套更新覆盖。
 - 2026-09-12：自带 continuity workflow 扩展为 Ubuntu/Windows 矩阵，分别使用 bash/PowerShell 发布 Job Summary，并为每个 runner 上传完整且独立命名的报告与恢复工件；本地契约测试覆盖工作流结构，真实远程 runner 仍需实际执行确认。
-- 2026-09-12：连续性 workflow 的摘要与 artifact 发布改为 `always()`；分数或基线门禁失败时仍保留可审阅报告，初始化失败时使用 warning 避免 artifact 步骤掩盖原始错误；补充工作流契约断言。
+- 2026-09-12：连续性 workflow 的失败诊断摘要使用 `always()`；正式 artifact 上传后来收紧为仅在验证成功时执行，避免将未验证 bundle 与诊断输出混淆。
 - 2026-09-12：社区场景独立 JSON 增加 1 MiB 大小上限；data-only declarative 场景若声明 entrypoint 直接拒绝，确保场景注册表不会演变成任意代码执行入口；新增安全负例。
 - 2026-09-12：builtin 场景入口收紧为项目内三项已审阅固定函数，未知入口 fail-closed；补充注册表安全负例，避免未来执行器把外部字符串当成任意模块加载目标。
 - 2026-09-12：场景与注册表读取增加普通文件及全路径符号链接边界，并用已打开描述符复核目标一致性；新增路径安全负例。

@@ -1,5 +1,7 @@
 # 长期目标：将 Maintainer-Zero 做成可信、可复用的开源连续性演练工具
 
+- 2026-09-14：history 追加分支改用不跟随链接的 `lstat()` 观察，并拒绝非规则文件目标，避免文件在预检期间消失或被替换时误判为新 history；history 读写专项保持 fail-closed。
+
 - 2026-09-14：原生 CLI 输出路径现在在词法归一化前逐级检查组件，避免通过 `..` 隐藏 symlink/reparse point；新增文件与目录目标回归，保持正常 parent traversal 可用。
 
 - 2026-09-14：Composite Action 的 `GITHUB_OUTPUT` 在打开前拒绝特殊文件（包括可能阻塞的 FIFO），并捕获输出文件及父目录链身份；打开后复核身份，最终文件或父目录并发替换会 fail-closed，不会向替换目标追加结果。

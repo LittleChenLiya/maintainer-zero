@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- History appends now branch on a non-following `lstat()` observation and reject
+  symlinked or non-regular targets, avoiding `Path.exists()` follow-through when
+  a history file disappears or is replaced during preflight.
+
 - Composite Action `GITHUB_OUTPUT` preflight now rejects special files before
   opening (including potentially blocking FIFOs), captures the existing output
   and parent-chain identities, and rechecks both after open. Concurrent final

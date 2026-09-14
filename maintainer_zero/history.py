@@ -300,7 +300,21 @@ def append_history(path: str | Path, report: Mapping[str, Any], *, recorded_at: 
     """Append a compact report aggregate and return the trend summary."""
     path = _prepare_history_path(path, create_parents=True)
     summary = summarize_report(report)
-    if path.exists():
+    # Re-check the target without following a symlink.  ``Path.exists()``
+    # follows links and can also turn a target that disappears during the
+    # preflight into a misleading "new history" branch.  A missing target
+    # is only treated as new when the same lstat observation says it is absent;
+    # any replacement between this check and ``load_history`` fails closed via
+    # its descriptor identity checks.
+    try:
+        target_info = path.lstat()
+    except FileNotFoundError:
+        target_info = None
+    except OSError as exc:
+        raise HistoryError(f"could not inspect history path: {path}") from exc
+    if target_info is not None:
+        if _is_link_like(target_info) or not stat.S_ISREG(target_info.st_mode):
+            raise HistoryError("history file must be a regular file")
         payload = load_history(path)
         owner = payload["repository"]
         if owner.get("name") != summary["repository"]["name"] or owner.get("path") != summary["repository"]["path"]:

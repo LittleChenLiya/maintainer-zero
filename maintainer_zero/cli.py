@@ -131,7 +131,9 @@ def _is_link_like(info: os.stat_result) -> bool:
 
 def _safe_output_file(path: str | Path) -> Path:
     """Return an absolute output path with non-symlinked parent components."""
-    target = Path(os.path.abspath(path))
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts[:-1]:
@@ -145,6 +147,7 @@ def _safe_output_file(path: str | Path) -> Path:
             raise ValueError(f"output path may not contain a symlink: {current}")
         if not stat.S_ISDIR(info.st_mode):
             raise ValueError(f"output path parent is not a directory: {current}")
+    target = Path(os.path.normpath(os.fspath(target)))
     if os.path.lexists(target):
         info = target.lstat()
         if _is_link_like(info):
@@ -156,7 +159,9 @@ def _safe_output_file(path: str | Path) -> Path:
 
 def _safe_output_directory(path: str | Path) -> Path:
     """Create an output directory without following links or reparse points."""
-    target = Path(os.path.abspath(path))
+    target = Path(path)
+    if not target.is_absolute():
+        target = Path.cwd() / target
     current = Path(target.anchor) if target.anchor else Path()
     parts = target.parts[1:] if target.anchor else target.parts
     for part in parts:
@@ -170,7 +175,7 @@ def _safe_output_directory(path: str | Path) -> Path:
             raise ValueError(f"output directory may not contain a symlink or reparse point: {current}")
         if not stat.S_ISDIR(info.st_mode):
             raise ValueError(f"output path is not a directory: {current}")
-    return target
+    return Path(os.path.normpath(os.fspath(target)))
 
 
 def _lexical_absolute_path(path: str | Path) -> Path:

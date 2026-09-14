@@ -270,8 +270,10 @@ def render_sarif(repo: RepoSnapshot, results: list[DrillResult], privacy_summary
 
 def _atomic_write_text(path: str | Path, content: str) -> None:
     """Atomically replace one recovery draft in its output directory."""
-    target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
+    # Validate/create the complete parent chain without following links before
+    # opening a temporary file.  This helper is intentionally kept safe even
+    # though the multi-artifact writer below is the public path today.
+    target = _safe_output_file(path)
     temporary: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="", dir=target.parent, prefix=f".{target.name}.", suffix=".tmp", delete=False) as handle:

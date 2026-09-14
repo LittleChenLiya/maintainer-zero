@@ -4,6 +4,7 @@ import pytest
 
 from maintainer_zero.models import DrillResult, Finding, RepoSnapshot
 from maintainer_zero.recovery import (
+    _atomic_write_text,
     render_codeowners_draft,
     render_issue_drafts,
     render_runbook,
@@ -247,3 +248,16 @@ def test_recovery_rejects_symlinked_parent_directory(tmp_path: Path):
     with pytest.raises(ValueError, match="may not contain a symlink"):
         write_recovery_artifacts(linked_parent / "artifacts", RepoSnapshot(path=".", name="demo"), [_result()])
     assert not list(outside.iterdir())
+
+
+def test_recovery_atomic_helper_does_not_create_below_symlink_parent(tmp_path: Path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(ValueError, match="symlink"):
+        _atomic_write_text(linked / "nested" / "artifact.md", "content")
+    assert not (outside / "nested").exists()

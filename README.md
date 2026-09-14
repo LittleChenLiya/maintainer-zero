@@ -177,6 +177,13 @@ The checked-in scenario registry is available at maintainer_zero/scenario_regist
 
 Add a scenario with explicit assumptions, a deterministic test, and a short explanation of how its score is calculated. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Community
+
+Use [Discussions](https://github.com/LittleChenLiya/maintainer-zero/discussions) for questions,
+benchmark comparisons, and roadmap ideas; use the [support guide](SUPPORT.md) to choose the right
+channel. Bug reports and declarative scenario proposals have sanitized issue forms. Please review
+the [security policy](SECURITY.md) before sharing vulnerability or privacy details.
+
 ## Share the project
 
 Ready-to-publish English, Chinese, X/Twitter, and GitHub Discussions copy is in the [launch kit](docs/LAUNCH_KIT.md). Please keep the alpha/MVP and offline-by-default boundaries intact when sharing results.

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added GitHub community-health routing: a support guide, Discussion and security contact links,
+  and a no-blank-Issue configuration with explicit sanitized forms.
+
 - Added a standard `CITATION.cff` with versioned repository metadata so
   research, documentation, and benchmark users have a stable citation entry
   point.

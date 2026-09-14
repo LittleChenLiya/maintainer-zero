@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Native CLI output validation now inspects path components (including `..`)
+  before lexical normalization, preventing a link/reparse component from being
+  hidden by `abspath`; regression tests cover file and directory destinations.
+
 - Demo output no longer recursively creates parent directories before checking
   their link/reparse-point boundary, and unsafe output paths now return a
   controlled CLI error rather than an uncaught exception.

@@ -1,5 +1,7 @@
 # 长期目标：将 Maintainer-Zero 做成可信、可复用的开源连续性演练工具
 
+- 2026-09-14：原生 CLI 输出路径现在在词法归一化前逐级检查组件，避免通过 `..` 隐藏 symlink/reparse point；新增文件与目录目标回归，保持正常 parent traversal 可用。
+
 - 2026-09-14：demo 输出移除安全检查前的递归父目录创建，避免链接父目录下的嵌套输出先在外部创建目录；不安全输出路径统一返回 CLI 错误码 2，并新增保留外部目录与异常转换回归。
 
 - 2026-09-13：模拟入口在分析前预检 history 与自定义 recovery 输出的词法冲突，避免输出文件互相覆盖；GitHub/provider 的 output/cache 比较不再跟随链接，manifest 核心工件缺失时不再静默降级；报告派生 metadata evidence 复用凭证脱敏与 Markdown 转义边界。

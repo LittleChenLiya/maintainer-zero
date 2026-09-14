@@ -73,7 +73,7 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     assert "id: drill" in workflow
     assert "runs-on: ${{ matrix.os }}" in workflow
     assert re.search(r"matrix:\s+os: \[ubuntu-latest, windows-latest\]", workflow)
-    assert "actions/setup-python@v5" in workflow
+    assert "actions/setup-python@v7" in workflow
     assert "python-version: \"3.12\"" in workflow
     assert "scenario: all" in workflow
     assert "output: .continuity" in workflow
@@ -93,7 +93,7 @@ def test_continuity_workflow_consumes_the_checked_in_action():
     assert "Test-Path .continuity/report.md -PathType Leaf" in workflow
     assert "Maintainer-Zero report was not generated" in workflow
     assert "name: continuity-report-${{ matrix.os }}" in workflow
-    upload = workflow.split("      - uses: actions/upload-artifact@v4", 1)[1]
+    upload = workflow.split("      - uses: actions/upload-artifact@v7", 1)[1]
     assert "if: success()" in upload
     assert "if: always()" not in upload
     assert "if-no-files-found: warn" in workflow

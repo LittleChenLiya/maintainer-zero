@@ -40,6 +40,8 @@
 
 ## 总目标
 
+2026-09-14：自带 CI 与 continuity workflow 升级到官方 Node.js 24 兼容的 actions/checkout、actions/setup-python 和 actions/upload-artifact v7，消除公开运行中的 Node.js 20 弃用警告；权限、只读边界和 artifact 验证契约保持不变。
+
 把 `D:\maintainer-zero` 从本地启发式 MVP 推进到可用于真实 GitHub 仓库的连续性灾难演练平台。每个阶段必须交付可运行代码、自动化测试、可解释报告、明确的隐私边界和文档，并在本地 Git 中形成独立提交。
 
 最终用户应能在 5 分钟内完成一次演练，回答：核心维护者、关键依赖或 CI/发布链路失效后，哪些能力会中断、多久开始积压、有哪些可验证的恢复路径、应先补齐哪些责任与文档。

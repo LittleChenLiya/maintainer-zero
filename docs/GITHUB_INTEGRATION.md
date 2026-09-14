@@ -42,7 +42,7 @@ The checked-in continuity workflow uploads the JSON, Markdown, HTML, SARIF, Runb
 permissions:
   contents: read
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v7
     with:
       persist-credentials: false
   - uses: ./
@@ -58,7 +58,7 @@ steps:
 The repository now includes a reusable composite Action at its root. After a reviewed release is tagged, a consuming repository can call it from a pinned ref after checkout. On success it exposes `artifact-manifest` and `integrity-credential`, absolute paths to local integrity artifacts; verify them offline with `maintainer-zero verify-manifest` and `maintainer-zero verify-credential` before sharing artifacts. Set the optional `history` input to a workspace-local JSON file when you want trend sidecars (`history-summary.json`/`.md`) included in the output; baseline comparisons similarly produce `baseline-comparison.json`:
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@v7
   with:
     persist-credentials: false
 - uses: OWNER/maintainer-zero@<reviewed-tag>

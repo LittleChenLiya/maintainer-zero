@@ -23,11 +23,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Run local continuity drills
@@ -100,7 +100,7 @@ jobs:
           } else {
             "Maintainer-Zero report was not generated. Inspect the drill/setup failure above." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
           }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         # Upload only artifacts that passed the output, report, manifest, and
         # credential checks. The summary steps above still run on failures so
         # diagnostics remain available without publishing an unverified bundle.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Updated the checked-in workflows and integration examples to the Node.js 24 compatible major releases of the official checkout, setup-python, and upload-artifact actions (v7).
+
 - The composite Action now runs directly from the checked-out action path via
   `PYTHONPATH`, so a clean runner does not need build-isolation dependencies
   merely to execute the local drill.

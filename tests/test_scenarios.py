@@ -467,6 +467,23 @@ def test_config_rejects_symlinked_target_and_parent(tmp_path):
         pytest.skip("symlinks unavailable")
 
 
+def test_config_rejects_linked_dotdot_parent_before_normalization(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "continuity.json").write_text('{"days": 1}', encoding="utf-8")
+    linked_parent = tmp_path / "linked-parent"
+    try:
+        linked_parent.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks unavailable")
+
+    # The lexical ``linked-parent/../linked-parent`` resolves back to the
+    # symlink, so the boundary check must inspect it before ``normpath``.
+    disguised = linked_parent / ".." / linked_parent.name
+    with pytest.raises(ValueError, match="symlink or reparse"):
+        _load_config(disguised)
+
+
 def test_config_rejects_reparse_target_without_reading(tmp_path, monkeypatch):
     config_path = tmp_path / "continuity.json"
     config_path.write_text('{"days": 1}', encoding="utf-8")

@@ -26,6 +26,10 @@
   output, report, manifest, and credential checks; failure-path job summaries
   remain available for diagnostics without publishing an unverified bundle.
 
+- Continuity report validation now requires at least one scenario result and a
+  numeric score for every result, preventing incomplete reports from being
+  interpreted as an unchanged or unscored baseline.
+
 - Configuration path regression coverage now exercises a `linked-parent/../linked-parent` spelling, proving `continuity.json` loading inspects existing components before lexical normalization and rejects the hidden symlink.
 
 - Release source, output, and checkout directory validation now preserves `..`

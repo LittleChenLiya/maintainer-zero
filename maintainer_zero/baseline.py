@@ -114,7 +114,7 @@ def _validate_report(report: Mapping[str, Any]) -> None:
         raise BaselineError("continuity report repository must be an object")
     if not isinstance(report.get("results"), list):
         raise BaselineError("continuity report results must be an array")
-    if len(report["results"]) > 100:
+    if not report["results"] or len(report["results"]) > 100:
         raise BaselineError("continuity report results must be a bounded array")
     seen_scenarios: set[str] = set()
     for index, result in enumerate(report["results"]):
@@ -161,7 +161,7 @@ def _validate_report(report: Mapping[str, Any]) -> None:
                 raise BaselineError(f"continuity report result {index} contains duplicate finding: {finding_key}")
             seen_findings.add(finding_key)
         if "score" not in result:
-            continue
+            raise BaselineError(f"continuity report result {index} score is required")
         value = result["score"]
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise BaselineError(f"continuity report result {index} score is invalid")

@@ -242,6 +242,16 @@ def test_summarize_report_rejects_unbounded_or_malformed_results():
     with pytest.raises(BaselineError, match="bounded array"):
         summarize_report(payload)
 
+    payload = report(score=80)
+    del payload["results"][0]["score"]
+    with pytest.raises(BaselineError, match="score is required"):
+        summarize_report(payload)
+
+    payload = report(score=80)
+    payload["results"] = []
+    with pytest.raises(BaselineError, match="bounded array"):
+        summarize_report(payload)
+
 
 def test_summarize_report_rejects_control_characters_in_scenario():
     payload = report(score=80)

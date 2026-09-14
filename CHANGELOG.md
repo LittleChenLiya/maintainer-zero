@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The composite Action now runs directly from the checked-out action path via
+  `PYTHONPATH`, so a clean runner does not need build-isolation dependencies
+  merely to execute the local drill.
+
 - Added a read-only `validate-report` command that applies the same bounded
   continuity-report schema checks used by baseline comparison and emits a
   privacy-preserving summary without repository paths or raw findings.

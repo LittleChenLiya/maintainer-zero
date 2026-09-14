@@ -1,5 +1,7 @@
 # 长期目标：将 Maintainer-Zero 做成可信、可复用的开源连续性演练工具
 
+- 2026-09-14：Composite Action 改为通过 `PYTHONPATH` 直接运行 checkout 中的代码，不再要求 runner 预装 setuptools 或执行本地包构建；发布验证仍单独覆盖 wheel/sdist。
+
 - 2026-09-14：新增配置路径回归，覆盖 `linked-parent/../linked-parent` 这类会在词法归一化后重新指向链接的写法，确认 `continuity.json` 读取在归一化前拒绝隐藏的 symlink/reparse point。
 
 - 2026-09-14：发布验证器对源码、输出和 checkout 目录在逐组件检查后才归一化 `..`，防止 `link/../target` 隐藏链接组件；新增发布路径回归。

@@ -20,11 +20,10 @@ def test_composite_action_exposes_bounded_local_contract():
     assert "--allow-network" not in action
     assert 'python "$MZ_ACTION_PATH/tools/action_entrypoint.py"' in action
     assert 'python "$env:MZ_ACTION_PATH/tools/action_entrypoint.py"' in action
-    assert 'python -m pip install --disable-pip-version-check --no-deps --no-build-isolation "$env:MZ_ACTION_PATH"' in action
+    assert 'PYTHONPATH: ${{ github.action_path }}' in action
     assert "shell: pwsh" in action
     assert "if: runner.os == 'Windows'" in action
     assert "if: runner.os != 'Windows'" in action
-    assert 'no-build-isolation "$env:MZ_ACTION_PATH"' in action
     assert "id: drill_unix" in action and "id: drill_windows" in action
     assert "steps.drill-unix" not in action and "steps.drill-windows" not in action
     for output_name in ("report-directory", "report-json", "report-markdown", "report-html", "recovery-directory", "artifact-manifest", "integrity-credential"):

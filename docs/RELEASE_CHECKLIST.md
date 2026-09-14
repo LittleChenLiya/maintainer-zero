@@ -57,6 +57,7 @@ ci.yml 的 release-smoke job 会在 Ubuntu/Python 3.12 runner 上重复执行同
 - `tools/action_entrypoint.py` 将路径、基线和元数据作为独立 argv 值传递，并把 `path`、`output`、`baseline`、`github-metadata` 都限制在 GitHub workspace 内；路径包含空格、`$`、分号或反斜杠时不产生 shell 插值。
 - `collect-github --max-response-bytes N` 只能把单响应上限收紧到 `1..1,000,000` 字节；越界输入必须以退出码 2 拒绝，超大响应必须降级为 `response_too_large`，不能解析截断 JSON。
 - Unix 与 Windows 适配器都只运行本地 CLI，不读取 `GITHUB_TOKEN`、不启用网络、不执行 GitHub 写入；默认只写配置的报告目录。
+- Composite Action 应通过 `PYTHONPATH` 从 `${{ github.action_path }}` 直接运行本地代码；不得依赖 runner 预装 setuptools 或通过 build isolation 下载构建依赖。wheel/sdist 安装验证仍由独立 release-smoke 流程负责。
 - 成功运行才写入 `GITHUB_OUTPUT`；七个 Action 输出必须指向同一输出目录下的绝对报告/恢复路径。
 - 生成报告后先运行 `python -m maintainer_zero validate-report`；该检查覆盖有界 JSON、schema/数值边界、重复场景和重复 finding 标识，但不替代对仓库字段、证据和隐私声明的人工审阅。
 - Windows workflow 必须在每个原生 Python verifier 后立即检查并传播 `$LASTEXITCODE`，避免后续成功命令掩盖报告、manifest 或 credential 校验失败。

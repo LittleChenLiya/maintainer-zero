@@ -54,8 +54,7 @@ def test_reusable_action_is_composite_and_keeps_inputs_bounded():
 
     assert "using: composite" in action
     assert "github.action_path" in action
-    assert "--no-deps" in action
-    assert "--no-build-isolation" in action
+    assert "PYTHONPATH: ${{ github.action_path }}" in action
     for input_name in ("scenario", "days", "output", "fail-under", "baseline"):
         assert f"  {input_name}:" in action
     assert "  history:" in action

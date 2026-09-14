@@ -6,6 +6,10 @@
   continuity-report schema checks used by baseline comparison and emits a
   privacy-preserving summary without repository paths or raw findings.
 
+- Report validation display metadata is now bounded and printable-only, so a
+  malicious rule or tool version cannot inject control characters into CLI
+  output.
+
 - Configuration path regression coverage now exercises a `linked-parent/../linked-parent` spelling, proving `continuity.json` loading inspects existing components before lexical normalization and rejects the hidden symlink.
 
 - Release source, output, and checkout directory validation now preserves `..`

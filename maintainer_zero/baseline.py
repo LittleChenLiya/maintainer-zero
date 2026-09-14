@@ -115,7 +115,12 @@ def _validate_report(report: Mapping[str, Any]) -> None:
         if not isinstance(result, Mapping):
             raise BaselineError(f"continuity report result {index} must be an object")
         scenario = result.get("scenario")
-        if not isinstance(scenario, str) or not scenario.strip() or len(scenario) > 128:
+        if (
+            not isinstance(scenario, str)
+            or not scenario.strip()
+            or len(scenario) > 128
+            or any(not char.isprintable() for char in scenario)
+        ):
             raise BaselineError(f"continuity report result {index} scenario is invalid")
         findings = result.get("findings", [])
         if not isinstance(findings, list) or len(findings) > 500:

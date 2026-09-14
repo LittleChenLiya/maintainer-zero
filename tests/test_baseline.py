@@ -210,6 +210,13 @@ def test_summarize_report_rejects_unbounded_or_malformed_results():
     payload["results"] = [payload["results"][0]] * 101
     with pytest.raises(BaselineError, match="bounded array"):
         summarize_report(payload)
+
+
+def test_summarize_report_rejects_control_characters_in_scenario():
+    payload = report(score=80)
+    payload["results"][0]["scenario"] = "unsafe\nscenario"
+    with pytest.raises(BaselineError, match="scenario is invalid"):
+        summarize_report(payload)
 def test_baseline_rejects_link_hidden_before_dotdot_normalization(tmp_path, monkeypatch):
     linked = tmp_path / "linked"
     linked.mkdir()

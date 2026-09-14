@@ -290,6 +290,20 @@ def test_report_rejects_duplicate_finding_ids_before_baseline_comparison():
         compare_reports(report(score=80), payload)
 
 
+@pytest.mark.parametrize("severity", ["critical", "", " high", "urgent"])
+def test_report_rejects_unknown_finding_severity(severity):
+    payload = report(score=80, severity=severity)
+
+    with pytest.raises(BaselineError, match="finding severity is invalid"):
+        summarize_report(payload)
+
+
+def test_report_accepts_case_insensitive_known_finding_severity():
+    payload = report(score=80, severity="HIGH")
+
+    assert summarize_report(payload)["valid"] is True
+
+
 @pytest.mark.parametrize("finding_id", [["nested"], {"id": "object"}, 42, "bad\nidentity", "x" * 129])
 def test_report_rejects_malformed_present_finding_id(finding_id):
     payload = report(score=80)

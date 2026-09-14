@@ -160,6 +160,7 @@ tests/test_e2e_fixture.py 使用真实 Git 历史的最小仓库 fixture，验�
 - Windows 校验步骤在每个原生 Python verifier 后立即传播 `$LASTEXITCODE`；单个报告、manifest 或 credential 验证失败都会使步骤失败，不会被后续成功命令掩盖。
 - continuity workflow 仅在输出、报告、manifest 和 credential 校验成功后上传工件；失败路径仍保留 job summary 诊断，但不发布未验证工件。
 - 报告校验现在要求至少一个场景结果，且每个结果必须包含 0–100 的有限数值分数，避免不完整 baseline 被误判为无回归。
+- 报告 finding 严重级别现在限制为 `info`、`low`、`medium`、`high`、`unknown`（不区分大小写），避免未知级别绕过高风险门禁。
 
 - 2026-09-14：新增离线 `validate-report` 入口，复用基线比较的有界报告读取与 schema/数值校验；输出仅包含 schema、规则版本、场景分数/计数和覆盖摘要，不包含仓库路径或原始 finding，便于分享前和 CI 预检。
 

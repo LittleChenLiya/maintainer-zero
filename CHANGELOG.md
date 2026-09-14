@@ -30,6 +30,10 @@
   numeric score for every result, preventing incomplete reports from being
   interpreted as an unchanged or unscored baseline.
 
+- Continuity report validation now accepts only the documented finding severity
+  values (`info`, `low`, `medium`, `high`, `unknown`, case-insensitive), so an
+  unsupported value such as `critical` cannot bypass the high-risk gate.
+
 - Configuration path regression coverage now exercises a `linked-parent/../linked-parent` spelling, proving `continuity.json` loading inspects existing components before lexical normalization and rejects the hidden symlink.
 
 - Release source, output, and checkout directory validation now preserves `..`

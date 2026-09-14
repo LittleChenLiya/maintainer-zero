@@ -12,6 +12,7 @@ from typing import Any, Mapping
 REPORT_SCHEMA_VERSION = 1
 MAX_REPORT_BYTES = 8 * 1024 * 1024
 MAX_REPORT_TEXT = 128
+REPORT_SEVERITIES = frozenset({"info", "low", "medium", "high", "unknown"})
 EXPECTED_REPOSITORY_FIELDS = ("commits", "contributors", "dependencies", "workflows", "codeowners", "release_files")
 
 
@@ -154,7 +155,11 @@ def _validate_report(report: Mapping[str, Any]) -> None:
                         f"continuity report result {index} finding {finding_index} id is invalid"
                     )
             severity = finding.get("severity", "unknown")
-            if not isinstance(severity, str) or len(severity) > 32:
+            if (
+                not isinstance(severity, str)
+                or len(severity) > 32
+                or severity.casefold() not in REPORT_SEVERITIES
+            ):
                 raise BaselineError(f"continuity report result {index} finding severity is invalid")
             finding_key = _finding_key(finding)
             if finding_key in seen_findings:

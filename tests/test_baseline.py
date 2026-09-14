@@ -151,6 +151,37 @@ def test_load_report_rejects_invalid_scores(score, tmp_path):
         load_report(path)
 
 
+def test_load_report_rejects_json_integer_digit_bomb_without_traceback(tmp_path):
+    path = tmp_path / "digit-bomb.json"
+    path.write_text(
+        "{\"schema_version\":1,\"rule_version\":\"0.2\","
+        "\"repository\":{},\"results\":[],\"value\":"
+        + "9" * 5000
+        + "}",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(BaselineError, match="Invalid continuity report"):
+        load_report(path)
+
+
+def test_validate_report_cli_rejects_json_integer_digit_bomb(tmp_path, capsys):
+    from maintainer_zero.cli import main
+
+    path = tmp_path / "digit-bomb.json"
+    path.write_text(
+        "{\"schema_version\":1,\"rule_version\":\"0.2\","
+        "\"repository\":{},\"results\":[],\"value\":"
+        + "9" * 5000
+        + "}",
+        encoding="utf-8",
+    )
+
+    assert main(["validate-report", str(path)]) == 2
+    output = capsys.readouterr().out
+    assert "Invalid continuity report" in output
+
+
 def test_compare_reports_rejects_mixed_tool_versions():
     baseline = report(score=80)
     current = report(score=80)

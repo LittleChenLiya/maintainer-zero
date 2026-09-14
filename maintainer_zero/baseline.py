@@ -89,7 +89,11 @@ def load_report(path: str | Path) -> dict[str, Any]:
         )
     except BaselineError:
         raise
-    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
+    # Python may raise a plain ``ValueError`` while converting an oversized
+    # JSON integer (for example, when the interpreter's digit limit is hit).
+    # Treat that parser failure like every other malformed report so the CLI
+    # returns its documented validation error instead of leaking a traceback.
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError, ValueError) as exc:
         raise BaselineError(f"Invalid continuity report: {report_path}") from exc
     if not isinstance(payload, dict):
         raise BaselineError("continuity report must be a JSON object")

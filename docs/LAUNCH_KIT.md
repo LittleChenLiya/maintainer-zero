@@ -49,11 +49,9 @@ https://github.com/LittleChenLiya/maintainer-zero
 ## X / Twitter 短帖
 
 ~~~text
-If your core maintainer vanished for 90 days, could your project still ship a security fix?
+Maintainer-Zero: local chaos drills for maintainer absence, yanked deps, and CI outages. Heuristic score + recovery drafts.
 
-Maintainer-Zero turns maintainer absence, yanked dependencies, and CI outages into a repeatable local chaos drill—with explainable scores and recovery drafts.
-
-Offline by default. No GitHub writes.
+alpha; offline-by-default; No automatic GitHub writes. This is no security certification and no real recovery proof.
 
 Try: https://github.com/LittleChenLiya/maintainer-zero
 ~~~
@@ -133,4 +131,3 @@ Maintainer-Zero 当前是 alpha MVP，结果是启发式评估，不是安全认
 ## 反馈入口
 
 优先使用 GitHub Issues 提交 bug，使用 Discussions 分享演练经验；新的场景请遵循 CONTRIBUTING.md 的 data-only 和可复现要求。
-

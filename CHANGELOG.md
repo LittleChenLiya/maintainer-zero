@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.2.0] - 2026-09-15
+
+GitHub alpha preview; no PyPI or Marketplace publication.
+
+- Added a cross-platform, dependency-free source quick start, reproducible demo output,
+  and launch copy with explicit heuristic and recovery-evidence limits.
+
 - Added a concise Code of Conduct and linked it from contributor and support entry points.
 
 - Added GitHub community-health routing: a support guide, Discussion and security contact links,

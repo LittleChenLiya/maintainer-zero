@@ -16,6 +16,41 @@ and writes only a local metadata snapshot.
 
 For shareable reports, the starter config anonymizes contributor identities and the local repository name/path; keep `privacy.anonymize_repository` enabled unless a private local report is intended.
 
+[Quick start](#quick-start) · [中文指南](docs/GUIDE_ZH.md) · [Demo guide](docs/DEMOS.md) · [Releases](https://github.com/LittleChenLiya/maintainer-zero/releases) · [Share feedback](https://github.com/LittleChenLiya/maintainer-zero/discussions/4)
+
+## Quick start
+
+With Python 3.10+ and Git installed, run directly from a clone on Windows, macOS, or Linux.
+The CLI has no runtime package dependencies and the demo needs no token or network access
+after cloning:
+
+```sh
+git clone https://github.com/LittleChenLiya/maintainer-zero.git
+cd maintainer-zero
+python -m maintainer_zero demo --fail-on-regression
+python -m maintainer_zero simulate . --scenario all --output .continuity
+```
+
+Use `python3` if that is your Python 3 executable. The demo prints:
+
+```text
+Demo suite: 3 data-only demo(s)
+  maintainer-handoff (maintainer-zero): 15 -> 85 (+70, improved)
+  dependency-cold-build (dependency-yanked): 60 -> 84 (+24, improved)
+  ci-release-fallback (ci-outage): 60 -> 95 (+35, improved)
+```
+
+These are synthetic before/after snapshots, not measured recovery performance. The demo
+does not execute builds, yank packages, or disable CI. Scores are heuristics, not a
+security certification or proof of real disaster recovery.
+
+Open `.continuity/report.html` for the local report and `.continuity/recovery/runbook.md`
+for recovery suggestions. To inspect your own local Git checkout, replace the `.` after
+`simulate` with its path. Review reports before sharing; dependency names and findings
+may still be sensitive.
+
+## Optional metadata
+
 The M3 metadata boundary validates reviewed snapshots and preserves missing permissions as
 `unknown`. Network collection requires both `--allow-network` and, for environment credentials,
 `--allow-environment-token`; it never writes to GitHub. See [GitHub metadata](docs/GITHUB_METADATA.md).
@@ -36,13 +71,14 @@ The command only issues bounded HTTPS GET requests to provider-fixed paths. GITL
 FORGEJO_TOKEN is read only with --allow-environment-token; no token is written to the snapshot,
 and failed or partial resources remain explicitly unavailable/unknown.
 
-## Quick start
+## Installed CLI and advanced options
+
+To use the `maintainer-zero` command, install from the checkout in an activated virtual
+environment. Create one with `python -m venv .venv`; activate with
+`.venv\Scripts\Activate.ps1` on Windows or `source .venv/bin/activate` on macOS/Linux.
 
 ```powershell
-cd D:\maintainer-zero
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -e .
+python -m pip install -e .
 maintainer-zero --version
 maintainer-zero simulate . --scenario all --output .continuity
 # CI gate: fail if any scenario scores below 70
@@ -171,7 +207,7 @@ See [the long-term execution plan](docs/LONG_TERM_GOAL.md) for milestones and ac
 
 ## Why this is a distinct category
 
-Bus-factor dashboards statically count contributors; dependency scanners find package vulnerabilities; digital-twin tools map architecture. Maintainer-Zero simulates the *sequence of consequences after an operational failure* and turns the result into a recovery plan. Public searches found adjacent tools, but no mature open-source implementation combining those capabilities.
+Bus-factor dashboards estimate contribution concentration; dependency scanners find package vulnerabilities. Maintainer-Zero combines local repository signals with a deterministic incident model and reviewable recovery drafts. See the [related-work audit](docs/NOVELTY_AUDIT.md) for adjacent tools and the limits of the dated search; this is not a claim of being the first or only implementation.
 
 The checked-in scenario registry is available at maintainer_zero/scenario_registry.json. It is a versioned, data-only contract for scenario review; registry loading never executes an entrypoint or formula. See docs/SCENARIO_REGISTRY.md for contribution and safety rules.
 

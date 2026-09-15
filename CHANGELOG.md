@@ -10,6 +10,8 @@
   only on demand.
 - Removed the consumer workflow's `main`-branch assumption; copied workflows
   now run on pushes to any branch and include a first-run adoption checklist.
+- Added YAML structure checks for repository workflows and the copy-paste
+  consumer workflow, catching malformed triggers and permission drift before CI.
 
 ## [0.2.2] - 2026-09-15
 

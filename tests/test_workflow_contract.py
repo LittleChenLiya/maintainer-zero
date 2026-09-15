@@ -1,9 +1,52 @@
 from pathlib import Path
 import re
 
+import yaml
+
 
 WORKFLOWS = Path(__file__).parents[1] / ".github" / "workflows"
 ACTION = Path(__file__).parents[1] / "action.yml"
+
+
+def _yaml_mapping(path: Path) -> dict:
+    """Load a workflow while preserving the YAML 1.2 meaning of on."""
+    class WorkflowLoader(yaml.SafeLoader):
+        pass
+
+    for first, second in list(WorkflowLoader.yaml_implicit_resolvers.items()):
+        WorkflowLoader.yaml_implicit_resolvers[first] = [
+            (tag, regexp)
+            for tag, regexp in second
+            if tag != "tag:yaml.org,2002:bool"
+        ]
+    parsed = yaml.load(path.read_text(encoding="utf-8"), Loader=WorkflowLoader)
+    assert isinstance(parsed, dict), path.name
+    return parsed
+
+
+def test_workflow_yaml_structure_is_well_formed_and_triggered():
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        workflow = _yaml_mapping(path)
+        assert isinstance(workflow.get("on"), dict), path.name
+        assert workflow["on"], path.name
+        assert workflow.get("permissions") == {"contents": "read"}, path.name
+        assert isinstance(workflow.get("jobs"), dict) and workflow["jobs"], path.name
+
+
+def test_consumer_workflow_yaml_structure_matches_copy_paste_contract():
+    path = Path(__file__).parents[1] / "examples" / "consumer-workflow.yml"
+    workflow = _yaml_mapping(path)
+    triggers = workflow["on"]
+    assert set(triggers) == {"push", "pull_request", "workflow_dispatch", "schedule"}
+    assert triggers["push"] is None
+    assert triggers["pull_request"] is None
+    assert triggers["workflow_dispatch"] is None
+    assert triggers["schedule"] == [{"cron": "17 8 1 * *"}]
+    job = workflow["jobs"]["continuity"]
+    assert job["runs-on"] == "${{ matrix.os }}"
+    assert job["strategy"]["matrix"]["os"] == ["ubuntu-latest", "windows-latest"]
+    assert job["timeout-minutes"] == 10
+    assert len(job["steps"]) >= 7
 
 
 def _matrix_values(workflow: str, key: str) -> list[str]:

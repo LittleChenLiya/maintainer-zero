@@ -6,6 +6,8 @@
 
 - 2026-09-15：移除 consumer workflow 对 `main` 默认分支名称的假设，改为任意分支 push、pull request、月度定时和手动触发，并新增首次接入检查清单；复制到不同分支策略的真实项目后仍可持续执行三类演练。
 
+- 2026-09-15：增加 workflow YAML 结构契约测试，解析触发器、只读权限、jobs、矩阵和 consumer schedule，而不只依赖字符串匹配；CI 显式安装测试解析器，运行包仍保持零运行时依赖。
+
 - 2026-09-15：新增简明 Code of Conduct，并从 README、CONTRIBUTING 和 SUPPORT 入口互相链接，明确尊重、隐私和 conduct 反馈边界。
 
 - 2026-09-15：补齐 GitHub 社区健康入口：新增 SUPPORT.md、Issue 分流配置和 README 社区说明，将问题、场景提案及安全/隐私反馈导向合适渠道，避免公开请求泄露敏感工件。

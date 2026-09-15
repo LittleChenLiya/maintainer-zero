@@ -12,6 +12,9 @@
   now run on pushes to any branch and include a first-run adoption checklist.
 - Added YAML structure checks for repository workflows and the copy-paste
   consumer workflow, catching malformed triggers and permission drift before CI.
+- Declared a contributor `.[test]` extra for pytest, PyYAML, and Python 3.10's
+  TOML reader; workflow tests now reject duplicate YAML keys without mutating
+  the global PyYAML loader.
 
 ## [0.2.2] - 2026-09-15
 

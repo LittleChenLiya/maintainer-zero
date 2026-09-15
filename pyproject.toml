@@ -26,6 +26,13 @@ classifiers = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+test = [
+  "pytest>=8,<9",
+  "PyYAML>=6,<7",
+  "tomli; python_version < '3.11'",
+]
+
 [project.urls]
 Homepage = "https://github.com/LittleChenLiya/maintainer-zero"
 Repository = "https://github.com/LittleChenLiya/maintainer-zero"

@@ -1,6 +1,7 @@
 from pathlib import Path
 import re
 
+import pytest
 import yaml
 
 
@@ -13,12 +14,40 @@ def _yaml_mapping(path: Path) -> dict:
     class WorkflowLoader(yaml.SafeLoader):
         pass
 
+    WorkflowLoader.yaml_implicit_resolvers = {
+        key: list(value)
+        for key, value in yaml.SafeLoader.yaml_implicit_resolvers.items()
+    }
+    WorkflowLoader.yaml_constructors = dict(yaml.SafeLoader.yaml_constructors)
     for first, second in list(WorkflowLoader.yaml_implicit_resolvers.items()):
         WorkflowLoader.yaml_implicit_resolvers[first] = [
             (tag, regexp)
             for tag, regexp in second
             if tag != "tag:yaml.org,2002:bool"
         ]
+
+    def construct_mapping(loader, node, deep=False):
+        if not isinstance(node, yaml.MappingNode):
+            raise yaml.constructor.ConstructorError(
+                None, None, "expected a mapping", node.start_mark
+            )
+        mapping = {}
+        for key_node, value_node in node.value:
+            key = loader.construct_object(key_node, deep=deep)
+            if key in mapping:
+                raise yaml.constructor.ConstructorError(
+                    "while constructing a mapping",
+                    node.start_mark,
+                    f"found duplicate key {key!r}",
+                    key_node.start_mark,
+                )
+            mapping[key] = loader.construct_object(value_node, deep=deep)
+        return mapping
+
+    WorkflowLoader.add_constructor(
+        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+        construct_mapping,
+    )
     parsed = yaml.load(path.read_text(encoding="utf-8"), Loader=WorkflowLoader)
     assert isinstance(parsed, dict), path.name
     return parsed
@@ -47,6 +76,13 @@ def test_consumer_workflow_yaml_structure_matches_copy_paste_contract():
     assert job["strategy"]["matrix"]["os"] == ["ubuntu-latest", "windows-latest"]
     assert job["timeout-minutes"] == 10
     assert len(job["steps"]) >= 7
+
+
+def test_workflow_yaml_loader_rejects_duplicate_keys(tmp_path):
+    path = tmp_path / "duplicate.yml"
+    path.write_text("name: duplicate\non:\n  push:\n  push:\n", encoding="utf-8")
+    with pytest.raises(yaml.constructor.ConstructorError, match="duplicate key"):
+        _yaml_mapping(path)
 
 
 def _matrix_values(workflow: str, key: str) -> list[str]:

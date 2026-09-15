@@ -110,3 +110,15 @@ def test_consumer_workflow_checklist_covers_first_run_and_branch_boundaries():
     assert "integrity credential" in checklist
     assert "alpha" in checklist
     assert "不会自动" in checklist
+
+
+def test_contributor_setup_declares_yaml_test_dependency():
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "[project.optional-dependencies]" in pyproject
+    assert "test = [" in pyproject
+    assert '"PyYAML>=6,<7"' in pyproject
+    assert 'python -m pip install -e ".[test]"' in contributing
+    assert 'wheel -e ".[test]"' in ci

@@ -8,6 +8,8 @@
 
 - 2026-09-15：增加 workflow YAML 结构契约测试，解析触发器、只读权限、jobs、矩阵和 consumer schedule，而不只依赖字符串匹配；CI 显式安装测试解析器，运行包仍保持零运行时依赖。
 
+- 2026-09-15：将 YAML workflow 测试依赖收纳为 `.[test]` 可选 extra，贡献者按文档即可复现本地测试；loader 现在拒绝重复 key 且不修改 PyYAML 全局解析器。
+
 - 2026-09-15：新增简明 Code of Conduct，并从 README、CONTRIBUTING 和 SUPPORT 入口互相链接，明确尊重、隐私和 conduct 反馈边界。
 
 - 2026-09-15：补齐 GitHub 社区健康入口：新增 SUPPORT.md、Issue 分流配置和 README 社区说明，将问题、场景提案及安全/隐私反馈导向合适渠道，避免公开请求泄露敏感工件。

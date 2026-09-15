@@ -59,13 +59,23 @@ def test_consumer_workflow_is_pinned_read_only_and_verifies_outputs():
     assert "persist-credentials: false" in workflow
     assert "actions/setup-python@v7" in workflow
     assert "python-version: \"3.12\"" in workflow
+    assert "runs-on: ${{ matrix.os }}" in workflow
+    assert "fail-fast: false" in workflow
+    assert re.search(r"matrix:\s+os: \[ubuntu-latest, windows-latest\]", workflow)
     assert "uses: LittleChenLiya/maintainer-zero@6be5c215555af557bfb1de27e61498a7e233ce00 # v0.2.2" in workflow
     assert "PYTHONPATH: ${{ steps.drill.outputs['action-path'] }}" in workflow
     assert "pull_request_target" not in workflow
     assert "python -m maintainer_zero validate-report \"$MZ_REPORT_JSON\"" in workflow
     assert "python -m maintainer_zero verify-manifest \"$MZ_MANIFEST\"" in workflow
     assert "python -m maintainer_zero verify-credential \"$MZ_CREDENTIAL\"" in workflow
+    assert "Verify report and integrity artifacts (Windows)" in workflow
+    assert "shell: pwsh" in workflow
+    assert "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }" in workflow
+    assert "Add report to job summary (Windows)" in workflow
+    assert "if: always() && runner.os == 'Windows'" in workflow
+    assert "if: always() && runner.os != 'Windows'" in workflow
     assert "actions/upload-artifact@v7" in workflow
+    assert "name: maintainer-zero-report-${{ matrix.os }}" in workflow
     assert "include-hidden-files: true" in workflow
     assert "if-no-files-found: error" in workflow
     upload = workflow.split("      - name: Upload reviewed report", 1)[1]

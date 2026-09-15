@@ -1,5 +1,7 @@
 # 长期目标：将 Maintainer-Zero 做成可信、可复用的开源连续性演练工具
 
+- 2026-09-15：将可复制的 consumer workflow 扩展为 Ubuntu/Windows 矩阵，分别使用 bash 与 pwsh 完成报告、manifest 和完整性凭证校验，并按平台命名 artifact；首次接入者可以在采用 Action 前验证两条 runner shell 路径。
+
 - 2026-09-15：新增简明 Code of Conduct，并从 README、CONTRIBUTING 和 SUPPORT 入口互相链接，明确尊重、隐私和 conduct 反馈边界。
 
 - 2026-09-15：补齐 GitHub 社区健康入口：新增 SUPPORT.md、Issue 分流配置和 README 社区说明，将问题、场景提案及安全/隐私反馈导向合适渠道，避免公开请求泄露敏感工件。

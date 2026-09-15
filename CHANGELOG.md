@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Expanded the copy-paste consumer workflow to an Ubuntu/Windows matrix with
+  platform-specific verification and summaries, so adopters exercise both
+  composite Action shell branches before relying on the integration.
+
 ## [0.2.2] - 2026-09-15
 
 GitHub alpha preview; no PyPI or Marketplace publication.

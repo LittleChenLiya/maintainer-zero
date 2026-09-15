@@ -14,8 +14,12 @@ concurrency:
 
 jobs:
   continuity:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -37,7 +41,7 @@ jobs:
           fail-under: "70"
 
       - name: Verify report and integrity artifacts
-        if: success()
+        if: success() && runner.os != 'Windows'
         shell: bash
         env:
           MZ_REPORT_JSON: ${{ steps.drill.outputs['report-json'] }}
@@ -53,8 +57,28 @@ jobs:
           python -m maintainer_zero verify-manifest "$MZ_MANIFEST"
           python -m maintainer_zero verify-credential "$MZ_CREDENTIAL"
 
+      - name: Verify report and integrity artifacts (Windows)
+        if: success() && runner.os == 'Windows'
+        shell: pwsh
+        env:
+          MZ_REPORT_JSON: ${{ steps.drill.outputs['report-json'] }}
+          MZ_MANIFEST: ${{ steps.drill.outputs['artifact-manifest'] }}
+          MZ_CREDENTIAL: ${{ steps.drill.outputs['integrity-credential'] }}
+          PYTHONPATH: ${{ steps.drill.outputs['action-path'] }}
+        run: |
+          $files = @($env:MZ_REPORT_JSON, $env:MZ_MANIFEST, $env:MZ_CREDENTIAL)
+          foreach ($file in $files) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "required artifact is missing: $file" }
+          }
+          python -m maintainer_zero validate-report $env:MZ_REPORT_JSON
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m maintainer_zero verify-manifest $env:MZ_MANIFEST
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m maintainer_zero verify-credential $env:MZ_CREDENTIAL
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Add report to job summary
-        if: always()
+        if: always() && runner.os != 'Windows'
         shell: bash
         run: |
           if [[ -f .continuity/report.md ]]; then
@@ -63,11 +87,21 @@ jobs:
             echo "Maintainer-Zero report was not generated. Inspect the failure above." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Add report to job summary (Windows)
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Test-Path .continuity/report.md -PathType Leaf) {
+            Get-Content .continuity/report.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          } else {
+            "Maintainer-Zero report was not generated. Inspect the failure above." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }
+
       - name: Upload reviewed report
         if: success()
         uses: actions/upload-artifact@v7
         with:
-          name: maintainer-zero-report
+          name: maintainer-zero-report-${{ matrix.os }}
           path: |
             .continuity/continuity.json
             .continuity/report.md

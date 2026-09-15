@@ -30,7 +30,7 @@ jobs:
       # Replace it only after reviewing a newer release and its checks.
       - name: Run Maintainer-Zero
         id: drill
-        uses: LittleChenLiya/maintainer-zero@TO_BE_REPLACED # v0.2.2
+        uses: LittleChenLiya/maintainer-zero@6be5c215555af557bfb1de27e61498a7e233ce00 # v0.2.2
         with:
           scenario: all
           output: .continuity

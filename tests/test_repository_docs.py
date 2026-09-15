@@ -59,7 +59,7 @@ def test_consumer_workflow_is_pinned_read_only_and_verifies_outputs():
     assert "persist-credentials: false" in workflow
     assert "actions/setup-python@v7" in workflow
     assert "python-version: \"3.12\"" in workflow
-    assert "uses: LittleChenLiya/maintainer-zero@TO_BE_REPLACED # v0.2.2" in workflow
+    assert "uses: LittleChenLiya/maintainer-zero@6be5c215555af557bfb1de27e61498a7e233ce00 # v0.2.2" in workflow
     assert "PYTHONPATH: ${{ steps.drill.outputs['action-path'] }}" in workflow
     assert "pull_request_target" not in workflow
     assert "python -m maintainer_zero validate-report \"$MZ_REPORT_JSON\"" in workflow

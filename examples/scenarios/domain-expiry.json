@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "domain-expiry",
+  "version": "1.0.0",
+  "title": "Project domain expiry",
+  "summary": "Simulate a project domain or DNS record expiring during a release.",
+  "trigger": {"type": "domain-unavailable", "description": "Users cannot reach the documented project endpoint or release instructions.", "duration_days": 3},
+  "assumptions": ["The source repository remains the authoritative fallback.", "DNS ownership and renewal responsibility can be documented without exposing credentials."],
+  "inputs": [{"name": "domain_owner", "description": "Reviewed ownership and renewal handoff for project domains.", "source": "configuration"}],
+  "score": {"formula": "100 minus bounded penalties for undocumented ownership, renewal, or source fallback", "range": [0, 100]},
+  "recovery_actions": ["Document the source-of-truth URL and renewal handoff.", "Test communicating a release through the repository alone."],
+  "limitations": ["Does not query DNS or registrars.", "Does not renew, redirect, or modify a domain."],
+  "execution": {"mode": "declarative"}
+}

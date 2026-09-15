@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "docs-build-failure",
+  "version": "1.0.0",
+  "title": "Documentation build failure",
+  "summary": "Simulate the documentation site failing while code changes continue to land.",
+  "trigger": {"type": "docs-pipeline-failure", "description": "The documentation build cannot produce a new preview or deployment.", "duration_days": 5},
+  "assumptions": ["Documentation is part of the project's user-facing continuity surface.", "A versioned source archive remains readable without the site."],
+  "inputs": [{"name": "docs_workflow", "description": "Observed workflow and local command for building documentation.", "source": "observed"}],
+  "score": {"formula": "100 minus bounded penalties for missing local build and preview instructions", "range": [0, 100]},
+  "recovery_actions": ["Document a local documentation build and preview path.", "Keep release notes in a versioned repository path."],
+  "limitations": ["Does not fetch the hosted documentation service.", "Does not inspect private deployment credentials."],
+  "execution": {"mode": "declarative"}
+}

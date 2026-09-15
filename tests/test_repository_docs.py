@@ -54,7 +54,8 @@ def test_short_launch_post_fits_and_preserves_alpha_limits():
 
 def test_consumer_workflow_is_pinned_read_only_and_verifies_outputs():
     workflow = (ROOT / "examples" / "consumer-workflow.yml").read_text(encoding="utf-8")
-    assert "  push:\n    branches: [main]" in workflow
+    assert "  push:\n  pull_request:" in workflow
+    assert "branches: [main]" not in workflow
     assert "  pull_request:" in workflow
     assert "  workflow_dispatch:" in workflow
     assert "    - cron: \"17 8 1 * *\"" in workflow
@@ -92,3 +93,20 @@ def test_consumer_workflow_is_pinned_read_only_and_verifies_outputs():
         ".continuity/continuity-credential.json", ".continuity/recovery/runbook.md",
     ):
         assert artifact in upload
+
+
+def test_consumer_workflow_checklist_covers_first_run_and_branch_boundaries():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    integration = (ROOT / "docs" / "GITHUB_INTEGRATION.md").read_text(encoding="utf-8")
+    checklist = (ROOT / "docs" / "CONSUMER_WORKFLOW_CHECKLIST.md").read_text(encoding="utf-8")
+
+    assert "docs/CONSUMER_WORKFLOW_CHECKLIST.md" in readme
+    assert "CONSUMER_WORKFLOW_CHECKLIST.md" in integration
+    assert "workflow_dispatch" in checklist
+    assert "所有分支" in checklist
+    assert "pull_request_target" in checklist
+    assert "contents: read" in checklist
+    assert "persist-credentials: false" in checklist
+    assert "integrity credential" in checklist
+    assert "alpha" in checklist
+    assert "不会自动" in checklist

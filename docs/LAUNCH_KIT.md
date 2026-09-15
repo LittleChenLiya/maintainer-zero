@@ -77,7 +77,7 @@ https://github.com/LittleChenLiya/maintainer-zero
 
 ## 30 秒现场演示
 
-复制到真实仓库的 consumer workflow 会在 main push、pull request、月度定时或手动触发时运行，首份报告可以自然演变为持续的连续性检查。
+复制到真实仓库的 consumer workflow 会在任意分支 push、pull request、月度定时或手动触发时运行，不假设对方默认分支一定叫 `main`；首份报告可以自然演变为持续的连续性检查。复制后请按 [首次接入检查清单](CONSUMER_WORKFLOW_CHECKLIST.md) 做一次人工复核。
 
 在已安装 Python 3.10+ 的环境中：
 

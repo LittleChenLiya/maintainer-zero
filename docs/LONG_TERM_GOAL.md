@@ -2,7 +2,9 @@
 
 - 2026-09-15：将可复制的 consumer workflow 扩展为 Ubuntu/Windows 矩阵，分别使用 bash 与 pwsh 完成报告、manifest 和完整性凭证校验，并按平台命名 artifact；首次接入者可以在采用 Action 前验证两条 runner shell 路径。
 
-- 2026-09-15：为 consumer workflow 增加 main push、pull request、月度定时和手动触发，复制到真实项目后即可持续执行三类演练；仍保持 `pull_request`、`contents: read`、无网络和无外部写入边界。
+- 2026-09-15：为 consumer workflow 增加 push、pull request、月度定时和手动触发，复制到真实项目后即可持续执行三类演练；仍保持 `pull_request`、`contents: read`、无网络和无外部写入边界。
+
+- 2026-09-15：移除 consumer workflow 对 `main` 默认分支名称的假设，改为任意分支 push、pull request、月度定时和手动触发，并新增首次接入检查清单；复制到不同分支策略的真实项目后仍可持续执行三类演练。
 
 - 2026-09-15：新增简明 Code of Conduct，并从 README、CONTRIBUTING 和 SUPPORT 入口互相链接，明确尊重、隐私和 conduct 反馈边界。
 

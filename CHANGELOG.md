@@ -8,6 +8,8 @@
 - Added safe `push` and `pull_request` triggers (alongside monthly schedule and
   manual dispatch), so copied workflows run as continuous checks instead of
   only on demand.
+- Removed the consumer workflow's `main`-branch assumption; copied workflows
+  now run on pushes to any branch and include a first-run adoption checklist.
 
 ## [0.2.2] - 2026-09-15
 

@@ -1,8 +1,13 @@
 """Build and verify wheel/sdist artifacts outside the source checkout."""
 from __future__ import annotations
-import argparse, hashlib, json, os, re, subprocess, sys, tempfile, tomllib
+import argparse, hashlib, json, os, re, subprocess, sys, tempfile
 import stat
 from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 uses the declared test extra.
+    import tomli as tomllib
 
 DEFAULT_VERIFY_OUTPUT = (
     Path("D:/Codex/maintainer-zero-release-verify")

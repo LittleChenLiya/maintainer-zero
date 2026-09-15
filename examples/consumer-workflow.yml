@@ -26,11 +26,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      # This immutable commit is the reviewed v0.2.1 alpha preview.
+      # This immutable commit is the reviewed v0.2.2 alpha preview.
       # Replace it only after reviewing a newer release and its checks.
       - name: Run Maintainer-Zero
         id: drill
-        uses: LittleChenLiya/maintainer-zero@d6fef71cf35da23d903b2ff0e29fcffb31b9a276 # v0.2.1
+        uses: LittleChenLiya/maintainer-zero@TO_BE_REPLACED # v0.2.2
         with:
           scenario: all
           output: .continuity

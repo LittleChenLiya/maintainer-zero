@@ -6,6 +6,8 @@ except ModuleNotFoundError:  # Python 3.10 CI uses the backport.
     import tomli as tomllib
 
 import maintainer_zero
+from maintainer_zero.github_http import DEFAULT_USER_AGENT as GITHUB_USER_AGENT
+from maintainer_zero.provider_http import DEFAULT_USER_AGENT as PROVIDER_USER_AGENT
 
 
 def test_package_version_is_consistent_with_project_metadata():
@@ -25,6 +27,11 @@ def test_project_metadata_points_to_the_public_repository():
     assert project["urls"]["Repository"] == "https://github.com/LittleChenLiya/maintainer-zero"
     assert project["urls"]["Issues"].endswith("/issues")
     assert project["urls"]["Discussions"].endswith("/discussions")
+
+
+def test_read_only_transport_user_agents_match_package_version():
+    assert GITHUB_USER_AGENT == f"maintainer-zero-read-only/{maintainer_zero.__version__}"
+    assert PROVIDER_USER_AGENT == f"maintainer-zero-provider-read-only/{maintainer_zero.__version__}"
 
 
 def test_citation_metadata_matches_public_release_identity():

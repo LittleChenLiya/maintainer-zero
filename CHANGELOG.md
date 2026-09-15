@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## [0.2.2] - 2026-09-15
+
+GitHub alpha preview; no PyPI or Marketplace publication.
+
+- Synchronized the default User-Agent strings of the opt-in read-only GitHub,
+  GitLab, and Forgejo HTTP transports with the package version, and added a
+  regression test so audit logs cannot silently report an older client.
+
 ## [0.2.1] - 2026-09-15
 
 GitHub alpha preview; no PyPI or Marketplace publication.

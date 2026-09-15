@@ -23,7 +23,7 @@ from .metadata_provider import SUPPORTED_ADAPTER_PROVIDERS
 
 DEFAULT_MAX_RESPONSE_BYTES = 1_000_000
 DEFAULT_MAX_TIMEOUT_SECONDS = 60.0
-DEFAULT_USER_AGENT = "maintainer-zero-provider-read-only/0.2.0"
+DEFAULT_USER_AGENT = "maintainer-zero-provider-read-only/0.2.2"
 _CONTROL_CHARS = frozenset(chr(code) for code in range(32)) | {chr(127)}
 _RESPONSE_HEADERS = frozenset(("link", "retry-after", "x-ratelimit-reset", "x-next-page"))
 _MAX_RESPONSE_HEADER_VALUE = 4096

@@ -6,6 +6,8 @@
 
 - 2026-09-15：将 `action-path` 输出作为版本化的 composite Action 契约发布到 v0.2.1；consumer workflow 固定到该版本提交，避免文档示例依赖旧版缺失输出。
 
+- 2026-09-15：将只读 GitHub、GitLab 和 Forgejo HTTP transport 的默认 User-Agent 与包版本同步到 v0.2.2，并加入版本漂移回归测试，保证审计日志能识别实际客户端版本。
+
 - 2026-09-14：Composite Action 改为通过 `PYTHONPATH` 直接运行 checkout 中的代码，不再要求 runner 预装 setuptools 或执行本地包构建；发布验证仍单独覆盖 wheel/sdist。
 
 - 2026-09-14：新增配置路径回归，覆盖 `linked-parent/../linked-parent` 这类会在词法归一化后重新指向链接的写法，确认 `continuity.json` 读取在归一化前拒绝隐藏的 symlink/reparse point。

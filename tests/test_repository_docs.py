@@ -54,6 +54,11 @@ def test_short_launch_post_fits_and_preserves_alpha_limits():
 
 def test_consumer_workflow_is_pinned_read_only_and_verifies_outputs():
     workflow = (ROOT / "examples" / "consumer-workflow.yml").read_text(encoding="utf-8")
+    assert "  push:\n    branches: [main]" in workflow
+    assert "  pull_request:" in workflow
+    assert "  workflow_dispatch:" in workflow
+    assert "    - cron: \"17 8 1 * *\"" in workflow
+    assert "pull_request_target" not in workflow
     assert "permissions:\n  contents: read" in workflow
     assert "actions/checkout@v7" in workflow
     assert "persist-credentials: false" in workflow

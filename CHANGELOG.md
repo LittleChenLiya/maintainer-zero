@@ -5,6 +5,9 @@
 - Expanded the copy-paste consumer workflow to an Ubuntu/Windows matrix with
   platform-specific verification and summaries, so adopters exercise both
   composite Action shell branches before relying on the integration.
+- Added safe `push` and `pull_request` triggers (alongside monthly schedule and
+  manual dispatch), so copied workflows run as continuous checks instead of
+  only on demand.
 
 ## [0.2.2] - 2026-09-15
 

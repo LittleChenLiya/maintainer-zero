@@ -57,7 +57,7 @@ steps:
 
 ## Setup for a repository
 
-For a copy-paste consumer workflow, start with the examples/consumer-workflow.yml file. It uses the immutable commit for the v0.2.2 alpha preview, keeps contents: read, validates the report/manifest/credential with the Action code path, and uploads only verified report artifacts. Review a newer release before changing the pinned ref.
+For a copy-paste consumer workflow, start with the examples/consumer-workflow.yml file. It runs on main pushes, pull requests, a monthly schedule, or manual dispatch; uses the immutable commit for the v0.2.2 alpha preview, keeps contents: read, validates the report/manifest/credential with the Action code path, and uploads only verified report artifacts. Review a newer release before changing the pinned ref.
 The repository now includes a reusable composite Action at its root. After a reviewed release is tagged, a consuming repository can call it from a pinned ref after checkout. On success it exposes `action-path`, `artifact-manifest`, and `integrity-credential`, plus absolute paths to local integrity artifacts; set `PYTHONPATH` to `action-path` when a later step needs to run the bundled offline validators. Set the optional `history` input to a workspace-local JSON file when you want trend sidecars (`history-summary.json`/`.md`) included in the output; baseline comparisons similarly produce `baseline-comparison.json`:
 
 ```yaml

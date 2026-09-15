@@ -76,6 +76,8 @@ https://github.com/LittleChenLiya/maintainer-zero
 
 ## 30 秒现场演示
 
+复制到真实仓库的 consumer workflow 会在 main push、pull request、月度定时或手动触发时运行，首份报告可以自然演变为持续的连续性检查。
+
 在已安装 Python 3.10+ 的环境中：
 
 ~~~powershell

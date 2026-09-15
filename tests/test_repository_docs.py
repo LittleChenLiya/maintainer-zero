@@ -112,6 +112,21 @@ def test_consumer_workflow_checklist_covers_first_run_and_branch_boundaries():
     assert "不会自动" in checklist
 
 
+def test_readme_consumer_workflow_onboarding_has_first_run_diagnostics():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    section = readme.split("### First run after copying the workflow\n", 1)[1].split("\n### ", 1)[0]
+
+    assert "Run workflow" in section
+    assert "Ubuntu" in section and "Windows" in section
+    assert "14-day artifact" in section
+    for symptom in ("workflow is not listed", "cannot be resolved",
+                    "Windows fails", "validation fails",
+                    "No artifact is uploaded", "Monthly run"):
+        assert symptom in section
+    assert "pull_request_target" in section
+    assert "offline-first heuristic drill" in section
+
+
 def test_contributor_setup_declares_yaml_test_dependency():
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")

@@ -402,6 +402,43 @@ def test_release_archive_contract_rejects_special_files_and_zero_size(tmp_path: 
         release_verify._safe_release_archives(wheelhouse)
 
 
+def test_release_archive_contract_matches_project_name_and_version(tmp_path: Path):
+    wheelhouse = tmp_path / "artifacts"
+    wheelhouse.mkdir()
+    (wheelhouse / "maintainer_zero-0.2.2-py3-none-any.whl").write_bytes(b"wheel")
+    (wheelhouse / "maintainer_zero-0.2.2.tar.gz").write_bytes(b"sdist")
+
+    archives = release_verify._safe_release_archives(
+        wheelhouse, project_name="maintainer-zero", project_version="0.2.2"
+    )
+    assert {path.name for path in archives} == {
+        "maintainer_zero-0.2.2-py3-none-any.whl",
+        "maintainer_zero-0.2.2.tar.gz",
+    }
+
+
+@pytest.mark.parametrize(
+    "wheel_name,sdist_name",
+    [
+        ("maintainer_zero-0.2.1-py3-none-any.whl", "maintainer_zero-0.2.2.tar.gz"),
+        ("other_project-0.2.2-py3-none-any.whl", "maintainer_zero-0.2.2.tar.gz"),
+        ("maintainer_zero-0.2.2-py3-none-any.whl", "maintainer_zero-0.2.1.tar.gz"),
+    ],
+)
+def test_release_archive_contract_rejects_stale_or_foreign_filename(
+    tmp_path: Path, wheel_name: str, sdist_name: str
+):
+    wheelhouse = tmp_path / "artifacts"
+    wheelhouse.mkdir()
+    (wheelhouse / wheel_name).write_bytes(b"wheel")
+    (wheelhouse / sdist_name).write_bytes(b"sdist")
+
+    with pytest.raises(ValueError, match="filename does not match project metadata"):
+        release_verify._safe_release_archives(
+            wheelhouse, project_name="maintainer-zero", project_version="0.2.2"
+        )
+
+
 def test_release_archive_is_staged_before_install_probe(tmp_path: Path):
     wheelhouse = tmp_path / "artifacts"
     install_dir = tmp_path / "install"

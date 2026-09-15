@@ -1,7 +1,0 @@
-{
-  "name": "continuity-fixture",
-  "private": true,
-  "devDependencies": {
-    "markdownlint-cli": "^0.39.0"
-  }
-}

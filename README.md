@@ -192,6 +192,25 @@ cross-project ranking.
 A copy-paste consumer workflow is available at examples/consumer-workflow.yml. It runs on pushes to any branch, pull requests, a monthly schedule, or manual dispatch; this avoids assuming that an adopting repository calls its default branch `main`. It pins the reviewed v0.2.2 alpha commit, runs on Ubuntu and Windows, exports the Action code path for follow-up validation, and verifies report integrity before upload. See the [first-run checklist](docs/CONSUMER_WORKFLOW_CHECKLIST.md) after copying it.
 This repository includes a self-analysis workflow in `.github/workflows/continuity.yml`, which runs the drill and publishes a job summary and artifact. The root `action.yml` is also a reusable composite Action; consumers should pin a reviewed tag or commit and keep the workflow read-only. See [GitHub integration](docs/GITHUB_INTEGRATION.md) for the setup and security boundary. PR comments are available as local drafts only; external publishing remains an explicitly injected integration.
 
+### First run after copying the workflow
+
+Copy `examples/consumer-workflow.yml` to `.github/workflows/maintainer-zero.yml`, commit it, and open the repository's **Actions** tab. Use **Run workflow** for a controlled first run when the file is present on the default branch; otherwise make a small push or open a pull request to exercise the workflow. A successful run has one Ubuntu and one Windows matrix leg, a report in each Job Summary, and one 14-day artifact per platform. The artifact upload is intentionally gated on report, manifest, and integrity-credential validation.
+
+If the first run does not look like that, start with this short diagnostic table:
+
+| Symptom | Check first | Safe next action |
+| --- | --- | --- |
+| The workflow is not listed or **Run workflow** is missing | The file is under `.github/workflows/` and Actions are enabled; manual dispatch is shown only when the workflow exists on the default branch | Commit the file to the default branch, or trigger a push/PR and inspect the workflow file validation |
+| `LittleChenLiya/maintainer-zero@…` cannot be resolved | The pinned commit is reachable and exactly 40 hexadecimal characters; do not replace it with an unreviewed branch | Re-copy the reviewed ref from `examples/consumer-workflow.yml`, then retry |
+| Checkout or setup fails before the drill | The run's permissions and runner policy; the template requires `contents: read`, Ubuntu, and Windows hosted runners | Fix repository/organization Actions policy or runner availability; keep permissions read-only |
+| Ubuntu passes but Windows fails (or the reverse) | The failing matrix leg's shell output and path formatting | Re-run that leg after checking the runner image; do not remove validation or switch to `pull_request_target` just to make it pass |
+| Report/manifest/credential validation fails | The `Run Maintainer-Zero` logs for the first error and whether the output directory was reused | Start a fresh run and avoid hand-editing generated files; only upload a bundle after all three validators pass |
+| No artifact is uploaded | Whether the job is green; upload uses `if: success()` and `if-no-files-found: error` by design | Read the Job Summary and fix the earlier failure; an unverified bundle is not published |
+| Monthly run has not appeared | Schedules use UTC (`08:17` on the first day of each month) and run only from the default branch; GitHub may delay scheduled jobs | Confirm Actions are enabled and the repository has recent activity, then use `workflow_dispatch` for an immediate check |
+| The report contains dependency names or findings you did not want to share | Privacy settings and the generated artifact contents; anonymization does not remove every repository-sensitive finding | Review and redact before sharing; Maintainer-Zero never uploads source files or writes to GitHub |
+
+These checks diagnose workflow wiring, not project resilience. Maintainer-Zero remains an alpha, offline-first heuristic drill: a score is neither a security certification nor proof of real disaster recovery.
+
 Before creating a release, use the read-only [release candidate workflow](.github/workflows/release-candidate.yml) on a `v*` tag or via manual dispatch. It verifies wheel/sdist artifacts outside the checkout and uploads them for review; it does not publish to PyPI or the Marketplace.
 
 ## Roadmap

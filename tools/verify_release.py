@@ -1,6 +1,6 @@
 """Build and verify wheel/sdist artifacts outside the source checkout."""
 from __future__ import annotations
-import argparse, hashlib, json, os, subprocess, sys, tempfile
+import argparse, hashlib, json, os, re, subprocess, sys, tempfile, tomllib
 import stat
 from pathlib import Path
 
@@ -13,6 +13,8 @@ _REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 _MAX_RELEASE_ARCHIVE_BYTES = 128 * 1024 * 1024
 _RELEASE_CHUNK = 1024 * 1024
 _SOURCE_SKIP_DIRS = {".git", ".hg", ".svn", ".pytest_cache", "__pycache__", "build", "dist"}
+_WHEEL_SUFFIX = ".whl"
+_SDIST_SUFFIX = ".tar.gz"
 
 def run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
     completed = subprocess.run(command, cwd=cwd, env=env, check=True, text=True, capture_output=True)
@@ -212,10 +214,56 @@ def _copy_release_source(root: Path, target: Path) -> None:
         raise ValueError(f"release source changed during snapshot: {root}")
 
 
-def _safe_release_archives(wheelhouse: Path) -> list[Path]:
+def _project_identity(root: Path) -> tuple[str, str]:
+    """Read the distribution name/version used to validate built filenames."""
+    metadata_path = root / "pyproject.toml"
+    try:
+        with metadata_path.open("rb") as handle:
+            project = tomllib.load(handle).get("project", {})
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise ValueError(f"cannot read project metadata: {metadata_path}") from exc
+    name = project.get("name")
+    version = project.get("version")
+    if not isinstance(name, str) or not name.strip() or not isinstance(version, str) or not version.strip():
+        raise ValueError("project metadata must define a non-empty name and version")
+    return name, version
+
+
+def _validate_archive_filenames(archives: list[Path], project_name: str, project_version: str) -> None:
+    """Reject archives whose names do not identify this project/version.
+
+    A successful install probe alone can miss an accidentally reused artifact
+    (for example, a stale wheel with a different distribution name). Check the
+    packaging-level filenames before any archive is installed. Wheel filenames
+    use the PEP 427 underscore-normalized distribution name and may optionally
+    include a build tag between version and compatibility tags.
+    """
+    # Setuptools normalizes distribution names to underscores in both wheel
+    # and sdist filenames (PEP 625/packaging normalization).
+    normalized_name = re.sub(r"[-_.]+", "_", project_name)
+    expected_sdist = f"{normalized_name}-{project_version}{_SDIST_SUFFIX}"
+    sdist = next(path for path in archives if path.name.endswith(_SDIST_SUFFIX))
+    if sdist.name != expected_sdist:
+        raise ValueError(
+            f"sdist filename does not match project metadata: expected {expected_sdist!r}, found {sdist.name!r}"
+        )
+
+    normalized_version = project_version.replace("-", "_")
+    wheel = next(path for path in archives if path.name.endswith(_WHEEL_SUFFIX))
+    fields = wheel.name[:-len(_WHEEL_SUFFIX)].split("-")
+    if len(fields) < 5 or fields[0] != normalized_name or fields[1] != normalized_version:
+        raise ValueError(
+            "wheel filename does not match project metadata: expected distribution/version "
+            f"{normalized_name!r}/{normalized_version!r}, found {wheel.name!r}"
+        )
+
+
+def _safe_release_archives(
+    wheelhouse: Path, *, project_name: str | None = None, project_version: str | None = None
+) -> list[Path]:
     """Return exactly one bounded, ordinary wheel and sdist archive."""
     _safe_existing_directory(wheelhouse, "release artifact directory")
-    archives = sorted(wheelhouse.glob("*.whl")) + sorted(wheelhouse.glob("*.tar.gz"))
+    archives = sorted(wheelhouse.glob(f"*{_WHEEL_SUFFIX}")) + sorted(wheelhouse.glob(f"*{_SDIST_SUFFIX}"))
     if len(archives) != 2:
         raise RuntimeError(f"expected one wheel and one sdist, found {archives}")
     for archive in archives:
@@ -227,8 +275,12 @@ def _safe_release_archives(wheelhouse: Path) -> list[Path]:
             raise ValueError(f"release archive target is unsafe: {archive}")
         if info.st_size <= 0 or info.st_size > _MAX_RELEASE_ARCHIVE_BYTES:
             raise ValueError(f"release archive has invalid size: {archive}")
-    if not any(path.name.endswith(".whl") for path in archives) or not any(path.name.endswith(".tar.gz") for path in archives):
+    if not any(path.name.endswith(_WHEEL_SUFFIX) for path in archives) or not any(path.name.endswith(_SDIST_SUFFIX) for path in archives):
         raise RuntimeError(f"expected one wheel and one sdist, found {archives}")
+    if (project_name is None) != (project_version is None):
+        raise ValueError("project name and version must be provided together")
+    if project_name is not None and project_version is not None:
+        _validate_archive_filenames(archives, project_name, project_version)
     return archives
 
 
@@ -377,7 +429,13 @@ def verify(root: Path, output: Path) -> None:
         run([sys.executable, "-m", "pip", "wheel", str(source_snapshot), "--no-deps", "--no-index", "--no-build-isolation", "--wheel-dir", str(wheelhouse)], cwd=source_snapshot)
         build_sdist = "import setuptools.build_meta as b; b.build_sdist(%r)" % str(wheelhouse)
         run([sys.executable, "-c", build_sdist], cwd=source_snapshot)
-    archives = _safe_release_archives(wheelhouse)
+    # Read project metadata only after output containment and the build have
+    # passed. This preserves path errors for invalid output locations and keeps
+    # lightweight path-only tests independent of complete packaging metadata.
+    project_name, project_version = _project_identity(root)
+    archives = _safe_release_archives(
+        wheelhouse, project_name=project_name, project_version=project_version
+    )
     for archive in archives:
         # Keep install probes in a per-run temporary directory. This makes the
         # documented command repeatable without deleting arbitrary user files

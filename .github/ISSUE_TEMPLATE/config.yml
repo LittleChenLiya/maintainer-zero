@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Usage questions and project ideas
-    url: https://github.com/LittleChenLiya/maintainer-zero/discussions
-    about: Ask questions, compare drills, or discuss roadmap ideas in Discussions.
-  - name: Security and privacy concerns
-    url: https://github.com/LittleChenLiya/maintainer-zero/blob/main/SECURITY.md
-    about: Do not disclose tokens, private repository content, or vulnerability details in a public issue.

@@ -9,6 +9,7 @@
 ## 官方链接
 
 - Repository: <https://github.com/LittleChenLiya/maintainer-zero>
+- Show-and-tell discussion: <https://github.com/LittleChenLiya/maintainer-zero/discussions/5>
 - 快速开始: [README.md](../README.md#quick-start)
 - 长期目标: [LONG_TERM_GOAL.md](LONG_TERM_GOAL.md)
 - 新颖性边界: [NOVELTY_AUDIT.md](NOVELTY_AUDIT.md)

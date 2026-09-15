@@ -16,7 +16,7 @@ and writes only a local metadata snapshot.
 
 For shareable reports, the starter config anonymizes contributor identities and the local repository name/path; keep `privacy.anonymize_repository` enabled unless a private local report is intended.
 
-[Quick start](#quick-start) · [中文指南](docs/GUIDE_ZH.md) · [Demo guide](docs/DEMOS.md) · [Releases](https://github.com/LittleChenLiya/maintainer-zero/releases) · [Share feedback](https://github.com/LittleChenLiya/maintainer-zero/discussions/4)
+[Quick start](#quick-start) · [中文指南](docs/GUIDE_ZH.md) · [Demo guide](docs/DEMOS.md) · [Releases](https://github.com/LittleChenLiya/maintainer-zero/releases) · [Show and tell](https://github.com/LittleChenLiya/maintainer-zero/discussions/5) · [Share feedback](https://github.com/LittleChenLiya/maintainer-zero/discussions/4)
 
 ## Quick start
 
